@@ -7,10 +7,17 @@ from uuid import uuid4
 
 from jose import JWTError, jwt
 from langgraph.graph import END, START, StateGraph
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
+from .models import AgentRun, GithubProfile, PsychometricProfile
 from .schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
 
+
+# ---------------------------------------------------------------------------
+# JWT helpers
+# ---------------------------------------------------------------------------
 
 def create_jwt(user_id: str) -> tuple[str, int]:
     expires_in = settings.jwt_exp_minutes * 60
@@ -54,16 +61,63 @@ def build_github_authorization_url(state: str) -> str:
     return f"https://github.com/login/oauth/authorize?{urlencode(params)}"
 
 
-def exchange_github_code_for_identity(code: str) -> str:
-    clean = "".join(char for char in code.lower() if char.isalnum())
-    if not clean:
-        raise ValueError("OAuth code is invalid.")
-    return f"user_github_{clean[-8:]}"
+async def exchange_github_code_for_identity(code: str, db: AsyncSession) -> dict[str, str]:
+    """Exchange OAuth code for real GitHub identity via GitHub API.
 
+    In Feature 2 this will call https://github.com/login/oauth/access_token.
+    For now it derives a stable user_id from the code and upserts a placeholder user.
+    """
+    import httpx
+
+    if settings.github_client_secret and settings.github_client_id != "local-dev":
+        # Real OAuth exchange
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://github.com/login/oauth/access_token",
+                json={
+                    "client_id": settings.github_client_id,
+                    "client_secret": settings.github_client_secret,
+                    "code": code,
+                },
+                headers={"Accept": "application/json"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            token_data = resp.json()
+            access_token = token_data.get("access_token", "")
+
+        async with httpx.AsyncClient() as client:
+            user_resp = await client.get(
+                "https://api.github.com/user",
+                headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+                timeout=10,
+            )
+            user_resp.raise_for_status()
+            github_user = user_resp.json()
+
+        user_id = f"gh_{github_user['id']}"
+        return {
+            "user_id": user_id,
+            "github_handle": github_user.get("login", ""),
+            "name": github_user.get("name", ""),
+            "email": github_user.get("email", ""),
+            "avatar_url": github_user.get("avatar_url", ""),
+            "access_token": access_token,
+        }
+    else:
+        # Dev fallback: derive stable user_id from code string
+        clean = "".join(char for char in code.lower() if char.isalnum())
+        if not clean:
+            raise ValueError("OAuth code is invalid.")
+        user_id = f"user_github_{clean[-8:]}"
+        return {"user_id": user_id, "github_handle": clean[-8:], "name": "", "email": "", "avatar_url": "", "access_token": ""}
+
+
+# ---------------------------------------------------------------------------
+# GitHub sync — DB-persisted
+# ---------------------------------------------------------------------------
 
 GITHUB_SYNC_COMPLETE_AFTER_SECONDS = 2.5
-_github_sync_store: dict[str, dict[str, Any]] = {}
-_assessment_responses: dict[str, dict[str, Any]] = {}
 
 
 def _derive_chronotype(github_handle: str) -> str:
@@ -74,52 +128,73 @@ def _derive_chronotype(github_handle: str) -> str:
     return "balanced"
 
 
-def _sync_snapshot(record: dict[str, Any]) -> dict[str, Any]:
-    elapsed = (datetime.now(tz=UTC) - record["started_at"]).total_seconds()
+def _compute_sync_status(started_at: datetime) -> str:
+    elapsed = (datetime.now(tz=UTC) - started_at).total_seconds()
     if elapsed < 0.75:
-        status = "queued"
-    elif elapsed < GITHUB_SYNC_COMPLETE_AFTER_SECONDS:
-        status = "syncing"
-    else:
-        status = "complete"
-
-    record["status"] = status
-    record["updated_at"] = datetime.now(tz=UTC)
-    if status == "complete" and record["completed_at"] is None:
-        record["completed_at"] = datetime.now(tz=UTC)
-    return record
+        return "queued"
+    if elapsed < GITHUB_SYNC_COMPLETE_AFTER_SECONDS:
+        return "syncing"
+    return "complete"
 
 
-def trigger_github_sync(github_handle: str, user_id: str) -> dict[str, Any]:
+def _profile_to_sync_dict(profile: GithubProfile) -> dict[str, Any]:
+    now = datetime.now(tz=UTC)
+    status = _compute_sync_status(profile.started_at)
+    completed_at = profile.completed_at
+    if status == "complete" and completed_at is None:
+        completed_at = profile.started_at + timedelta(seconds=GITHUB_SYNC_COMPLETE_AFTER_SECONDS)
+    return {
+        "sync_id": profile.id,
+        "user_id": profile.user_id,
+        "github_handle": profile.github_handle,
+        "chronotype": profile.chronotype or "balanced",
+        "activity_rhythm_score": profile.activity_rhythm_score or 0.0,
+        "collaboration_index": profile.collaboration_index or 0.0,
+        "prs_last_30_days": profile.prs_last_30_days or 0,
+        "commits_last_30_days": profile.commits_last_30_days or 0,
+        "status": status,
+        "started_at": profile.started_at,
+        "updated_at": now,
+        "completed_at": completed_at,
+    }
+
+
+async def trigger_github_sync(github_handle: str, user_id: str, db: AsyncSession) -> dict[str, Any]:
     chronotype = _derive_chronotype(github_handle)
     commits = len(github_handle) * 7
     prs = len(github_handle) * 3
-    activity_rhythm_score = round(min(100.0, 20 + commits * 0.9), 2)
+
     sync_id = str(uuid4())
-    record: dict[str, Any] = {
-        "sync_id": sync_id,
-        "user_id": user_id,
-        "github_handle": github_handle,
-        "chronotype": chronotype,
-        "activity_rhythm_score": activity_rhythm_score,
-        "collaboration_index": round(min(100, 45 + prs * 0.8), 2),
-        "prs_last_30_days": prs,
-        "commits_last_30_days": commits,
-        "status": "queued",
-        "started_at": datetime.now(tz=UTC),
-        "updated_at": datetime.now(tz=UTC),
-        "completed_at": None,
-    }
-    _github_sync_store[sync_id] = record
-    return _sync_snapshot(record)
+    profile = GithubProfile(
+        id=sync_id,
+        user_id=user_id,
+        github_handle=github_handle,
+        chronotype=chronotype,
+        activity_rhythm_score=round(min(100.0, 20 + commits * 0.9), 2),
+        collaboration_index=round(min(100.0, 45 + prs * 0.8), 2),
+        total_commits=commits,
+        prs_last_30_days=prs,
+        commits_last_30_days=commits,
+        sync_status="queued",
+        started_at=datetime.now(tz=UTC),
+    )
+    db.add(profile)
+    await db.commit()
+    await db.refresh(profile)
+    return _profile_to_sync_dict(profile)
 
 
-def get_github_sync(sync_id: str) -> dict[str, Any] | None:
-    record = _github_sync_store.get(sync_id)
-    if record is None:
+async def get_github_sync(sync_id: str, db: AsyncSession) -> dict[str, Any] | None:
+    result = await db.execute(select(GithubProfile).where(GithubProfile.id == sync_id))
+    profile = result.scalar_one_or_none()
+    if profile is None:
         return None
-    return _sync_snapshot(record)
+    return _profile_to_sync_dict(profile)
 
+
+# ---------------------------------------------------------------------------
+# Assessment — DB-persisted
+# ---------------------------------------------------------------------------
 
 def assessment_questions() -> list[dict]:
     prompts = [
@@ -161,7 +236,7 @@ def score_assessment(answers: dict[str, int]) -> dict[str, float]:
 
 def build_assessment_profile(user_id: str, answers: dict[str, int], submitted_at: datetime | None = None) -> dict:
     question_ids = [f"q{index + 1}" for index in range(len(ASHTAKOOT_DIMENSIONS))]
-    missing_question_ids = [question_id for question_id in question_ids if question_id not in answers]
+    missing_question_ids = [qid for qid in question_ids if qid not in answers]
     return {
         "user_id": user_id,
         "scores": score_assessment(answers),
@@ -173,33 +248,69 @@ def build_assessment_profile(user_id: str, answers: dict[str, int], submitted_at
     }
 
 
-def submit_assessment_response(user_id: str, answers: dict[str, int]) -> dict:
+async def submit_assessment_response(user_id: str, answers: dict[str, int], db: AsyncSession) -> dict:
     submitted_at = datetime.now(tz=UTC)
-    profile = build_assessment_profile(user_id=user_id, answers=answers, submitted_at=submitted_at)
-    _assessment_responses[user_id] = profile
-    return profile
+    profile_data = build_assessment_profile(user_id=user_id, answers=answers, submitted_at=submitted_at)
+
+    # Upsert: update if exists, insert if not
+    result = await db.execute(select(PsychometricProfile).where(PsychometricProfile.user_id == user_id))
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        existing.answers = answers
+        existing.scores = profile_data["scores"]
+        existing.answered_count = profile_data["answered_count"]
+        existing.missing_question_ids = profile_data["missing_question_ids"]
+        existing.complete = profile_data["complete"]
+        existing.submitted_at = submitted_at
+    else:
+        record = PsychometricProfile(
+            id=str(uuid4()),
+            user_id=user_id,
+            answers=answers,
+            scores=profile_data["scores"],
+            answered_count=profile_data["answered_count"],
+            total_questions=profile_data["total_questions"],
+            missing_question_ids=profile_data["missing_question_ids"],
+            complete=profile_data["complete"],
+            submitted_at=submitted_at,
+        )
+        db.add(record)
+
+    await db.commit()
+    return profile_data
 
 
-def get_assessment_response(user_id: str) -> dict:
-    if user_id in _assessment_responses:
-        return _assessment_responses[user_id]
-    return build_assessment_profile(user_id=user_id, answers={})
+async def get_assessment_response(user_id: str, db: AsyncSession) -> dict:
+    result = await db.execute(select(PsychometricProfile).where(PsychometricProfile.user_id == user_id))
+    record = result.scalar_one_or_none()
+    if record is None:
+        return build_assessment_profile(user_id=user_id, answers={})
+    return {
+        "user_id": record.user_id,
+        "scores": record.scores,
+        "answered_count": record.answered_count,
+        "total_questions": record.total_questions,
+        "missing_question_ids": record.missing_question_ids,
+        "complete": record.complete,
+        "submitted_at": record.submitted_at,
+    }
 
+
+# ---------------------------------------------------------------------------
+# Compatibility engine (pure computation — no DB needed)
+# ---------------------------------------------------------------------------
 
 def mock_compatibility_scores(member_id: str, data_mode: str = "full") -> dict[str, float | None]:
     seed = sum(ord(ch) for ch in member_id.lower())
     rng = random.Random(seed)
     scores: dict[str, float | None] = {}
-
     for dimension in ASHTAKOOT_DIMENSIONS:
         weight = ASHTAKOOT_WEIGHTS[dimension]
-        # Stable deterministic signal generation for local demo runs.
         scores[dimension] = round(weight * rng.uniform(0.35, 0.95), 2)
-
     if data_mode == "incomplete":
         for dimension in rng.sample(ASHTAKOOT_DIMENSIONS, k=3):
             scores[dimension] = None
-
     return scores
 
 
@@ -255,17 +366,13 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
         )
 
     if total >= 28:
-        level = "excellent"
-        label = "excellent"
+        level, label = "excellent", "excellent"
     elif total >= 20:
-        level = "good"
-        label = "moderate"
+        level, label = "good", "moderate"
     elif total >= 12:
-        level = "fair"
-        label = "moderate"
+        level, label = "fair", "moderate"
     else:
-        level = "poor"
-        label = "high_friction"
+        level, label = "poor", "high_friction"
 
     confidence = round(observed_signal_count / total_signal_count, 2)
     if confidence < 0.75:
@@ -289,6 +396,10 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
     }
 
 
+# ---------------------------------------------------------------------------
+# Orchestrator — LangGraph + DB-persisted agent runs
+# ---------------------------------------------------------------------------
+
 def start_orchestrator_steps(include_candidates: bool) -> list[str]:
     steps = ["github_analyst", "psychometric_profiler", "compatibility_engine", "synthesis"]
     if include_candidates:
@@ -309,17 +420,27 @@ class OrchestratorState(TypedDict, total=False):
 
 def _github_analyst_node(state: OrchestratorState) -> dict[str, Any]:
     handle = state["user_id"].replace("user_", "") or "team-member"
-    return {"github_signals": trigger_github_sync(github_handle=handle, user_id=state["user_id"])}
+    # Sync version for LangGraph node (real async version in Feature 3)
+    chronotype = _derive_chronotype(handle)
+    commits = len(handle) * 7
+    return {
+        "github_signals": {
+            "github_handle": handle,
+            "chronotype": chronotype,
+            "commits_last_30_days": commits,
+            "collaboration_index": round(min(100.0, 45 + len(handle) * 3 * 0.8), 2),
+            "activity_rhythm_score": round(min(100.0, 20 + commits * 0.9), 2),
+        }
+    }
 
 
-def _psychometric_profiler_node(_: OrchestratorState) -> dict[str, Any]:
+def _psychometric_profiler_node(state: OrchestratorState) -> dict[str, Any]:
     answer_map = {f"q{idx + 1}": 3 + (idx % 3) for idx in range(len(ASHTAKOOT_DIMENSIONS))}
-    profile = build_assessment_profile(user_id="orchestrator_user", answers=answer_map, submitted_at=datetime.now(tz=UTC))
+    profile = build_assessment_profile(user_id=state["user_id"], answers=answer_map, submitted_at=datetime.now(tz=UTC))
     return {"assessment_profile": profile}
 
 
 def _candidate_simulation_node(_: OrchestratorState) -> dict[str, Any]:
-    # Deterministic placeholder output until candidate simulation service lands.
     return {
         "candidate_outlook": {
             "status": "simulated",
@@ -376,6 +497,26 @@ def _compiled_orchestrator_graph():
     return graph.compile()
 
 
+async def create_agent_run(team_id: str, user_id: str, include_candidates: bool, db: AsyncSession) -> str:
+    run_id = str(uuid4())
+    run = AgentRun(
+        id=run_id,
+        team_id=team_id,
+        user_id=user_id,
+        include_candidates=include_candidates,
+        status="started",
+        started_at=datetime.now(tz=UTC),
+    )
+    db.add(run)
+    await db.commit()
+    return run_id
+
+
+async def get_agent_run(run_id: str, db: AsyncSession) -> AgentRun | None:
+    result = await db.execute(select(AgentRun).where(AgentRun.id == run_id))
+    return result.scalar_one_or_none()
+
+
 async def stream_orchestrator_updates(
     *,
     team_id: str,
@@ -392,8 +533,11 @@ async def stream_orchestrator_updates(
         yield update
 
 
+# ---------------------------------------------------------------------------
+# Synthesis (template-based — upgraded to real Claude in Feature 4)
+# ---------------------------------------------------------------------------
+
 def synthesis_from_compat(total_score: float, weak_dimensions: list[str]) -> dict:
-    strengths = "The team profile suggests stable collaboration patterns."
     if total_score >= 28:
         verdict = "The pair/team alignment is strong for delivery-critical work."
     elif total_score < 18:
@@ -401,13 +545,12 @@ def synthesis_from_compat(total_score: float, weak_dimensions: list[str]) -> dic
     else:
         verdict = "The pair/team is workable but needs intentional alignment rituals."
 
-    if weak_dimensions:
-        weak_text = ", ".join(weak_dimensions[:3])
-        uncertainty = (
-            f"Weak dimensions detected in {weak_text}; collect more behavioral data before final staffing decisions."
-        )
-    else:
-        uncertainty = "No high-risk weak dimensions detected in this run."
+    strengths = "The team profile suggests stable collaboration patterns."
+    uncertainty = (
+        f"Weak dimensions detected in {', '.join(weak_dimensions[:3])}; collect more behavioral data before final staffing decisions."
+        if weak_dimensions
+        else "No high-risk weak dimensions detected in this run."
+    )
 
     return {
         "run_id": str(uuid4()),

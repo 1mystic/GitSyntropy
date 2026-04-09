@@ -1,11 +1,14 @@
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
+from .database import create_tables, get_db
 from .schemas import (
     AnalysisRequest,
     AnalysisResponse,
@@ -31,22 +34,31 @@ from .services import (
     AuthTokenError,
     assessment_questions,
     build_github_authorization_url,
+    compatibility,
+    create_agent_run,
+    create_jwt,
     create_oauth_state,
     decode_jwt,
     exchange_github_code_for_identity,
-    compatibility,
-    create_jwt,
-    get_github_sync,
+    get_agent_run,
     get_assessment_response,
+    get_github_sync,
     mock_compatibility_scores,
-    submit_assessment_response,
     start_orchestrator_steps,
     stream_orchestrator_updates,
+    submit_assessment_response,
     synthesis_from_compat,
     trigger_github_sync,
 )
 
-app = FastAPI(title=settings.app_name, version=settings.app_version)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await create_tables()
+    yield
+
+
+app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,8 +67,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-_orchestrator_run_store: dict[str, OrchestratorRunRequest] = {}
 
 
 def _require_bearer_token(authorization: str | None = Header(default=None)) -> str:
@@ -71,10 +81,18 @@ def _require_bearer_token(authorization: str | None = Header(default=None)) -> s
     return parts[1]
 
 
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
+
 @app.get(f"{settings.api_prefix}/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse(status="ok", service=settings.app_name, version=settings.app_version)
 
+
+# ---------------------------------------------------------------------------
+# Mock analysis (kept for backward compat with frontend)
+# ---------------------------------------------------------------------------
 
 @app.post(f"{settings.api_prefix}/analysis/mock", response_model=AnalysisResponse)
 async def mock_analysis(payload: AnalysisRequest) -> AnalysisResponse:
@@ -87,6 +105,10 @@ async def mock_analysis(payload: AnalysisRequest) -> AnalysisResponse:
         generated_at=datetime.now(tz=UTC),
     )
 
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 
 @app.get(f"{settings.api_prefix}/auth/github/start", response_model=GithubAuthStartResponse)
 async def auth_github_start() -> GithubAuthStartResponse:
@@ -101,8 +123,9 @@ async def auth_github_start() -> GithubAuthStartResponse:
 
 
 @app.post(f"{settings.api_prefix}/auth/github/callback", response_model=AuthTokenResponse)
-async def auth_github_callback(payload: GithubAuthCallbackRequest) -> AuthTokenResponse:
-    user_id = exchange_github_code_for_identity(payload.code)
+async def auth_github_callback(payload: GithubAuthCallbackRequest, db: AsyncSession = Depends(get_db)) -> AuthTokenResponse:
+    identity = await exchange_github_code_for_identity(payload.code, db)
+    user_id = identity["user_id"]
     token, expires_in = create_jwt(user_id=user_id)
     return AuthTokenResponse(access_token=token, expires_in=expires_in, user_id=user_id)
 
@@ -131,19 +154,27 @@ async def auth_session(token: str = Depends(_require_bearer_token)) -> AuthSessi
     return AuthSessionResponse(authenticated=True, user_id=user_id, expires_at=expires_at)
 
 
+# ---------------------------------------------------------------------------
+# GitHub sync
+# ---------------------------------------------------------------------------
+
 @app.post(f"{settings.api_prefix}/github/sync", response_model=GithubSyncResponse)
-async def github_sync(payload: GithubSyncRequest) -> GithubSyncResponse:
-    data = trigger_github_sync(payload.github_handle, user_id=payload.user_id)
+async def github_sync(payload: GithubSyncRequest, db: AsyncSession = Depends(get_db)) -> GithubSyncResponse:
+    data = await trigger_github_sync(payload.github_handle, user_id=payload.user_id, db=db)
     return GithubSyncResponse(**data)
 
 
 @app.get(f"{settings.api_prefix}/github/sync/{{sync_id}}", response_model=GithubSyncResponse)
-async def github_sync_status(sync_id: str) -> GithubSyncResponse:
-    data = get_github_sync(sync_id)
+async def github_sync_status(sync_id: str, db: AsyncSession = Depends(get_db)) -> GithubSyncResponse:
+    data = await get_github_sync(sync_id, db=db)
     if data is None:
         raise HTTPException(status_code=404, detail="Sync job not found")
     return GithubSyncResponse(**data)
 
+
+# ---------------------------------------------------------------------------
+# Assessment
+# ---------------------------------------------------------------------------
 
 @app.get(f"{settings.api_prefix}/assessment/questions", response_model=list[AssessmentQuestion])
 async def get_assessment_questions() -> list[AssessmentQuestion]:
@@ -151,22 +182,26 @@ async def get_assessment_questions() -> list[AssessmentQuestion]:
 
 
 @app.get(f"{settings.api_prefix}/assessment/responses/{{user_id}}", response_model=AssessmentProfileResponse)
-async def get_assessment(user_id: str) -> AssessmentProfileResponse:
-    profile = get_assessment_response(user_id)
+async def get_assessment(user_id: str, db: AsyncSession = Depends(get_db)) -> AssessmentProfileResponse:
+    profile = await get_assessment_response(user_id, db=db)
     return AssessmentProfileResponse(**profile)
 
 
 @app.post(f"{settings.api_prefix}/assessment/responses", response_model=AssessmentSubmitResponse)
-async def submit_assessment_response_api(payload: AssessmentSubmitRequest) -> AssessmentSubmitResponse:
-    profile = submit_assessment_response(user_id=payload.user_id, answers=payload.answers)
+async def submit_assessment_response_api(payload: AssessmentSubmitRequest, db: AsyncSession = Depends(get_db)) -> AssessmentSubmitResponse:
+    profile = await submit_assessment_response(user_id=payload.user_id, answers=payload.answers, db=db)
     return AssessmentSubmitResponse(**profile)
 
 
 @app.post(f"{settings.api_prefix}/assessment/submit", response_model=AssessmentSubmitResponse)
-async def submit_assessment(payload: AssessmentSubmitRequest) -> AssessmentSubmitResponse:
-    profile = submit_assessment_response(user_id=payload.user_id, answers=payload.answers)
+async def submit_assessment(payload: AssessmentSubmitRequest, db: AsyncSession = Depends(get_db)) -> AssessmentSubmitResponse:
+    profile = await submit_assessment_response(user_id=payload.user_id, answers=payload.answers, db=db)
     return AssessmentSubmitResponse(**profile)
 
+
+# ---------------------------------------------------------------------------
+# Compatibility
+# ---------------------------------------------------------------------------
 
 @app.post(f"{settings.api_prefix}/compatibility/run", response_model=CompatibilityResponse)
 async def run_compatibility(payload: CompatibilityRequest) -> CompatibilityResponse:
@@ -176,10 +211,18 @@ async def run_compatibility(payload: CompatibilityRequest) -> CompatibilityRespo
     return CompatibilityResponse(member_a=payload.member_a, member_b=payload.member_b, **result)
 
 
+# ---------------------------------------------------------------------------
+# Orchestrator
+# ---------------------------------------------------------------------------
+
 @app.post(f"{settings.api_prefix}/orchestrator/run", response_model=OrchestratorRunResponse)
-async def orchestrator_run(payload: OrchestratorRunRequest) -> OrchestratorRunResponse:
-    run_id = str(uuid4())
-    _orchestrator_run_store[run_id] = payload
+async def orchestrator_run(payload: OrchestratorRunRequest, db: AsyncSession = Depends(get_db)) -> OrchestratorRunResponse:
+    run_id = await create_agent_run(
+        team_id=payload.team_id,
+        user_id=payload.user_id,
+        include_candidates=payload.include_candidates,
+        db=db,
+    )
     return OrchestratorRunResponse(
         run_id=run_id,
         state="started",
@@ -193,41 +236,48 @@ async def synthesis() -> InsightResponse:
     return InsightResponse(**data)
 
 
+# ---------------------------------------------------------------------------
+# WebSocket — LangGraph streaming
+# ---------------------------------------------------------------------------
+
 @app.websocket("/ws/analysis/{run_id}")
-async def analysis_stream(websocket: WebSocket, run_id: str) -> None:
+async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = Depends(get_db)) -> None:
     await websocket.accept()
-    run_request = _orchestrator_run_store.get(
-        run_id,
-        OrchestratorRunRequest(team_id="team_alpha", user_id="user_local", include_candidates=False),
-    )
-    steps = start_orchestrator_steps(run_request.include_candidates)
+
+    # Load run from DB; fall back to defaults if not found
+    run = await get_agent_run(run_id, db=db)
+    if run is not None:
+        team_id = run.team_id
+        user_id = run.user_id
+        include_candidates = run.include_candidates
+    else:
+        team_id, user_id, include_candidates = "team_alpha", "user_local", False
+
+    steps = start_orchestrator_steps(include_candidates)
     try:
         completed_count = 0
         await websocket.send_json(
-            jsonable_encoder(
-                {
+            jsonable_encoder({
                 "run_id": run_id,
                 "step": steps[0],
                 "status": "running",
                 "progress_pct": 0,
                 "message": f"Starting {steps[0]}",
                 "timestamp": datetime.now(tz=UTC).isoformat(),
-            }
-            )
+            })
         )
 
         async for step_update in stream_orchestrator_updates(
-            team_id=run_request.team_id,
-            user_id=run_request.user_id,
-            include_candidates=run_request.include_candidates,
+            team_id=team_id,
+            user_id=user_id,
+            include_candidates=include_candidates,
         ):
             step_name, step_data = next(iter(step_update.items()))
             completed_count += 1
             progress_pct = int((completed_count / len(steps)) * 100)
 
             await websocket.send_json(
-                jsonable_encoder(
-                    {
+                jsonable_encoder({
                     "run_id": run_id,
                     "step": step_name,
                     "status": "completed",
@@ -235,51 +285,44 @@ async def analysis_stream(websocket: WebSocket, run_id: str) -> None:
                     "message": f"{step_name} completed",
                     "data": step_data,
                     "timestamp": datetime.now(tz=UTC).isoformat(),
-                }
-                )
+                })
             )
 
             if completed_count < len(steps):
                 next_step = steps[completed_count]
                 await websocket.send_json(
-                    jsonable_encoder(
-                        {
+                    jsonable_encoder({
                         "run_id": run_id,
                         "step": next_step,
                         "status": "running",
                         "progress_pct": progress_pct,
                         "message": f"Running {next_step}",
                         "timestamp": datetime.now(tz=UTC).isoformat(),
-                    }
-                    )
+                    })
                 )
 
         await websocket.send_json(
-            jsonable_encoder(
-                {
+            jsonable_encoder({
                 "run_id": run_id,
                 "step": "orchestration",
                 "status": "completed",
                 "progress_pct": 100,
                 "message": "LangGraph orchestration completed",
                 "timestamp": datetime.now(tz=UTC).isoformat(),
-            }
-            )
+            })
         )
         await websocket.close()
     except WebSocketDisconnect:
         return
     except Exception as exc:  # noqa: BLE001
         await websocket.send_json(
-            jsonable_encoder(
-                {
+            jsonable_encoder({
                 "run_id": run_id,
                 "step": "orchestration",
                 "status": "error",
                 "progress_pct": 0,
                 "message": f"Orchestration failed: {exc}",
                 "timestamp": datetime.now(tz=UTC).isoformat(),
-            }
-            )
+            })
         )
         await websocket.close(code=1011)
