@@ -11,8 +11,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
-from .models import AgentRun, GithubProfile, PsychometricProfile
+from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember
 from .schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
+
+# Lazy imports to avoid startup errors when optional packages aren't configured
+def _get_github_client(access_token: str):
+    from .github_client import GitHubAnalystClient
+    return GitHubAnalystClient(access_token)
 
 
 # ---------------------------------------------------------------------------
@@ -531,6 +536,113 @@ async def stream_orchestrator_updates(
     }
     async for update in graph.astream(initial_state, stream_mode="updates"):
         yield update
+
+
+# ---------------------------------------------------------------------------
+# Teams — CRUD
+# ---------------------------------------------------------------------------
+
+def _team_to_dict(team: Team, members: list[TeamMember]) -> dict:
+    return {
+        "id": team.id,
+        "name": team.name,
+        "description": team.description,
+        "created_by": team.created_by,
+        "invite_token": team.invite_token,
+        "created_at": team.created_at,
+        "members": [
+            {
+                "team_id": m.team_id,
+                "user_id": m.user_id,
+                "role": m.role,
+                "github_handle": m.github_handle,
+                "joined_at": m.joined_at,
+            }
+            for m in members
+        ],
+    }
+
+
+async def create_team(name: str, description: str | None, created_by: str, db: AsyncSession) -> dict:
+    team_id = str(uuid4())
+    team = Team(
+        id=team_id,
+        name=name,
+        description=description,
+        created_by=created_by,
+        invite_token=uuid4().hex,
+    )
+    db.add(team)
+    creator = TeamMember(team_id=team_id, user_id=created_by, role="owner")
+    db.add(creator)
+    await db.commit()
+    await db.refresh(team)
+    await db.refresh(creator)
+    return _team_to_dict(team, [creator])
+
+
+async def get_team(team_id: str, db: AsyncSession) -> dict | None:
+    result = await db.execute(select(Team).where(Team.id == team_id))
+    team = result.scalar_one_or_none()
+    if team is None:
+        return None
+    members_result = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id))
+    members = list(members_result.scalars().all())
+    return _team_to_dict(team, members)
+
+
+async def add_team_member(
+    team_id: str,
+    user_id: str,
+    github_handle: str | None,
+    role: str | None,
+    db: AsyncSession,
+) -> dict:
+    team_result = await db.execute(select(Team).where(Team.id == team_id))
+    if team_result.scalar_one_or_none() is None:
+        raise ValueError("Team not found")
+    existing = await db.execute(
+        select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == user_id)
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise ValueError("Already a member")
+    member = TeamMember(team_id=team_id, user_id=user_id, github_handle=github_handle, role=role)
+    db.add(member)
+    await db.commit()
+    await db.refresh(member)
+    return {
+        "team_id": member.team_id,
+        "user_id": member.user_id,
+        "role": member.role,
+        "github_handle": member.github_handle,
+        "joined_at": member.joined_at,
+    }
+
+
+async def remove_team_member(team_id: str, user_id: str, db: AsyncSession) -> bool:
+    result = await db.execute(
+        select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == user_id)
+    )
+    member = result.scalar_one_or_none()
+    if member is None:
+        return False
+    await db.delete(member)
+    await db.commit()
+    return True
+
+
+async def list_teams_for_user(user_id: str, db: AsyncSession) -> list[dict]:
+    memberships = await db.execute(select(TeamMember).where(TeamMember.user_id == user_id))
+    team_ids = [m.team_id for m in memberships.scalars().all()]
+    if not team_ids:
+        return []
+    teams_result = await db.execute(select(Team).where(Team.id.in_(team_ids)))
+    teams = list(teams_result.scalars().all())
+    output = []
+    for team in teams:
+        all_members = await db.execute(select(TeamMember).where(TeamMember.team_id == team.id))
+        output.append(_team_to_dict(team, list(all_members.scalars().all())))
+    return output
 
 
 # ---------------------------------------------------------------------------

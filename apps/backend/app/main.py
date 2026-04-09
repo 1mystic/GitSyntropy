@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import settings
 from .database import create_tables, get_db
 from .schemas import (
+    AddMemberRequest,
     AnalysisRequest,
     AnalysisResponse,
     AssessmentQuestion,
@@ -29,21 +30,29 @@ from .schemas import (
     LoginRequest,
     OrchestratorRunRequest,
     OrchestratorRunResponse,
+    TeamCreateRequest,
+    TeamMemberResponse,
+    TeamResponse,
 )
 from .services import (
     AuthTokenError,
+    add_team_member,
     assessment_questions,
     build_github_authorization_url,
     compatibility,
     create_agent_run,
     create_jwt,
     create_oauth_state,
+    create_team,
     decode_jwt,
     exchange_github_code_for_identity,
     get_agent_run,
     get_assessment_response,
     get_github_sync,
+    get_team,
+    list_teams_for_user,
     mock_compatibility_scores,
+    remove_team_member,
     start_orchestrator_steps,
     stream_orchestrator_updates,
     submit_assessment_response,
@@ -229,6 +238,49 @@ async def orchestrator_run(payload: OrchestratorRunRequest, db: AsyncSession = D
         steps=start_orchestrator_steps(payload.include_candidates),
     )
 
+
+# ---------------------------------------------------------------------------
+# Teams
+# ---------------------------------------------------------------------------
+
+@app.post(f"{settings.api_prefix}/teams", response_model=TeamResponse, status_code=201)
+async def create_team_route(payload: TeamCreateRequest, db: AsyncSession = Depends(get_db)) -> TeamResponse:
+    data = await create_team(payload.name, payload.description, payload.created_by, db)
+    return TeamResponse(**data)
+
+
+@app.get(f"{settings.api_prefix}/teams", response_model=list[TeamResponse])
+async def list_teams_route(user_id: str, db: AsyncSession = Depends(get_db)) -> list[TeamResponse]:
+    teams = await list_teams_for_user(user_id, db)
+    return [TeamResponse(**t) for t in teams]
+
+
+@app.get(f"{settings.api_prefix}/teams/{{team_id}}", response_model=TeamResponse)
+async def get_team_route(team_id: str, db: AsyncSession = Depends(get_db)) -> TeamResponse:
+    data = await get_team(team_id, db)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    return TeamResponse(**data)
+
+
+@app.post(f"{settings.api_prefix}/teams/{{team_id}}/members", response_model=TeamMemberResponse, status_code=201)
+async def add_member_route(team_id: str, payload: AddMemberRequest, db: AsyncSession = Depends(get_db)) -> TeamMemberResponse:
+    try:
+        data = await add_team_member(team_id, payload.user_id, payload.github_handle, payload.role, db)
+    except ValueError as exc:
+        code = 404 if "not found" in str(exc).lower() else 409
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
+    return TeamMemberResponse(**data)
+
+
+@app.delete(f"{settings.api_prefix}/teams/{{team_id}}/members/{{user_id}}", status_code=204)
+async def remove_member_route(team_id: str, user_id: str, db: AsyncSession = Depends(get_db)) -> None:
+    found = await remove_team_member(team_id, user_id, db)
+    if not found:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+
+# ---------------------------------------------------------------------------
 
 @app.get(f"{settings.api_prefix}/insights/synthesis", response_model=InsightResponse)
 async def synthesis() -> InsightResponse:

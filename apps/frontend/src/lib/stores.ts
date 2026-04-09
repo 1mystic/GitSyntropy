@@ -1,4 +1,5 @@
 import { atom } from "nanostores";
+import type { OrchestratorStreamEvent, OrchestratorStreamStatus, Team } from "./api";
 
 export type Session = {
   userId: string;
@@ -35,11 +36,27 @@ export type AssessmentState = {
   submittedAt: string | null;
 };
 
+export type OrchestratorState = {
+  runId: string;
+  currentStep: string;
+  progressPct: number;
+  status: OrchestratorStreamStatus;
+  events: OrchestratorStreamEvent[];
+};
+
+export type TeamState = {
+  teamId: string;
+  memberCount: number;
+};
+
 export const $session = atom<Session | null>(null);
 export const $sync = atom<SyncState | null>(null);
 export const $assessmentScores = atom<Record<string, number> | null>(null);
 export const $assessment = atom<AssessmentState | null>(null);
 export const $compatibility = atom<CompatibilityState | null>(null);
+export const $orchestrator = atom<OrchestratorState | null>(null);
+export const $team = atom<TeamState | null>(null);
+export const $teams = atom<Team[]>([]);
 
 const SESSION_STORAGE_KEY = "gitsyntropy.session";
 

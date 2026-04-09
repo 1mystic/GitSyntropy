@@ -181,3 +181,37 @@ class InsightResponse(BaseModel):
     narrative: str
     recommendations: list[str]
     uncertainty_note: str
+
+
+# ---------------------------------------------------------------------------
+# Teams
+# ---------------------------------------------------------------------------
+
+class TeamCreateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=255)
+    description: str | None = None
+    created_by: str
+
+
+class AddMemberRequest(BaseModel):
+    user_id: str
+    github_handle: str | None = None
+    role: str | None = None
+
+
+class TeamMemberResponse(BaseModel):
+    team_id: str
+    user_id: str
+    role: str | None = None
+    github_handle: str | None = None
+    joined_at: datetime
+
+
+class TeamResponse(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    created_by: str | None = None
+    invite_token: str | None = None
+    created_at: datetime
+    members: list[TeamMemberResponse] = []

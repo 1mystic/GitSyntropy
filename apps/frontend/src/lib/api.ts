@@ -87,6 +87,32 @@ export type InsightResponse = {
   recommendations: string[];
   uncertainty_note: string;
 };
+export type TeamMember = {
+  team_id: string;
+  user_id: string;
+  role: string | null;
+  github_handle: string | null;
+  joined_at: string;
+};
+export type Team = {
+  id: string;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  invite_token: string | null;
+  created_at: string;
+  members: TeamMember[];
+};
+
+async function requestVoid(path: string, init?: RequestInit): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    ...init,
+  });
+  if (!res.ok) {
+    throw new Error(`API error ${res.status}`);
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -138,7 +164,23 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ team_id, user_id, include_candidates })
     }),
-  synthesis: () => request<InsightResponse>("/insights/synthesis")
+  synthesis: () => request<InsightResponse>("/insights/synthesis"),
+
+  // Teams
+  createTeam: (name: string, description: string | null, created_by: string) =>
+    request<Team>("/teams", {
+      method: "POST",
+      body: JSON.stringify({ name, description, created_by }),
+    }),
+  listTeams: (user_id: string) => request<Team[]>(`/teams?user_id=${encodeURIComponent(user_id)}`),
+  getTeam: (team_id: string) => request<Team>(`/teams/${team_id}`),
+  addMember: (team_id: string, user_id: string, github_handle?: string, role?: string) =>
+    request<TeamMember>(`/teams/${team_id}/members`, {
+      method: "POST",
+      body: JSON.stringify({ user_id, github_handle: github_handle ?? null, role: role ?? null }),
+    }),
+  removeMember: (team_id: string, user_id: string) =>
+    requestVoid(`/teams/${team_id}/members/${encodeURIComponent(user_id)}`, { method: "DELETE" }),
 };
 
 export const wsUrlForRun = (runId: string) => {

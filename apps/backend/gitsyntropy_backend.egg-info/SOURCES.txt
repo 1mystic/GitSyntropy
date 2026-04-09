@@ -2,7 +2,9 @@ README.md
 pyproject.toml
 app/__init__.py
 app/config.py
+app/database.py
 app/main.py
+app/models.py
 app/schemas.py
 app/services.py
 gitsyntropy_backend.egg-info/PKG-INFO
@@ -10,4 +12,6 @@ gitsyntropy_backend.egg-info/SOURCES.txt
 gitsyntropy_backend.egg-info/dependency_links.txt
 gitsyntropy_backend.egg-info/requires.txt
 gitsyntropy_backend.egg-info/top_level.txt
+tests/test_auth.py
+tests/test_compatibility.py
 tests/test_health.py
