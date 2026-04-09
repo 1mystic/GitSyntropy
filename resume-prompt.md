@@ -46,3 +46,22 @@ Visit https://reactjs.org/link/error-boundaries to learn more about error bounda
 chunk-RPCDYKBN.js?v=e06f16e4:19413 Uncaught TypeError: Cannot convert undefined or null to object
     at Object.keys (<anonymous>)
     at CompatibilityClient (CompatibilityClient.tsx:158:73)
+
+
+WorkspaceClient.tsx:704 Uncaught TypeError: Cannot read properties of undefined (reading 'replace')
+    at WorkspaceClient.tsx:704:43
+    at Array.map (<anonymous>)
+    at WorkspaceClient (WorkspaceClient.tsx:674:27)
+installHook.js:1 The above error occurred in the <WorkspaceClient> component:
+
+    at WorkspaceClient (http://localhost:4321/src/components/WorkspaceClient.tsx:57:29)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+chunk-RPCDYKBN.js?v=e06f16e4:19413 Uncaught TypeError: Cannot read properties of undefined (reading 'replace')
+    at WorkspaceClient.tsx:704:43
+    at Array.map (<anonymous>)
+    at WorkspaceClient (WorkspaceClient.tsx:674:27)
+![alt text](image.png)
+
+
