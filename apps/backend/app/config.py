@@ -15,7 +15,10 @@ class Settings(BaseSettings):
     github_redirect_url: str = "http://localhost:4321/auth"
     github_scope: str = "read:user user:email"
     frontend_url: str = "http://localhost:4321"
-    anthropic_model: str = "claude-haiku-4-5-20251001"
+    anthropic_model: str = "claude-sonnet-4-6"
+    anthropic_api_key: str = ""
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/gitsyntropy"
+    github_client_secret: str = ""
 
 
 settings = Settings()
