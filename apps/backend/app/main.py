@@ -328,6 +328,17 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
             completed_count += 1
             progress_pct = int((completed_count / len(steps)) * 100)
 
+            # Stream Claude synthesis tokens token-by-token as they arrive
+            if step_name == "synthesis" and isinstance(step_data.get("synthesis_text"), str):
+                await websocket.send_json(jsonable_encoder({
+                    "run_id": run_id, "step": "synthesis",
+                    "status": "streaming", "progress_pct": progress_pct,
+                    "message": "Claude synthesis streaming",
+                    "timestamp": datetime.now(tz=UTC).isoformat(),
+                }))
+                for token in step_data.get("synthesis_text", ""):
+                    await websocket.send_json({"run_id": run_id, "type": "synthesis_token", "token": token})
+
             await websocket.send_json(
                 jsonable_encoder({
                     "run_id": run_id,

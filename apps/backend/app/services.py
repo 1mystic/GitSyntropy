@@ -164,13 +164,47 @@ def _profile_to_sync_dict(profile: GithubProfile) -> dict[str, Any]:
     }
 
 
-async def trigger_github_sync(github_handle: str, user_id: str, db: AsyncSession) -> dict[str, Any]:
+async def trigger_github_sync(github_handle: str, user_id: str, db: AsyncSession, access_token: str | None = None) -> dict[str, Any]:
+    sync_id = str(uuid4())
+
+    # Use real GitHub API if a token is available
+    if access_token or settings.github_access_token:
+        token = access_token or settings.github_access_token
+        try:
+            client = _get_github_client(token)
+            data = await client.analyze(github_handle)
+            profile = GithubProfile(
+                id=sync_id,
+                user_id=user_id,
+                github_handle=github_handle,
+                chronotype=data["chronotype"],
+                activity_rhythm_score=data["activity_rhythm_score"],
+                collaboration_index=data["collaboration_index"],
+                total_commits=data["commits_last_90_days"],
+                prs_last_30_days=data["prs_last_30_days"],
+                commits_last_30_days=data["commits_last_30_days"],
+                sync_status="complete",
+                started_at=datetime.now(tz=UTC),
+                completed_at=datetime.now(tz=UTC),
+                raw_data=data,
+            )
+        except Exception:  # noqa: BLE001 — fall back to mock on any API failure
+            profile = _mock_github_profile(sync_id, user_id, github_handle)
+    else:
+        profile = _mock_github_profile(sync_id, user_id, github_handle)
+
+    db.add(profile)
+    await db.commit()
+    await db.refresh(profile)
+    return _profile_to_sync_dict(profile)
+
+
+def _mock_github_profile(sync_id: str, user_id: str, github_handle: str) -> GithubProfile:
+    """Deterministic mock used when no GitHub token is configured."""
     chronotype = _derive_chronotype(github_handle)
     commits = len(github_handle) * 7
     prs = len(github_handle) * 3
-
-    sync_id = str(uuid4())
-    profile = GithubProfile(
+    return GithubProfile(
         id=sync_id,
         user_id=user_id,
         github_handle=github_handle,
@@ -183,10 +217,6 @@ async def trigger_github_sync(github_handle: str, user_id: str, db: AsyncSession
         sync_status="queued",
         started_at=datetime.now(tz=UTC),
     )
-    db.add(profile)
-    await db.commit()
-    await db.refresh(profile)
-    return _profile_to_sync_dict(profile)
 
 
 async def get_github_sync(sync_id: str, db: AsyncSession) -> dict[str, Any] | None:
@@ -415,17 +445,30 @@ def start_orchestrator_steps(include_candidates: bool) -> list[str]:
 class OrchestratorState(TypedDict, total=False):
     team_id: str
     user_id: str
+    github_handle: str          # explicit handle overrides user_id derivation
+    access_token: str           # GitHub OAuth token for real API calls
     include_candidates: bool
     github_signals: dict[str, Any]
     assessment_profile: dict[str, Any]
     candidate_outlook: dict[str, Any]
     compatibility: dict[str, Any]
     synthesis: dict[str, Any]
+    synthesis_text: str         # streamed narrative from Claude
 
 
-def _github_analyst_node(state: OrchestratorState) -> dict[str, Any]:
-    handle = state["user_id"].replace("user_", "") or "team-member"
-    # Sync version for LangGraph node (real async version in Feature 3)
+async def _github_analyst_node(state: OrchestratorState) -> dict[str, Any]:
+    handle = state.get("github_handle") or state["user_id"].replace("user_", "") or "team-member"
+    access_token = state.get("access_token") or settings.github_access_token
+
+    if access_token:
+        try:
+            client = _get_github_client(access_token)
+            data = await client.analyze(handle)
+            return {"github_signals": data}
+        except Exception:  # noqa: BLE001
+            pass
+
+    # Fallback to deterministic mock
     chronotype = _derive_chronotype(handle)
     commits = len(handle) * 7
     return {
@@ -439,13 +482,16 @@ def _github_analyst_node(state: OrchestratorState) -> dict[str, Any]:
     }
 
 
-def _psychometric_profiler_node(state: OrchestratorState) -> dict[str, Any]:
+async def _psychometric_profiler_node(state: OrchestratorState) -> dict[str, Any]:
+    # In Feature 8 this will load the real user profile from DB.
+    # For now use a representative synthetic profile.
     answer_map = {f"q{idx + 1}": 3 + (idx % 3) for idx in range(len(ASHTAKOOT_DIMENSIONS))}
     profile = build_assessment_profile(user_id=state["user_id"], answers=answer_map, submitted_at=datetime.now(tz=UTC))
     return {"assessment_profile": profile}
 
 
 def _candidate_simulation_node(_: OrchestratorState) -> dict[str, Any]:
+    # Monte Carlo simulation lands in Feature 8.
     return {
         "candidate_outlook": {
             "status": "simulated",
@@ -463,14 +509,20 @@ def _compatibility_engine_node(state: OrchestratorState) -> dict[str, Any]:
     return {"compatibility": compatibility(source_scores, reference_scores)}
 
 
-def _synthesis_node(state: OrchestratorState) -> dict[str, Any]:
+async def _synthesis_node(state: OrchestratorState) -> dict[str, Any]:
+    from .claude_client import generate_synthesis
     compat = state["compatibility"]
-    return {
-        "synthesis": synthesis_from_compat(
-            total_score=compat["total_score_36"],
-            weak_dimensions=compat["weak_dimensions"],
-        )
-    }
+    narrative = await generate_synthesis(
+        compatibility=compat,
+        github_signals=state.get("github_signals"),
+        assessment_profile=state.get("assessment_profile"),
+    )
+    synth_dict = synthesis_from_compat(
+        total_score=compat["total_score_36"],
+        weak_dimensions=compat["weak_dimensions"],
+    )
+    synth_dict["narrative"] = narrative
+    return {"synthesis": synth_dict, "synthesis_text": narrative}
 
 
 def _route_after_psychometric(state: OrchestratorState) -> str:

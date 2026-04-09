@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/gitsyntropy"
     github_client_secret: str = ""
+    github_access_token: str = ""   # Personal access token for server-side GitHub API calls
 
 
 settings = Settings()
