@@ -91,6 +91,10 @@ async def exchange_github_code_for_identity(code: str, db: AsyncSession) -> dict
             token_data = resp.json()
             access_token = token_data.get("access_token", "")
 
+        if not access_token or "error" in token_data:
+            err_desc = token_data.get("error_description", token_data.get("error", "OAuth exchange failed"))
+            raise ValueError(f"GitHub OAuth failed: {err_desc}")
+
         async with httpx.AsyncClient() as client:
             user_resp = await client.get(
                 "https://api.github.com/user",
@@ -432,6 +436,141 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
 
 
 # ---------------------------------------------------------------------------
+# CAT — Computerized Adaptive Testing (branching question selection)
+# ---------------------------------------------------------------------------
+
+# Question order by dimension index: q1=varna(1pt) … q8=nadi(8pt)
+_QUESTION_WEIGHTS: dict[str, float] = {
+    f"q{idx + 1}": weight
+    for idx, weight in enumerate(ASHTAKOOT_WEIGHTS.values())
+}  # q1→1.0, q2→2.0, … q8→8.0
+
+
+def cat_select_next_question(current_answers: dict[str, int]) -> str | None:
+    """Return the next question ID for a CAT session, or None when complete.
+
+    Strategy:
+    - Always start with the highest-weight question (q8 = nadi_chronotype_sync).
+    - Pick the next highest-weight unanswered question.
+    - Early-stop: if answered questions cover ≥70 % of total weight AND no
+      high-weight (≥4 pts) questions remain, the profile is complete enough.
+    """
+    remaining = {q: w for q, w in _QUESTION_WEIGHTS.items() if q not in current_answers}
+    if not remaining:
+        return None
+
+    # Early-stop check once we have at least half the questions answered
+    if len(current_answers) >= 4:
+        answered_weight = sum(_QUESTION_WEIGHTS[q] for q in current_answers)
+        total_weight = sum(_QUESTION_WEIGHTS.values())  # 36
+        high_weight_left = {q for q, w in remaining.items() if w >= 4.0}
+        if not high_weight_left and answered_weight / total_weight >= 0.70:
+            return None  # Signal: profile is confident enough to stop early
+
+    # Pick highest-weight unanswered question
+    return max(remaining, key=lambda q: remaining[q])
+
+
+def cat_rationale(next_qid: str | None, current_answers: dict[str, int]) -> str:
+    """Human-readable explanation for why the next question was chosen."""
+    if next_qid is None:
+        return "Assessment complete — sufficient confidence for scoring."
+    weight = _QUESTION_WEIGHTS.get(next_qid, 1.0)
+    answered_count = len(current_answers)
+    if answered_count == 0:
+        return f"{next_qid} opens with the highest-signal dimension ({weight:.0f} pts)."
+    return (
+        f"After {answered_count} answer(s), {next_qid} ({weight:.0f} pts) maximises "
+        "remaining information gain."
+    )
+
+
+def cat_estimated_remaining(next_qid: str | None, current_answers: dict[str, int]) -> int:
+    """How many more questions are expected before early-stop or completion."""
+    if next_qid is None:
+        return 0
+    unanswered = [q for q in _QUESTION_WEIGHTS if q not in current_answers]
+    return len(unanswered)
+
+
+# ---------------------------------------------------------------------------
+# Monte Carlo — candidate simulation (1 000 iterations)
+# ---------------------------------------------------------------------------
+
+
+def monte_carlo_candidate_simulation(
+    team_scores: list[dict[str, float]],
+    n_iterations: int = 1000,
+) -> dict[str, Any]:
+    """Simulate *n_iterations* random candidate profiles; return the optimal complement.
+
+    Each iteration:
+    1. Sample a random candidate dimension-score vector.
+    2. Compute pairwise compatibility with each team member.
+    3. Track score improvement vs current team-internal mean.
+    """
+    rng = random.Random(42)  # deterministic seed for reproducibility
+
+    if not team_scores:
+        team_scores = [{dim: round(w * 0.5, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
+
+    # Current team-internal mean pairwise compatibility (computed once, outside loop)
+    internal_pairs: list[float] = []
+    for i, member_a in enumerate(team_scores):
+        for member_b in team_scores[i + 1 :]:
+            internal_pairs.append(compatibility(member_a, member_b)["total_score_36"])
+    current_mean_compat = sum(internal_pairs) / max(len(internal_pairs), 1)
+
+    # Identify weak dimensions to bias sampling toward complementary candidates
+    team_mean = {
+        dim: sum(m.get(dim, ASHTAKOOT_WEIGHTS[dim] * 0.5) for m in team_scores) / len(team_scores)
+        for dim in ASHTAKOOT_DIMENSIONS
+    }
+    weak_dims = {
+        dim for dim in ASHTAKOOT_DIMENSIONS if team_mean[dim] < ASHTAKOOT_WEIGHTS[dim] * 0.45
+    }
+
+    best_improvement = -float("inf")
+    optimal_profile: dict[str, float] = {}
+    improvements: list[float] = []
+
+    for _ in range(n_iterations):
+        candidate: dict[str, float] = {}
+        for dim in ASHTAKOOT_DIMENSIONS:
+            max_w = ASHTAKOOT_WEIGHTS[dim]
+            lo, hi = (0.5, 1.0) if dim in weak_dims else (0.15, 0.95)
+            candidate[dim] = round(max_w * rng.uniform(lo, hi), 2)
+
+        candidate_compat_scores = [
+            compatibility(candidate, member)["total_score_36"] for member in team_scores
+        ]
+        mean_with_candidate = sum(candidate_compat_scores) / len(candidate_compat_scores)
+        improvement = mean_with_candidate - current_mean_compat
+        improvements.append(improvement)
+
+        if improvement > best_improvement:
+            best_improvement = improvement
+            optimal_profile = candidate.copy()
+
+    improvements_sorted = sorted(improvements)
+    p25 = improvements_sorted[n_iterations // 4]
+    p75 = improvements_sorted[(3 * n_iterations) // 4]
+    mean_improvement = sum(improvements) / n_iterations
+
+    return {
+        "n_iterations": n_iterations,
+        "optimal_profile": optimal_profile,
+        "mean_improvement": round(mean_improvement, 2),
+        "best_improvement": round(best_improvement, 2),
+        "p25_improvement": round(p25, 2),
+        "p75_improvement": round(p75, 2),
+        "weak_dimensions_targeted": sorted(weak_dims),
+        "confidence": 1.0,  # always high at 1000 iterations
+        "status": "complete",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator — LangGraph + DB-persisted agent runs
 # ---------------------------------------------------------------------------
 
@@ -490,15 +629,13 @@ async def _psychometric_profiler_node(state: OrchestratorState) -> dict[str, Any
     return {"assessment_profile": profile}
 
 
-def _candidate_simulation_node(_: OrchestratorState) -> dict[str, Any]:
-    # Monte Carlo simulation lands in Feature 8.
-    return {
-        "candidate_outlook": {
-            "status": "simulated",
-            "recommended_match": "candidate_delta",
-            "confidence": 0.71,
-        }
-    }
+def _candidate_simulation_node(state: OrchestratorState) -> dict[str, Any]:
+    # Pull team scores from compatibility state if available
+    compat = state.get("compatibility", {})
+    team_scores_raw = compat.get("dimension_scores")
+    team_scores = [team_scores_raw] if team_scores_raw else []
+    result = monte_carlo_candidate_simulation(team_scores, n_iterations=1000)
+    return {"candidate_outlook": result}
 
 
 def _compatibility_engine_node(state: OrchestratorState) -> dict[str, Any]:

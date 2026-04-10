@@ -215,3 +215,43 @@ class TeamResponse(BaseModel):
     invite_token: str | None = None
     created_at: datetime
     members: list[TeamMemberResponse] = []
+
+
+# ---------------------------------------------------------------------------
+# Feature 8 — CAT Assessment
+# ---------------------------------------------------------------------------
+
+class CATNextRequest(BaseModel):
+    current_answers: dict[str, Annotated[int, Field(ge=1, le=5)]] = Field(default_factory=dict)
+
+
+class CATNextResponse(BaseModel):
+    next_question_id: str | None
+    question: AssessmentQuestion | None = None
+    rationale: str
+    estimated_remaining: int
+    can_stop_early: bool
+
+
+# ---------------------------------------------------------------------------
+# Feature 8 — Monte Carlo candidate simulation
+# ---------------------------------------------------------------------------
+
+class CandidateSimulateRequest(BaseModel):
+    team_scores: list[dict[str, float]] = Field(
+        default_factory=list,
+        description="List of dimension-score dicts for each existing team member.",
+    )
+    n_iterations: int = Field(default=1000, ge=100, le=5000)
+
+
+class CandidateSimulateResponse(BaseModel):
+    n_iterations: int
+    optimal_profile: dict[str, float]
+    mean_improvement: float
+    best_improvement: float
+    p25_improvement: float
+    p75_improvement: float
+    weak_dimensions_targeted: list[str]
+    confidence: float
+    status: str

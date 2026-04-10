@@ -23,9 +23,7 @@ export function AuthClient() {
       issuedAt: Date.now()
     });
     const next = new URLSearchParams(window.location.search).get("next");
-    if (next && next.startsWith("/")) {
-      window.location.assign(next);
-    }
+    window.location.assign(next?.startsWith("/") ? next : "/workspace");
   };
 
   const runLogin = async () => {

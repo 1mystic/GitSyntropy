@@ -8,14 +8,14 @@ import {
 } from "recharts";
 
 const DIMENSION_LABELS: Record<string, string> = {
-  varna_alignment: "Varna",
-  vashya_influence: "Vashya",
-  tara_resilience: "Tara",
-  yoni_workstyle: "Yoni",
-  graha_maitri_cognition: "Graha",
-  gana_temperament: "Gana",
-  bhakoot_strategy: "Bhakoot",
-  nadi_chronotype_sync: "Nadi",
+  varna_alignment: "Innovation Drive",
+  vashya_influence: "Leadership",
+  tara_resilience: "Team Resilience",
+  yoni_workstyle: "Work Style",
+  graha_maitri_cognition: "Decision Style",
+  gana_temperament: "Risk Tolerance",
+  bhakoot_strategy: "Stress Response",
+  nadi_chronotype_sync: "Chronotype Sync",
 };
 
 const DIMENSION_WEIGHTS: Record<string, number> = {

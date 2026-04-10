@@ -2,9 +2,12 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
@@ -19,6 +22,10 @@ from .schemas import (
     AssessmentSubmitResponse,
     AuthSessionResponse,
     AuthTokenResponse,
+    CATNextRequest,
+    CATNextResponse,
+    CandidateSimulateRequest,
+    CandidateSimulateResponse,
     CompatibilityRequest,
     CompatibilityResponse,
     GithubAuthCallbackRequest,
@@ -39,6 +46,9 @@ from .services import (
     add_team_member,
     assessment_questions,
     build_github_authorization_url,
+    cat_estimated_remaining,
+    cat_rationale,
+    cat_select_next_question,
     compatibility,
     create_agent_run,
     create_jwt,
@@ -52,6 +62,7 @@ from .services import (
     get_team,
     list_teams_for_user,
     mock_compatibility_scores,
+    monte_carlo_candidate_simulation,
     remove_team_member,
     start_orchestrator_steps,
     stream_orchestrator_updates,
@@ -61,6 +72,9 @@ from .services import (
 )
 
 
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await create_tables()
@@ -68,6 +82,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -120,7 +136,8 @@ async def mock_analysis(payload: AnalysisRequest) -> AnalysisResponse:
 # ---------------------------------------------------------------------------
 
 @app.get(f"{settings.api_prefix}/auth/github/start", response_model=GithubAuthStartResponse)
-async def auth_github_start() -> GithubAuthStartResponse:
+@limiter.limit("30/minute")
+async def auth_github_start(request: Request) -> GithubAuthStartResponse:
     state = create_oauth_state()
     return {
         "provider": "github",
@@ -132,15 +149,20 @@ async def auth_github_start() -> GithubAuthStartResponse:
 
 
 @app.post(f"{settings.api_prefix}/auth/github/callback", response_model=AuthTokenResponse)
-async def auth_github_callback(payload: GithubAuthCallbackRequest, db: AsyncSession = Depends(get_db)) -> AuthTokenResponse:
-    identity = await exchange_github_code_for_identity(payload.code, db)
+@limiter.limit("20/minute")
+async def auth_github_callback(request: Request, payload: GithubAuthCallbackRequest, db: AsyncSession = Depends(get_db)) -> AuthTokenResponse:
+    try:
+        identity = await exchange_github_code_for_identity(payload.code, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     user_id = identity["user_id"]
     token, expires_in = create_jwt(user_id=user_id)
     return AuthTokenResponse(access_token=token, expires_in=expires_in, user_id=user_id)
 
 
 @app.post(f"{settings.api_prefix}/auth/login", response_model=AuthTokenResponse)
-async def auth_login(payload: LoginRequest) -> AuthTokenResponse:
+@limiter.limit("20/minute")
+async def auth_login(request: Request, payload: LoginRequest) -> AuthTokenResponse:
     user_id = f"user_{payload.email.split('@')[0]}"
     token, expires_in = create_jwt(user_id=user_id)
     return AuthTokenResponse(access_token=token, expires_in=expires_in, user_id=user_id)
