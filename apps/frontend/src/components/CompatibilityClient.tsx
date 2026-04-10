@@ -9,7 +9,7 @@ export function CompatibilityClient() {
   const _session = $session.get();
   if (AUTH_REQUIRED && !_session) {
     return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-3xl mx-auto">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 md:px-8 pt-10 pb-12 w-full max-w-[1400px] mx-auto">
         <section className="glass-panel p-8 rounded-none w-full text-center">
           <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
           <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to view compatibility analysis.</p>
@@ -71,8 +71,8 @@ export function CompatibilityClient() {
   }, [data?.level]);
 
   return (
-    <main className="relative z-10 w-full max-w-[1200px] mx-auto px-4 md:px-8 pt-10 pb-20 flex flex-col min-h-screen">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+    <main className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-20 flex flex-col min-h-screen">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
           <span className="text-primary font-mono text-xs uppercase tracking-widest mb-2 block">Compatibility Engine</span>
           <h1 className="text-4xl md:text-5xl font-bold font-display text-white mb-2">

@@ -151,7 +151,7 @@ function InsightsInner() {
 
   if (AUTH_REQUIRED && !session) {
     return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-3xl mx-auto">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 md:px-8 pt-10 pb-12 w-full max-w-[1400px] mx-auto">
         <section className="glass-panel p-8 rounded-none w-full text-center">
           <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
           <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to view synthesis insights.</p>
@@ -285,10 +285,10 @@ function InsightsInner() {
   };
 
   return (
-    <main className="relative z-10 w-full max-w-[1200px] mx-auto px-4 md:px-8 pt-10 pb-20 flex flex-col min-h-screen">
+    <main className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
           <span className="text-accent-info font-mono text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
             <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
@@ -322,7 +322,7 @@ function InsightsInner() {
 
       {/* Aggregate KPI bar */}
       {kpiTotalRuns > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {[
             { label: "Total Runs", value: String(kpiTotalRuns), icon: "history", color: "text-primary" },
             { label: "Avg Team Score", value: kpiAvgScore !== null ? `${kpiAvgScore}/36` : "—", icon: "analytics", color: "text-accent-teal" },
@@ -342,19 +342,19 @@ function InsightsInner() {
 
       {/* What does this page do — idle explanation */}
       {!streaming && !streamDone && !streamError && (
-        <div className="mb-10 glass-panel rounded-none p-6 border-white/5">
+        <div className="mb-14 glass-panel rounded-none p-8 border-white/5">
           <h3 className="text-sm font-bold text-white font-display mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-[18px]">info</span>
             What happens when you click "Run Full Analysis"
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               { icon: "code", step: "1", title: "GitHub Analyst", desc: "Fetches commit history and PR activity to compute chronotype and collaboration index." },
               { icon: "psychology", step: "2", title: "Psychometric Profiler", desc: "Loads your 8-dimension behavioral profile from the Assessment page." },
               { icon: "hub", step: "3", title: "Compatibility Engine", desc: "Scores 8 Ashtakoot dimensions across the team, flagging weak and strong alignments." },
               { icon: "auto_awesome", step: "4", title: "Claude Synthesis", desc: "Streams a GPT-quality narrative report with strengths, risks, hiring gaps, and meeting windows." },
             ].map((item) => (
-              <div key={item.step} className="flex flex-col gap-2 p-4 bg-white/[0.02] border border-white/5 rounded">
+              <div key={item.step} className="flex flex-col gap-3 p-5 bg-white/[0.02] border border-white/5 rounded">
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center font-mono">{item.step}</span>
                   <span className="material-symbols-outlined text-[16px] text-gray-400">{item.icon}</span>
@@ -369,7 +369,7 @@ function InsightsInner() {
 
       {/* Streaming progress */}
       {(streaming || (streamDone && steps.length > 0)) && (
-        <div className="mb-10 glass-panel rounded-none p-6">
+        <div className="mb-14 glass-panel rounded-none p-8">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-bold font-display text-white uppercase tracking-widest">
               Orchestration Pipeline
@@ -455,7 +455,7 @@ function InsightsInner() {
 
       {/* Synthesis result */}
       {data && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
           {/* Main Narrative */}
           <div className="lg:col-span-8 glass-card rounded-none p-8 md:p-10 relative overflow-hidden">
