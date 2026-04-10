@@ -7,6 +7,35 @@ import { RadarChart } from "@/components/RadarChart";
 import { ChronotypeHeatmap } from "@/components/ChronotypeHeatmap";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
+const REPORTS_STORAGE_KEY = "gitsyntropy.reports";
+
+export type ReportEntry = {
+  id: string;
+  teamId: string;
+  teamName: string;
+  score: number;
+  resilienceScore: number;
+  summary: string;
+  createdAt: string;
+};
+
+function loadReports(): ReportEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(REPORTS_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as ReportEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveReport(entry: ReportEntry): ReportEntry[] {
+  const existing = loadReports();
+  const updated = [entry, ...existing].slice(0, 20);
+  window.localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(updated));
+  return updated;
+}
+
 function AssessmentSkeleton() {
   return (
     <div className="animate-pulse flex flex-col gap-3">
@@ -43,6 +72,7 @@ function DashboardInner() {
   // Orchestrator + analysis
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ score: number; summary: string } | null>(null);
+  const [reports, setReports] = useState<ReportEntry[]>(() => loadReports());
   const [orchStep, setOrchStep] = useState<string | null>(null);
   const [orchProgress, setOrchProgress] = useState(0);
   const [orchError, setOrchError] = useState(false);
@@ -176,7 +206,20 @@ function DashboardInner() {
         if (event.status === "completed" && event.step === "synthesis" && event.data?.synthesis) {
           const synth = event.data.synthesis as unknown as { narrative: string };
           const score = orchCompatRef.current?.total_score_36 ?? 28;
-          setAnalysisResult({ score, summary: synth.narrative });
+          const resilience = Math.round((score / 36) * 100);
+          const activeTeamForReport = teams.find((t) => t.id === (selectedTeamId || teams[0]?.id));
+          const newResult = { score, summary: synth.narrative };
+          setAnalysisResult(newResult);
+          const entry: ReportEntry = {
+            id: `${Date.now()}`,
+            teamId: activeTeamForReport?.id ?? teamId,
+            teamName: activeTeamForReport?.name ?? "Team",
+            score,
+            resilienceScore: resilience,
+            summary: synth.narrative,
+            createdAt: new Date().toISOString(),
+          };
+          setReports(saveReport(entry));
           setAnalysisLoading(false);
         }
 
@@ -404,11 +447,22 @@ function DashboardInner() {
             )}
 
             <div className="mt-6">
-              <p className="text-sm text-gray-400 max-w-sm">
+              <p className="text-sm text-gray-400 max-w-sm line-clamp-3">
                 {analysisResult
-                  ? analysisResult.summary
+                  ? analysisResult.summary.replace(/#{1,6}\s/g, "").replace(/\*\*/g, "")
                   : "Click 'Run Analysis' to start the multi-agent pipeline."}
               </p>
+              {analysisResult && (
+                <a
+                  href={`/report?id=${reports[0]?.id ?? ""}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-primary hover:text-white transition-colors uppercase tracking-wider"
+                >
+                  View Full Report
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+              )}
               {resilienceScore !== null && (
                 <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden mt-4">
                   <div
@@ -633,6 +687,54 @@ function DashboardInner() {
           </div>
         )}
       </div>
+
+      {/* Recent Reports */}
+      {reports.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold text-white font-display flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-primary text-[20px]">history</span>
+            Recent Reports
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {reports.map((report) => {
+              const date = new Date(report.createdAt);
+              const label = date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+              const time = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+              const snippet = report.summary
+                .replace(/#{1,6}\s[^\n]*/g, "")
+                .replace(/\*\*/g, "")
+                .replace(/\n+/g, " ")
+                .trim()
+                .slice(0, 160);
+              return (
+                <a
+                  key={report.id}
+                  href={`/report?id=${report.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="glass-card rounded-none p-5 flex flex-col gap-3 border border-white/5 hover:border-primary/30 transition-all group"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-gray-500 font-mono">{label} · {time}</p>
+                      <p className="text-sm font-semibold text-white mt-0.5 font-display">{report.teamName}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-white font-display">{report.resilienceScore}%</span>
+                      <p className="text-[10px] text-gray-500">{report.score}/36</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 line-clamp-2">{snippet}…</p>
+                  <span className="text-xs font-bold text-primary group-hover:text-white transition-colors uppercase tracking-wider flex items-center gap-1 mt-auto">
+                    View Full Report
+                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

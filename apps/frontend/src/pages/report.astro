@@ -1,0 +1,16 @@
+---
+import AppNav from "@/components/AppNav.astro";
+import { ReportClient } from "@/components/ReportClient";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="GitSyntropy | Report">
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute top-[10%] right-[-10%] w-[800px] h-[800px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(204,255,0,0.08),_transparent_70%)] blur-[100px]"></div>
+    <div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(0,212,255,0.04),_transparent_70%)] blur-[80px]"></div>
+    <div class="absolute inset-0 opacity-[0.03] bg-grid-pattern bg-[size:32px_32px]"></div>
+  </div>
+
+  <AppNav />
+  <ReportClient client:load />
+</BaseLayout>
