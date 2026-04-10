@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, wsUrlForRun, type InsightResponse, type OrchestratorStreamEvent } from "@/lib/api";
 import { $orchestrator, $session } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type StreamStep = {
   name: string;
@@ -15,7 +16,7 @@ function stepLabel(name: string) {
   return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function InsightsClient() {
+function InsightsInner() {
   const session = $session.get();
   const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
 
@@ -229,9 +230,16 @@ export function InsightsClient() {
           <div>
             <h3 className="font-bold mb-1">Orchestration Failed</h3>
             <p className="text-sm opacity-80">
-              Unable to connect to the WebSocket stream. Check backend connection.
+              Unable to connect to the analysis stream. Check backend connection.
             </p>
           </div>
+          <button
+            onClick={() => void startStream()}
+            className="px-4 py-2 rounded-lg border border-red-500/30 text-sm text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-sm">refresh</span>
+            Retry
+          </button>
         </div>
       )}
 
@@ -310,5 +318,13 @@ export function InsightsClient() {
         </div>
       )}
     </main>
+  );
+}
+
+export function InsightsClient() {
+  return (
+    <ErrorBoundary fallbackMessage="Insights failed to load">
+      <InsightsInner />
+    </ErrorBoundary>
   );
 }

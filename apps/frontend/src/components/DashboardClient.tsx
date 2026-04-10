@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState } from "react";
+import { useStore } from "@nanostores/react";
 import { api, wsUrlForRun, type CompatibilityResponse, type GithubSyncResponse, type OrchestratorStreamEvent } from "@/lib/api";
-import { $compatibility, $orchestrator, $session, $sync } from "@/lib/stores";
+import { $compatibility, $orchestrator, $session, $sync, $teams } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 import { RadarChart } from "@/components/RadarChart";
 import { ChronotypeHeatmap } from "@/components/ChronotypeHeatmap";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-export function DashboardClient() {
+function AssessmentSkeleton() {
+  return (
+    <div className="animate-pulse flex flex-col gap-3">
+      <div className="h-12 w-16 bg-white/10 rounded" />
+      <div className="h-3 w-32 bg-white/5 rounded" />
+    </div>
+  );
+}
+
+function DashboardInner() {
   const session = $session.get();
   const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
+
   if (AUTH_REQUIRED && !session) {
     return (
       <section className="card col-12 container mt-32">
@@ -18,9 +30,15 @@ export function DashboardClient() {
     );
   }
 
+  const teams = useStore($teams);
+
   const [health, setHealth] = useState<{ status: string; version: string } | null>(null);
   const [healthError, setHealthError] = useState(false);
   const [healthLoading, setHealthLoading] = useState(true);
+
+  // Team selection
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [teamsLoading, setTeamsLoading] = useState(false);
 
   // Orchestrator + analysis
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -69,7 +87,29 @@ export function DashboardClient() {
       .finally(() => setHealthLoading(false));
   }, []);
 
+  // Load teams into store if not yet populated
   useEffect(() => {
+    if (teams.length > 0) return;
+    setTeamsLoading(true);
+    void api.listTeams(userId)
+      .then((data) => {
+        $teams.set(data);
+        if (data.length > 0) setSelectedTeamId(data[0].id);
+      })
+      .catch(() => {})
+      .finally(() => setTeamsLoading(false));
+  }, [userId]);
+
+  // Sync selectedTeamId when teams populate from store
+  useEffect(() => {
+    if (teams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(teams[0].id);
+    }
+  }, [teams]);
+
+  const loadAssessment = () => {
+    setAssessmentLoading(true);
+    setAssessmentError(false);
     void api
       .assessmentResponse(userId)
       .then((data) => {
@@ -79,7 +119,9 @@ export function DashboardClient() {
       })
       .catch(() => setAssessmentError(true))
       .finally(() => setAssessmentLoading(false));
-  }, [userId]);
+  };
+
+  useEffect(() => { loadAssessment(); }, [userId]);
 
   const runAnalysis = async () => {
     setAnalysisLoading(true);
@@ -88,8 +130,10 @@ export function DashboardClient() {
     setOrchProgress(0);
     orchCompatRef.current = null;
 
+    const teamId = selectedTeamId || teams[0]?.id || "team_alpha";
+
     try {
-      const run = await api.orchestratorRun("team_alpha", userId);
+      const run = await api.orchestratorRun(teamId, userId);
 
       $orchestrator.set({
         runId: run.run_id,
@@ -186,8 +230,11 @@ export function DashboardClient() {
   }, [syncResult]);
 
   const runCompatibility = async () => {
+    // Use first two team members if available, else demo pair
+    const memberA = teams.find((t) => t.id === selectedTeamId)?.members[0]?.user_id ?? "alice";
+    const memberB = teams.find((t) => t.id === selectedTeamId)?.members[1]?.user_id ?? "bob";
     try {
-      const data = await api.compatibility("alice", "bob");
+      const data = await api.compatibility(memberA, memberB);
       setCompatResult(data);
       $compatibility.set({
         totalScore: data.total_score_36,
@@ -195,13 +242,15 @@ export function DashboardClient() {
         weakDimensions: data.weak_dimensions,
       });
     } catch {
-      // swallow — non-critical
+      // non-critical
     }
   };
 
   const resilienceScore = analysisResult
     ? Math.round((analysisResult.score / 36) * 100)
     : null;
+
+  const activeTeam = teams.find((t) => t.id === selectedTeamId);
 
   return (
     <div className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-40 pb-24 flex flex-col min-h-screen">
@@ -211,38 +260,55 @@ export function DashboardClient() {
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 font-display">
             Dashboard
           </h1>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="relative flex h-2 w-2">
-              <span
-                className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${health?.status === "ok" ? "bg-accent-neon" : "bg-red-500"}`}
-              />
-              <span
-                className={`relative inline-flex rounded-full h-2 w-2 ${health?.status === "ok" ? "bg-accent-neon" : "bg-red-500"}`}
-              />
-            </span>
-            <p className="text-gray-400 text-sm font-medium">
-              {healthLoading
-                ? "Checking API..."
-                : healthError
-                  ? "Backend offline"
-                  : `System operational • v${health?.version}`}
-            </p>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${health?.status === "ok" ? "bg-accent-neon" : "bg-red-500"}`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${health?.status === "ok" ? "bg-accent-neon" : "bg-red-500"}`}
+                />
+              </span>
+              <p className="text-gray-400 text-sm font-medium">
+                {healthLoading
+                  ? "Checking API..."
+                  : healthError
+                    ? "Backend offline"
+                    : `System operational · v${health?.version}`}
+              </p>
+            </div>
+            {/* Team selector */}
+            {(teamsLoading || teams.length > 0) && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600 text-xs font-mono">TEAM</span>
+                {teamsLoading ? (
+                  <div className="w-28 h-7 bg-white/5 border border-white/10 rounded animate-pulse" />
+                ) : (
+                  <select
+                    value={selectedTeamId}
+                    onChange={(e) => setSelectedTeamId(e.target.value)}
+                    className="bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-primary transition-all"
+                  >
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button className="glass-card px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
-            <span className="material-symbols-outlined text-[20px]">calendar_today</span>
-            This Week
-          </button>
           <button
-            onClick={runAnalysis}
+            onClick={() => void runAnalysis()}
             disabled={analysisLoading}
             className="btn btn-primary shadow-neon transition-all flex items-center gap-2 px-4 py-2 text-sm"
           >
             <span className="material-symbols-outlined text-[20px]">
-              {analysisLoading ? "hourglass_top" : "add"}
+              {analysisLoading ? "hourglass_top" : "play_arrow"}
             </span>
-            {analysisLoading ? "Running..." : "New Report"}
+            {analysisLoading ? "Running..." : "Run Analysis"}
           </button>
         </div>
       </header>
@@ -259,10 +325,13 @@ export function DashboardClient() {
               <div>
                 <h2 className="text-gray-300 text-lg font-medium flex items-center gap-2 font-display">
                   <span className="material-symbols-outlined text-primary">psychology</span>
-                  Team Resilience Score
+                  Team Compatibility Score
+                  {activeTeam && (
+                    <span className="text-xs font-normal text-gray-500 ml-1">· {activeTeam.name}</span>
+                  )}
                 </h2>
                 <p className="text-gray-500 text-sm mt-1">
-                  {analysisLoading ? "Orchestration running..." : "LangGraph multi-agent analysis"}
+                  {analysisLoading ? "Multi-agent analysis running..." : "LangGraph multi-agent pipeline"}
                 </p>
               </div>
               <span
@@ -280,15 +349,6 @@ export function DashboardClient() {
               <span className="text-8xl md:text-9xl font-bold tracking-tighter text-white drop-shadow-2xl font-display">
                 {resilienceScore !== null ? `${resilienceScore}%` : "--"}
               </span>
-              {resilienceScore !== null && (
-                <div className="flex flex-col mb-4">
-                  <span className="text-accent-neon text-xl font-bold flex items-center">
-                    <span className="material-symbols-outlined">trending_up</span>
-                    +12%
-                  </span>
-                  <span className="text-gray-400 text-sm">vs last sprint</span>
-                </div>
-              )}
             </div>
 
             {/* Orchestrator progress */}
@@ -307,35 +367,47 @@ export function DashboardClient() {
                   />
                 </div>
                 <div className="flex gap-1 mt-3 flex-wrap">
-                  {["github_analyst", "psychometric_profiler", "compatibility_engine", "synthesis"].map(
-                    (step) => (
-                      <span
-                        key={step}
-                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
-                          orchProgress > 0 && orchStep === step
-                            ? "border-primary/60 text-primary bg-primary/10"
-                            : orchProgress >= 100
-                              ? "border-accent-neon/30 text-accent-neon/60"
-                              : "border-white/10 text-gray-600"
-                        }`}
-                      >
-                        {step.replace(/_/g, " ")}
-                      </span>
-                    )
+                  {["github analyst", "psychometric profiler", "compatibility engine", "synthesis"].map(
+                    (label, i) => {
+                      const stepKey = ["github_analyst", "psychometric_profiler", "compatibility_engine", "synthesis"][i];
+                      return (
+                        <span
+                          key={stepKey}
+                          className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+                            orchStep === stepKey
+                              ? "border-primary/60 text-primary bg-primary/10"
+                              : orchProgress >= 100
+                                ? "border-accent-neon/30 text-accent-neon/60"
+                                : "border-white/10 text-gray-600"
+                          }`}
+                        >
+                          {label}
+                        </span>
+                      );
+                    }
                   )}
                 </div>
               </div>
             )}
 
             {orchError && (
-              <p className="text-xs text-red-400 mt-4">Orchestration failed. Check backend.</p>
+              <div className="mt-4 flex items-center gap-3">
+                <p className="text-xs text-red-400">Analysis failed — backend may be offline.</p>
+                <button
+                  onClick={() => void runAnalysis()}
+                  className="text-xs text-primary hover:text-white flex items-center gap-1 transition-colors border border-primary/30 px-2 py-1 rounded"
+                >
+                  <span className="material-symbols-outlined text-sm">refresh</span>
+                  Retry
+                </button>
+              </div>
             )}
 
             <div className="mt-6">
               <p className="text-sm text-gray-400 max-w-sm">
                 {analysisResult
                   ? analysisResult.summary
-                  : "Click 'New Report' to run the LangGraph orchestration pipeline."}
+                  : "Click 'Run Analysis' to start the multi-agent pipeline."}
               </p>
               {resilienceScore !== null && (
                 <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden mt-4">
@@ -356,7 +428,6 @@ export function DashboardClient() {
               <span className="material-symbols-outlined text-amber-300">schedule</span>
               GitHub Sync
             </h3>
-            <span className="material-symbols-outlined text-[20px] text-gray-500">more_horiz</span>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -368,7 +439,7 @@ export function DashboardClient() {
             />
             <button
               className="btn btn-secondary justify-center text-sm py-2"
-              onClick={runSync}
+              onClick={() => void runSync()}
               disabled={syncStarting || syncResult?.status === "syncing"}
             >
               {syncStarting
@@ -377,9 +448,17 @@ export function DashboardClient() {
                   ? "Syncing..."
                   : "Sync Signals"}
             </button>
-            {syncStartError && <p className="text-red-400 text-xs">Failed to start sync.</p>}
+            {syncStartError && (
+              <div className="flex items-center gap-2">
+                <p className="text-red-400 text-xs flex-1">Sync failed.</p>
+                <button onClick={() => void runSync()} className="text-xs text-primary hover:text-white flex items-center gap-1 transition-colors">
+                  <span className="material-symbols-outlined text-sm">refresh</span>
+                  Retry
+                </button>
+              </div>
+            )}
             {syncStatusError && (
-              <p className="text-yellow-400 text-xs">Sync refresh failed. Retrying...</p>
+              <p className="text-yellow-400 text-xs">Refresh failed. Retrying...</p>
             )}
           </div>
 
@@ -409,12 +488,11 @@ export function DashboardClient() {
                   <p className="font-medium text-white">{syncResult.commits_last_30_days}</p>
                 </div>
                 <div className="bg-white/5 rounded-lg p-3">
-                  <p className="text-[10px] text-gray-400 uppercase">Rhythm</p>
+                  <p className="text-[10px] text-gray-400 uppercase">Rhythm Score</p>
                   <p className="font-medium text-white">{syncResult.activity_rhythm_score}</p>
                 </div>
               </div>
 
-              {/* Chronotype Heatmap */}
               <div className="mt-2">
                 <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-display">
                   Activity Pattern
@@ -432,15 +510,26 @@ export function DashboardClient() {
         <div className="col-span-1 md:col-span-1 xl:col-span-1 glass-card rounded-none p-6 flex flex-col justify-between">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-white font-semibold text-sm font-display">Assessment Readiness</h3>
-            <span
-              className={`size-2 rounded-full ${assessmentReady ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-yellow-500"}`}
-            />
+            {!assessmentLoading && !assessmentError && (
+              <span
+                className={`size-2 rounded-full ${assessmentReady ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-yellow-500"}`}
+              />
+            )}
           </div>
           <div className="relative flex-1 flex flex-col justify-center py-4">
             {assessmentLoading ? (
-              <p className="text-sm text-gray-400">Loading...</p>
+              <AssessmentSkeleton />
             ) : assessmentError ? (
-              <p className="text-sm text-red-400">Error loading status</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-red-400">Failed to load status.</p>
+                <button
+                  onClick={loadAssessment}
+                  className="text-xs text-primary hover:text-white flex items-center gap-1 transition-colors self-start"
+                >
+                  <span className="material-symbols-outlined text-sm">refresh</span>
+                  Retry
+                </button>
+              </div>
             ) : (
               <>
                 <div className="flex items-end gap-2">
@@ -466,12 +555,21 @@ export function DashboardClient() {
         {/* Compatibility Snapshot */}
         <div className="col-span-1 md:col-span-1 xl:col-span-1 glass-card rounded-none p-6 relative flex flex-col justify-between">
           <div>
-            <h3 className="text-white font-semibold text-sm mb-4 font-display">
+            <h3 className="text-white font-semibold text-sm mb-1 font-display">
               Compatibility Snapshot
             </h3>
+            {activeTeam && activeTeam.members.length >= 2 ? (
+              <p className="text-[10px] text-gray-500 mb-3 font-mono">
+                {activeTeam.members[0].github_handle ?? activeTeam.members[0].user_id} ↔{" "}
+                {activeTeam.members[1].github_handle ?? activeTeam.members[1].user_id}
+              </p>
+            ) : (
+              <p className="text-[10px] text-gray-500 mb-3">Add 2+ members to a team</p>
+            )}
             <button
               className="w-full btn btn-secondary justify-center text-xs py-1.5"
-              onClick={runCompatibility}
+              onClick={() => void runCompatibility()}
+              disabled={!activeTeam || activeTeam.members.length < 2}
             >
               Run Pairing
             </button>
@@ -510,13 +608,13 @@ export function DashboardClient() {
           </div>
         </div>
 
-        {/* Ashtakoot Radar Chart — shown when compat data available */}
+        {/* Team Dimension Radar — shown when compat data available */}
         {compatResult && (
           <div className="col-span-1 md:col-span-2 xl:col-span-4 glass-card rounded-none p-6 border border-primary/10">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-white font-semibold font-display flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[20px]">radar</span>
-                Ashtakoot Dimension Alignment
+                Team Dimension Alignment
               </h3>
               <div className="flex gap-2">
                 {compatResult.strong_dimensions.slice(0, 2).map((d) => (
@@ -536,5 +634,13 @@ export function DashboardClient() {
         )}
       </div>
     </div>
+  );
+}
+
+export function DashboardClient() {
+  return (
+    <ErrorBoundary fallbackMessage="Dashboard failed to load">
+      <DashboardInner />
+    </ErrorBoundary>
   );
 }

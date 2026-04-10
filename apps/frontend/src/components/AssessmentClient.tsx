@@ -3,10 +3,121 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { $assessment, $session } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-export function AssessmentClient() {
+// English labels for each assessment dimension
+const DIMENSION_CONFIG: Record<string, { label: string; description: string; weight: number }> = {
+  nadi_chronotype_sync:     { label: "Chronotype Sync",       description: "Peak work-hour overlap — when energy peaks align", weight: 8 },
+  bhakoot_strategy:         { label: "Stress Response",       description: "How you respond under pressure and tight deadlines", weight: 7 },
+  gana_temperament:         { label: "Risk Tolerance",        description: "Bold vs cautious decision-making tendencies", weight: 6 },
+  graha_maitri_cognition:   { label: "Decision Style",        description: "Data-driven vs intuitive reasoning preference", weight: 5 },
+  yoni_workstyle:           { label: "Work Style",            description: "Solo-focus vs collaborative working preference", weight: 4 },
+  tara_resilience:          { label: "Team Resilience",       description: "Capacity to absorb and recover from setbacks", weight: 3 },
+  vashya_influence:         { label: "Leadership Orientation", description: "Tendency to lead, follow, or self-direct", weight: 2 },
+  varna_alignment:          { label: "Innovation Drive",      description: "Appetite for novel approaches vs proven methods", weight: 1 },
+};
+
+function ScoreScreen({ scores }: { scores: Record<string, number> }) {
+  const dimensions = Object.entries(DIMENSION_CONFIG).sort((a, b) => b[1].weight - a[1].weight);
+
+  return (
+    <div className="w-full animate-fade-in">
+      <div className="flex flex-col items-center mb-10">
+        <div className="w-16 h-16 rounded-2xl bg-accent-neon/10 border border-accent-neon/30 flex items-center justify-center mb-4">
+          <span className="material-symbols-outlined text-3xl text-accent-neon">verified</span>
+        </div>
+        <h2 className="text-3xl font-bold font-display text-white mb-1">Psychometric Profile</h2>
+        <p className="text-gray-400 text-sm text-center max-w-md">
+          Your baseline scores across all compatibility dimensions. These feed into the team analysis pipeline.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 mb-8">
+        {dimensions.map(([key, config]) => {
+          const raw = scores[key] ?? 0;
+          const pct = Math.round((raw / config.weight) * 100);
+          const isStrong = pct >= 70;
+          const isWeak = pct <= 30;
+
+          return (
+            <div key={key} className="glass-panel rounded-none p-4 border border-white/5 flex items-center gap-4">
+              <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-white/5 flex items-center justify-center">
+                <span className="text-xs font-bold font-mono text-primary">{config.weight}pt</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-sm font-semibold text-white">{config.label}</span>
+                  <span
+                    className={`text-xs font-bold px-2 py-0.5 rounded ${
+                      isStrong
+                        ? "text-green-400 bg-green-500/10"
+                        : isWeak
+                          ? "text-red-400 bg-red-500/10"
+                          : "text-gray-300 bg-white/5"
+                    }`}
+                  >
+                    {pct}%
+                  </span>
+                </div>
+                <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      isStrong
+                        ? "bg-gradient-to-r from-green-500 to-accent-neon"
+                        : isWeak
+                          ? "bg-gradient-to-r from-red-500 to-orange-400"
+                          : "bg-gradient-to-r from-primary to-accent-teal"
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1.5">{config.description}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex gap-3">
+        <a
+          href="/workspace"
+          className="flex-1 btn btn-primary py-3 rounded-xl flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-sm">schema</span>
+          Run Team Analysis
+        </a>
+        <a
+          href="/assessment"
+          onClick={(e) => { e.preventDefault(); window.location.reload(); }}
+          className="px-4 py-3 border border-white/10 rounded-xl text-sm text-gray-400 hover:bg-white/5 hover:text-white transition-all flex items-center gap-2"
+        >
+          <span className="material-symbols-outlined text-sm">edit</span>
+          Retake
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="w-full glass-panel rounded-none p-8 md:p-12 animate-pulse">
+      <div className="h-4 w-32 bg-white/10 rounded mb-8" />
+      <div className="h-8 w-3/4 bg-white/10 rounded mb-4" />
+      <div className="h-2 w-full bg-white/5 rounded-full mb-10" />
+      <div className="space-y-3">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-5 bg-white/5 rounded" style={{ width: `${85 - i * 8}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AssessmentInner() {
   const session = $session.get();
   const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
+
   if (AUTH_REQUIRED && !session) {
     return (
       <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-12 w-full max-w-3xl mx-auto">
@@ -22,56 +133,55 @@ export function AssessmentClient() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submittedUserId, setSubmittedUserId] = useState("");
+  const [scoreScreen, setScoreScreen] = useState(false);
+  const [finalScores, setFinalScores] = useState<Record<string, number>>({});
   const [questions, setQuestions] = useState<
     { id: string; prompt: string; left_label: string; right_label: string }[]
   >([]);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [questionData, profileData] = await Promise.all([
-          api.assessmentQuestions(),
-          api.assessmentResponse(userId)
-        ]);
-        setQuestions(questionData);
-        const restoredAnswers: Record<string, number> = {};
-        const scoreDimensions = Object.keys(profileData.scores);
-        scoreDimensions.forEach((dimension, idx) => {
-          const questionId = `q${idx + 1}`;
-          if (profileData.missing_question_ids.includes(questionId)) {
-            return;
-          }
-          const maxWeight = idx + 1;
-          const normalized = maxWeight === 0 ? 0 : profileData.scores[dimension] / maxWeight;
-          restoredAnswers[questionId] = Math.max(1, Math.min(5, Math.round(normalized * 5)));
-        });
-        setAnswers(restoredAnswers);
-        $assessment.set({
-          userId: profileData.user_id,
-          scores: profileData.scores,
-          answeredCount: profileData.answered_count,
-          totalQuestions: profileData.total_questions,
-          missingQuestionIds: profileData.missing_question_ids,
-          complete: profileData.complete,
-          submittedAt: profileData.submitted_at
-        });
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void load();
-  }, [userId]);
+  const loadData = async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const [questionData, profileData] = await Promise.all([
+        api.assessmentQuestions(),
+        api.assessmentResponse(userId)
+      ]);
+      setQuestions(questionData);
+      const restoredAnswers: Record<string, number> = {};
+      const scoreDimensions = Object.keys(profileData.scores);
+      scoreDimensions.forEach((dimension, idx) => {
+        const questionId = `q${idx + 1}`;
+        if (profileData.missing_question_ids.includes(questionId)) return;
+        const maxWeight = idx + 1;
+        const normalized = maxWeight === 0 ? 0 : profileData.scores[dimension] / maxWeight;
+        restoredAnswers[questionId] = Math.max(1, Math.min(5, Math.round(normalized * 5)));
+      });
+      setAnswers(restoredAnswers);
+      $assessment.set({
+        userId: profileData.user_id,
+        scores: profileData.scores,
+        answeredCount: profileData.answered_count,
+        totalQuestions: profileData.total_questions,
+        missingQuestionIds: profileData.missing_question_ids,
+        complete: profileData.complete,
+        submittedAt: profileData.submitted_at
+      });
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void loadData(); }, [userId]);
 
   const submitAssessment = async () => {
     setSubmitting(true);
     try {
       const data = await api.submitAssessment(userId, answers);
-      setSubmittedUserId(data.user_id);
       $assessment.set({
         userId: data.user_id,
         scores: data.scores,
@@ -81,6 +191,8 @@ export function AssessmentClient() {
         complete: data.complete,
         submittedAt: data.submitted_at
       });
+      setFinalScores(data.scores);
+      setScoreScreen(true);
     } finally {
       setSubmitting(false);
     }
@@ -96,13 +208,13 @@ export function AssessmentClient() {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
-  const nextQuestion = () => {
-    setCurrentIndex((idx) => Math.min(idx + 1, totalCount - 1));
-  };
-
-  const prevQuestion = () => {
-    setCurrentIndex((idx) => Math.max(idx - 1, 0));
-  };
+  if (scoreScreen) {
+    return (
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-12 w-full max-w-3xl mx-auto">
+        <ScoreScreen scores={finalScores} />
+      </main>
+    );
+  }
 
   return (
     <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-12 w-full max-w-3xl mx-auto">
@@ -110,32 +222,47 @@ export function AssessmentClient() {
       <div className="w-full mb-8">
         <div className="flex justify-between items-end mb-4">
           <div>
-            <h1 className="text-3xl font-bold font-display tracking-tight text-white mb-1">Weekly Pulse Sync</h1>
-            <p className="text-gray-400 text-sm">Calibrating your psychometric baseline</p>
+            <h1 className="text-3xl font-bold font-display tracking-tight text-white mb-1">Behavioral Assessment</h1>
+            <p className="text-gray-400 text-sm">8 dimensions · ~5 minutes · used in compatibility scoring</p>
           </div>
           <div className="text-right">
             <span className="text-2xl font-bold font-display text-accent-neon">{progress}%</span>
             <span className="text-gray-500 text-sm block">Complete</span>
           </div>
         </div>
-        
-        {/* Progress Bar Container */}
+
         <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
-          <div 
-            className="h-full bg-gradient-to-r from-primary to-accent-neon rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(57,255,20,0.5)]" 
+          <div
+            className="h-full bg-gradient-to-r from-primary to-accent-neon rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(57,255,20,0.5)]"
             style={{ width: `${progress}%` }}
-          ></div>
+          />
         </div>
         <div className="flex justify-between mt-2 text-xs text-gray-500 font-mono">
           <span>START</span>
-          <span>SYNC COMPLETE</span>
+          <span>COMPLETE</span>
         </div>
       </div>
 
-      {loading && <p className="text-white">Loading assessment profile...</p>}
-      {error && <p className="text-red-400">Unable to load assessment data. Refresh and try again.</p>}
+      {loading && <LoadingSkeleton />}
 
-      {activeQuestion && (
+      {loadError && (
+        <div className="w-full glass-panel rounded-none p-8 text-center flex flex-col items-center gap-4">
+          <span className="material-symbols-outlined text-4xl text-red-400">error_outline</span>
+          <div>
+            <h3 className="font-bold text-white mb-1">Failed to load assessment</h3>
+            <p className="text-sm text-gray-400">Unable to reach the API. Check your backend connection.</p>
+          </div>
+          <button
+            onClick={() => void loadData()}
+            className="px-4 py-2 rounded-lg border border-white/20 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-sm">refresh</span>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !loadError && activeQuestion && (
         <div className="w-full glass-panel rounded-none p-8 md:p-12 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4">
             <span className="material-symbols-outlined text-white/10 text-6xl transform rotate-12 group-hover:text-primary/20 transition-colors duration-500">
@@ -147,17 +274,16 @@ export function AssessmentClient() {
             <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/40 text-xs font-bold tracking-widest text-primary mb-6 font-display uppercase">
               Question {currentIndex + 1} of {totalCount}
             </span>
-            
+
             <h2 className="text-2xl md:text-3xl font-bold text-white mb-12 font-display leading-tight">
               {activeQuestion.prompt}
             </h2>
 
-            {/* Custom Range Slider Wrapper */}
             <div className="relative w-full px-4 mb-10">
-              <input 
-                type="range" 
-                min="1" 
-                max="5" 
+              <input
+                type="range"
+                min="1"
+                max="5"
                 step="1"
                 value={answers[activeQuestion.id] ?? 3}
                 onChange={(e) => selectAnswer(activeQuestion.id, Number(e.target.value))}
@@ -179,44 +305,45 @@ export function AssessmentClient() {
       )}
 
       {/* Navigation Controls */}
-      <div className="w-full flex justify-between items-center mt-8">
-        <button 
-          onClick={prevQuestion} 
-          disabled={currentIndex === 0}
-          className="px-6 py-3 rounded-full border border-white/40 bg-transparent text-gray-400 font-medium hover:bg-white/5 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined text-sm">arrow_back</span>
-          Back
-        </button>
-
-        {currentIndex < totalCount - 1 ? (
-          <button 
-            onClick={nextQuestion}
-            className="px-8 py-3 rounded-full bg-white text-black font-bold hover:bg-gray-200 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+      {!loading && !loadError && (
+        <div className="w-full flex justify-between items-center mt-8">
+          <button
+            onClick={() => setCurrentIndex((idx) => Math.max(idx - 1, 0))}
+            disabled={currentIndex === 0}
+            className="px-6 py-3 rounded-full border border-white/40 bg-transparent text-gray-400 font-medium hover:bg-white/5 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Next
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            <span className="material-symbols-outlined text-sm">arrow_back</span>
+            Back
           </button>
-        ) : (
-          <button 
-            onClick={submitAssessment}
-            disabled={!hasAllAnswers || submitting}
-            className="px-8 py-3 rounded-full bg-primary hover:bg-[#aacc00] text-black font-bold transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(204,255,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? "Syncing..." : "Complete Sync"}
-            {!submitting && <span className="material-symbols-outlined text-sm">check_circle</span>}
-          </button>
-        )}
-      </div>
 
-      {submittedUserId && (
-        <div className="mt-8 p-4 bg-accent-neon/10 border border-accent-neon/30 rounded-none text-accent-neon text-center animate-pulse-slow">
-          <p className="font-bold flex justify-center items-center gap-2">
-            <span className="material-symbols-outlined">verified</span>
-            Assessment saved for {submittedUserId}. Readiness: {hasAllAnswers ? "Ready" : "Incomplete"}.
-          </p>
+          {currentIndex < totalCount - 1 ? (
+            <button
+              onClick={() => setCurrentIndex((idx) => Math.min(idx + 1, totalCount - 1))}
+              className="px-8 py-3 rounded-full bg-white text-black font-bold hover:bg-gray-200 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+            >
+              Next
+              <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => void submitAssessment()}
+              disabled={!hasAllAnswers || submitting}
+              className="px-8 py-3 rounded-full bg-primary hover:bg-[#aacc00] text-black font-bold transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(204,255,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? "Saving..." : "Submit Assessment"}
+              {!submitting && <span className="material-symbols-outlined text-sm">check_circle</span>}
+            </button>
+          )}
         </div>
       )}
     </main>
+  );
+}
+
+export function AssessmentClient() {
+  return (
+    <ErrorBoundary fallbackMessage="Assessment failed to load">
+      <AssessmentInner />
+    </ErrorBoundary>
   );
 }

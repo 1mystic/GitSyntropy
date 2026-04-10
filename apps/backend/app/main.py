@@ -190,7 +190,8 @@ async def auth_session(token: str = Depends(_require_bearer_token)) -> AuthSessi
 # ---------------------------------------------------------------------------
 
 @app.post(f"{settings.api_prefix}/github/sync", response_model=GithubSyncResponse)
-async def github_sync(payload: GithubSyncRequest, db: AsyncSession = Depends(get_db)) -> GithubSyncResponse:
+@limiter.limit("10/minute")
+async def github_sync(request: Request, payload: GithubSyncRequest, db: AsyncSession = Depends(get_db)) -> GithubSyncResponse:
     data = await trigger_github_sync(payload.github_handle, user_id=payload.user_id, db=db)
     return GithubSyncResponse(**data)
 
@@ -247,7 +248,8 @@ async def run_compatibility(payload: CompatibilityRequest) -> CompatibilityRespo
 # ---------------------------------------------------------------------------
 
 @app.post(f"{settings.api_prefix}/orchestrator/run", response_model=OrchestratorRunResponse)
-async def orchestrator_run(payload: OrchestratorRunRequest, db: AsyncSession = Depends(get_db)) -> OrchestratorRunResponse:
+@limiter.limit("10/minute")
+async def orchestrator_run(request: Request, payload: OrchestratorRunRequest, db: AsyncSession = Depends(get_db)) -> OrchestratorRunResponse:
     run_id = await create_agent_run(
         team_id=payload.team_id,
         user_id=payload.user_id,
@@ -300,6 +302,47 @@ async def remove_member_route(team_id: str, user_id: str, db: AsyncSession = Dep
     found = await remove_team_member(team_id, user_id, db)
     if not found:
         raise HTTPException(status_code=404, detail="Member not found")
+
+
+# ---------------------------------------------------------------------------
+# Feature 8 — CAT (Computerized Adaptive Testing)
+# ---------------------------------------------------------------------------
+
+@app.post(f"{settings.api_prefix}/assessment/cat/next", response_model=CATNextResponse)
+async def cat_next_question(payload: CATNextRequest) -> CATNextResponse:
+    next_qid = cat_select_next_question(payload.current_answers)
+    rationale = cat_rationale(next_qid, payload.current_answers)
+    estimated = cat_estimated_remaining(next_qid, payload.current_answers)
+    can_stop = next_qid is None
+
+    question = None
+    if next_qid is not None:
+        all_questions = {q["id"]: q for q in assessment_questions()}
+        raw = all_questions.get(next_qid)
+        if raw:
+            question = AssessmentQuestion(**raw)
+
+    return CATNextResponse(
+        next_question_id=next_qid,
+        question=question,
+        rationale=rationale,
+        estimated_remaining=estimated,
+        can_stop_early=can_stop,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Feature 8 — Monte Carlo candidate simulation
+# ---------------------------------------------------------------------------
+
+@app.post(f"{settings.api_prefix}/candidates/simulate", response_model=CandidateSimulateResponse)
+@limiter.limit("5/minute")
+async def simulate_candidates(request: Request, payload: CandidateSimulateRequest) -> CandidateSimulateResponse:
+    result = monte_carlo_candidate_simulation(
+        team_scores=payload.team_scores,
+        n_iterations=payload.n_iterations,
+    )
+    return CandidateSimulateResponse(**result)
 
 
 # ---------------------------------------------------------------------------

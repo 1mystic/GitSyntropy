@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, type OrchestratorStreamEvent, type Team, wsUrlForRun } from "@/lib/api";
 import { $session, $teams } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type StreamConnection = "idle" | "connecting" | "streaming" | "done" | "error";
 
@@ -11,7 +12,7 @@ function memberInitials(userId: string) {
   return clean.slice(0, 2).toUpperCase() || "??";
 }
 
-export function WorkspaceClient() {
+function WorkspaceInner() {
   const session = $session.get();
   const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
 
@@ -728,5 +729,13 @@ export function WorkspaceClient() {
         </div>
       </div>
     </>
+  );
+}
+
+export function WorkspaceClient() {
+  return (
+    <ErrorBoundary fallbackMessage="Workspace failed to load">
+      <WorkspaceInner />
+    </ErrorBoundary>
   );
 }

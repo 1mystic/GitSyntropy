@@ -124,17 +124,19 @@ def test_analysis_websocket_streams_orchestrator_events() -> None:
 
     with client.websocket_connect(f"/ws/analysis/{run_id}") as ws:
         received: list[dict] = []
-        for _ in range(20):
+        while True:
             event = ws.receive_json()
             received.append(event)
-            if event["step"] == "orchestration" and event["status"] == "completed":
+            # Token events don't carry "step"; skip but continue reading
+            if event.get("type") == "synthesis_token":
+                continue
+            if event.get("step") == "orchestration" and event.get("status") == "completed":
                 break
 
-    assert received, "Expected stream events from orchestrator websocket."
-    terminal = received[-1]
-    assert terminal["step"] == "orchestration"
-    assert terminal["status"] == "completed"
+    step_events = [e for e in received if "step" in e]
+    assert step_events, "Expected step events from orchestrator websocket."
 
-    completed_steps = {event["step"] for event in received if event["status"] == "completed"}
+    completed_steps = {e["step"] for e in step_events if e.get("status") == "completed"}
     assert "candidate_simulation" in completed_steps
     assert "synthesis" in completed_steps
+    assert "orchestration" in completed_steps
