@@ -132,7 +132,7 @@ function AssessmentInner() {
 
   if (AUTH_REQUIRED && !session) {
     return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-12 pb-16 w-full max-w-2xl px-6 md:px-14">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-[1400px] mx-auto px-4 md:px-8">
         <section className="glass-panel p-8 rounded-none w-full text-center">
           <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
           <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to complete the assessment.</p>
@@ -222,139 +222,189 @@ function AssessmentInner() {
 
   if (scoreScreen) {
     return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-12 pb-16 w-full max-w-2xl px-6 md:px-14">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-[1400px] mx-auto px-4 md:px-8">
         <ScoreScreen scores={finalScores} />
       </main>
     );
   }
 
   return (
-    <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-12 pb-16 w-full max-w-2xl px-6 md:px-14">
-      {/* Header & Progress */}
-      <div className="w-full mb-8">
-        <div className="flex justify-between items-end mb-4">
-          <div>
-            <h1 className="text-3xl font-bold font-display tracking-tight text-white mb-1">Behavioral Assessment</h1>
-            <p className="text-gray-400 text-sm">8 dimensions · ~5 minutes · used in compatibility scoring</p>
-            <p className="text-xs font-mono text-gray-500 mt-1">Profiling: <span className="text-primary">{userId}</span></p>
-          </div>
-          <div className="text-right">
-            <span className="text-2xl font-bold font-display text-accent-neon">{progress}%</span>
-            <span className="text-gray-500 text-sm block">Complete</span>
-          </div>
+    <main className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
+      {/* Page header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div>
+          <span className="text-primary font-mono text-xs uppercase tracking-widest mb-2 block">Psychometric Profiling</span>
+          <h1 className="text-4xl md:text-5xl font-bold font-display tracking-tight text-white">Behavioral Assessment</h1>
+          <p className="text-gray-400 text-sm mt-2">8 dimensions · ~5 minutes · used in compatibility scoring</p>
         </div>
+        <div className="text-right flex-shrink-0">
+          <span className="text-4xl font-bold font-display text-accent-neon">{progress}%</span>
+          <span className="text-gray-500 text-sm block font-mono mt-0.5">Profiling: <span className="text-primary">{userId}</span></span>
+        </div>
+      </header>
 
-        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
-          <div
-            className="h-full bg-gradient-to-r from-primary to-accent-neon rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(57,255,20,0.5)]"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <div className="flex justify-between mt-2 text-xs text-gray-500 font-mono">
-          <span>START</span>
-          <span>COMPLETE</span>
-        </div>
+      {/* Progress bar */}
+      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10 mb-10">
+        <div
+          className="h-full bg-gradient-to-r from-primary to-accent-neon rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(57,255,20,0.5)]"
+          style={{ width: `${progress}%` }}
+        />
       </div>
 
-      {loading && <LoadingSkeleton />}
+      {/* Two-column layout */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-      {loadError && (
-        <div className="w-full glass-panel rounded-none p-8 text-center flex flex-col items-center gap-4">
-          <span className="material-symbols-outlined text-4xl text-red-400">error_outline</span>
-          <div>
-            <h3 className="font-bold text-white mb-1">Failed to load assessment</h3>
-            <p className="text-sm text-gray-400">Unable to reach the API. Check your backend connection.</p>
-          </div>
-          <button
-            onClick={() => void loadData()}
-            className="px-4 py-2 rounded-lg border border-white/20 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-sm">refresh</span>
-            Retry
-          </button>
-        </div>
-      )}
+        {/* LEFT: Question */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          {loading && <LoadingSkeleton />}
 
-      {!loading && !loadError && activeQuestion && (
-        <div className="w-full glass-panel rounded-none p-8 md:p-12 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4">
-            <span className="material-symbols-outlined text-white/10 text-6xl transform rotate-12 group-hover:text-primary/20 transition-colors duration-500">
-              psychology
-            </span>
-          </div>
+          {loadError && (
+            <div className="glass-panel rounded-none p-8 text-center flex flex-col items-center gap-4">
+              <span className="material-symbols-outlined text-4xl text-red-400">error_outline</span>
+              <div>
+                <h3 className="font-bold text-white mb-1">Failed to load assessment</h3>
+                <p className="text-sm text-gray-400">Unable to reach the API. Check your backend connection.</p>
+              </div>
+              <button
+                onClick={() => void loadData()}
+                className="px-4 py-2 rounded-lg border border-white/20 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">refresh</span>
+                Retry
+              </button>
+            </div>
+          )}
 
-          <div className="relative z-10">
-            <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/40 text-xs font-bold tracking-widest text-primary mb-6 font-display uppercase">
-              Question {currentIndex + 1} of {totalCount}
-            </span>
-
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4 font-display leading-tight">
-              {activeQuestion.prompt}
-            </h2>
-            {QUESTION_DIMENSION[activeQuestion.id] && (
-              <p className="text-sm text-gray-500 mb-10 leading-relaxed">
-                <span className="font-semibold text-gray-400">{QUESTION_DIMENSION[activeQuestion.id].label}</span>
-                {" — "}{QUESTION_DIMENSION[activeQuestion.id].description}
-              </p>
-            )}
-
-            <div className="relative w-full px-4 mb-10">
-              <input
-                type="range"
-                min="1"
-                max="5"
-                step="1"
-                value={answers[activeQuestion.id] ?? 3}
-                onChange={(e) => selectAnswer(activeQuestion.id, Number(e.target.value))}
-                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-primary accent-primary"
-                style={{
-                  accentColor: "var(--primary-solid)",
-                  WebkitAppearance: "none",
-                  background: `linear-gradient(to right, var(--primary-solid) ${((answers[activeQuestion.id] ?? 3) - 1) * 25}%, rgba(255,255,255,0.1) ${((answers[activeQuestion.id] ?? 3) - 1) * 25}%)`
-                }}
-              />
-              <div className="flex justify-between mt-6">
-                <span className="text-sm font-medium text-gray-400 w-1/3 text-left leading-tight">{activeQuestion.left_label}</span>
-                <span className="text-xs font-mono text-primary/50 w-1/3 text-center pt-1">{answers[activeQuestion.id] ?? 3}</span>
-                <span className="text-sm font-medium text-gray-400 w-1/3 text-right leading-tight">{activeQuestion.right_label}</span>
+          {!loading && !loadError && activeQuestion && (
+            <div className="glass-panel rounded-none p-8 md:p-12 relative overflow-hidden group flex-1">
+              <div className="absolute top-0 right-0 p-4">
+                <span className="material-symbols-outlined text-white/10 text-6xl transform rotate-12 group-hover:text-primary/20 transition-colors duration-500">
+                  psychology
+                </span>
+              </div>
+              <div className="relative z-10 h-full flex flex-col">
+                <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/40 text-xs font-bold tracking-widest text-primary mb-6 font-display uppercase">
+                  Question {currentIndex + 1} of {totalCount}
+                </span>
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-4 font-display leading-tight">
+                  {activeQuestion.prompt}
+                </h2>
+                {QUESTION_DIMENSION[activeQuestion.id] && (
+                  <p className="text-sm text-gray-500 mb-10 leading-relaxed">
+                    <span className="font-semibold text-gray-400">{QUESTION_DIMENSION[activeQuestion.id].label}</span>
+                    {" — "}{QUESTION_DIMENSION[activeQuestion.id].description}
+                  </p>
+                )}
+                <div className="relative w-full px-2 mb-8 mt-auto">
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="1"
+                    value={answers[activeQuestion.id] ?? 3}
+                    onChange={(e) => selectAnswer(activeQuestion.id, Number(e.target.value))}
+                    className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-primary accent-primary"
+                    style={{
+                      accentColor: "var(--primary-solid)",
+                      WebkitAppearance: "none",
+                      background: `linear-gradient(to right, var(--primary-solid) ${((answers[activeQuestion.id] ?? 3) - 1) * 25}%, rgba(255,255,255,0.1) ${((answers[activeQuestion.id] ?? 3) - 1) * 25}%)`
+                    }}
+                  />
+                  <div className="flex justify-between mt-6">
+                    <span className="text-sm font-medium text-gray-400 w-1/3 text-left leading-tight">{activeQuestion.left_label}</span>
+                    <span className="text-xs font-mono text-primary/50 w-1/3 text-center pt-1">{answers[activeQuestion.id] ?? 3}</span>
+                    <span className="text-sm font-medium text-gray-400 w-1/3 text-right leading-tight">{activeQuestion.right_label}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Navigation Controls */}
-      {!loading && !loadError && (
-        <div className="w-full flex justify-between items-center mt-8">
-          <button
-            onClick={() => setCurrentIndex((idx) => Math.max(idx - 1, 0))}
-            disabled={currentIndex === 0}
-            className="px-6 py-3 rounded-full border border-white/40 bg-transparent text-gray-400 font-medium hover:bg-white/5 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-sm">arrow_back</span>
-            Back
-          </button>
-
-          {currentIndex < totalCount - 1 ? (
-            <button
-              onClick={() => setCurrentIndex((idx) => Math.min(idx + 1, totalCount - 1))}
-              className="px-8 py-3 rounded-full bg-white text-black font-bold hover:bg-gray-200 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-            >
-              Next
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => void submitAssessment()}
-              disabled={!hasAllAnswers || submitting}
-              className="px-8 py-3 rounded-full bg-primary hover:bg-[#aacc00] text-black font-bold transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(204,255,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? "Saving..." : "Submit Assessment"}
-              {!submitting && <span className="material-symbols-outlined text-sm">check_circle</span>}
-            </button>
+          {/* Navigation */}
+          {!loading && !loadError && (
+            <div className="flex justify-between items-center">
+              <button
+                onClick={() => setCurrentIndex((idx) => Math.max(idx - 1, 0))}
+                disabled={currentIndex === 0}
+                className="px-6 py-3 rounded-full border border-white/40 bg-transparent text-gray-400 font-medium hover:bg-white/5 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                Back
+              </button>
+              {currentIndex < totalCount - 1 ? (
+                <button
+                  onClick={() => setCurrentIndex((idx) => Math.min(idx + 1, totalCount - 1))}
+                  className="px-8 py-3 rounded-full bg-white text-black font-bold hover:bg-gray-200 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                >
+                  Next
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => void submitAssessment()}
+                  disabled={!hasAllAnswers || submitting}
+                  className="px-8 py-3 rounded-full bg-primary hover:bg-[#aacc00] text-black font-bold transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(204,255,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? "Saving..." : "Submit Assessment"}
+                  {!submitting && <span className="material-symbols-outlined text-sm">check_circle</span>}
+                </button>
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        {/* RIGHT: Dimension tracker */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          <div className="glass-panel rounded-none p-6 flex flex-col gap-1">
+            <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] text-primary">radar</span>
+              Dimension Progress
+            </h3>
+            {Object.entries(QUESTION_DIMENSION).map(([qId, dim], idx) => {
+              const answered = answers[qId] !== undefined;
+              const active = questions[currentIndex]?.id === qId;
+              return (
+                <button
+                  key={qId}
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left ${
+                    active
+                      ? "bg-primary/10 border border-primary/30"
+                      : "hover:bg-white/5 border border-transparent"
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold border ${
+                    answered
+                      ? "bg-primary/20 border-primary/50 text-primary"
+                      : "bg-white/5 border-white/10 text-gray-600"
+                  }`}>
+                    {answered
+                      ? <span className="material-symbols-outlined text-[12px]">check</span>
+                      : <span className="font-mono">{idx + 1}</span>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold truncate ${active ? "text-primary" : answered ? "text-gray-300" : "text-gray-600"}`}>
+                      {dim.label}
+                    </p>
+                    <p className="text-[10px] text-gray-600 truncate">{dim.description}</p>
+                  </div>
+                  <span className={`text-[10px] font-mono flex-shrink-0 ${answered ? "text-primary" : "text-gray-700"}`}>
+                    {answered ? `${dim.weight}pt` : "—"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="glass-panel rounded-none p-5 border border-white/5">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              <span className="text-white font-semibold">How scoring works:</span> Each dimension has a maximum weight (1–8pt). Higher-weight dimensions influence compatibility scores more. Answer all 8 to unlock team analysis.
+            </p>
+          </div>
+        </div>
+
+      </div>
     </main>
   );
 }
