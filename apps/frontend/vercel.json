@@ -1,0 +1,10 @@
+{
+  "framework": "astro",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "PUBLIC_API_URL": "https://gitsyntropy-backend.railway.app"
+  }
+}

@@ -118,7 +118,7 @@ def test_detect_chronotype_uniform_distribution() -> None:
 def test_detect_chronotype_histogram_sums_to_one() -> None:
     hours = [9, 9, 10, 10, 14, 14, 14, 14, 14, 15, 22, 22, 22]
     result = detect_chronotype(hours)
-    assert abs(sum(result["histogram"]) - 1.0) < 1e-6
+    assert abs(sum(result["histogram"]) - 1.0) < 1e-4  # rounding to 4 decimal places
 
 
 def test_detect_chronotype_histogram_length() -> None:

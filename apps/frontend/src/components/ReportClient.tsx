@@ -138,9 +138,9 @@ export function ReportClient() {
             ol: ({ children }) => (
               <ol className="mb-4 space-y-2 list-decimal list-inside">{children}</ol>
             ),
-            li: ({ children, ordered }) => (
-              <li className={`text-sm text-gray-300 ${ordered ? "ml-4" : "flex items-start gap-2"}`}>
-                {!ordered && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />}
+            li: ({ children }) => (
+              <li className="flex items-start gap-2 text-sm text-gray-300">
+                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
                 <span>{children}</span>
               </li>
             ),
