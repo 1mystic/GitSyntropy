@@ -174,6 +174,11 @@ export const api = {
     }),
   listTeams: (user_id: string) => request<Team[]>(`/teams?user_id=${encodeURIComponent(user_id)}`),
   getTeam: (team_id: string) => request<Team>(`/teams/${team_id}`),
+  updateTeam: (team_id: string, name?: string, description?: string) =>
+    request<Team>(`/teams/${team_id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: name ?? null, description: description ?? null }),
+    }),
   addMember: (team_id: string, user_id: string, github_handle?: string, role?: string) =>
     request<TeamMember>(`/teams/${team_id}/members`, {
       method: "POST",

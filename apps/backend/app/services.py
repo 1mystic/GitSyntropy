@@ -770,6 +770,22 @@ async def create_team(name: str, description: str | None, created_by: str, db: A
     return _team_to_dict(team, [creator])
 
 
+async def update_team(team_id: str, name: str | None, description: str | None, db: AsyncSession) -> dict | None:
+    result = await db.execute(select(Team).where(Team.id == team_id))
+    team = result.scalar_one_or_none()
+    if team is None:
+        return None
+    if name is not None:
+        team.name = name
+    if description is not None:
+        team.description = description
+    await db.commit()
+    await db.refresh(team)
+    members_result = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id))
+    members = list(members_result.scalars().all())
+    return _team_to_dict(team, members)
+
+
 async def get_team(team_id: str, db: AsyncSession) -> dict | None:
     result = await db.execute(select(Team).where(Team.id == team_id))
     team = result.scalar_one_or_none()

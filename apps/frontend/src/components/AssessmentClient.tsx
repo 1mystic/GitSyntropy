@@ -132,7 +132,7 @@ function AssessmentInner() {
 
   if (AUTH_REQUIRED && !session) {
     return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-12 w-full max-w-3xl mx-auto">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-3xl mx-auto">
         <section className="glass-panel p-8 rounded-none w-full text-center">
           <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
           <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to complete the assessment.</p>
@@ -222,14 +222,14 @@ function AssessmentInner() {
 
   if (scoreScreen) {
     return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-12 w-full max-w-3xl mx-auto">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-3xl mx-auto">
         <ScoreScreen scores={finalScores} />
       </main>
     );
   }
 
   return (
-    <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-12 w-full max-w-3xl mx-auto">
+    <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-3xl mx-auto">
       {/* Header & Progress */}
       <div className="w-full mb-8">
         <div className="flex justify-between items-end mb-4">

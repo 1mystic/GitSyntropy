@@ -1,11 +1,17 @@
 ---
 import { WorkspaceClient } from "@/components/WorkspaceClient";
-import AppNav from "@/components/AppNav.astro";
+import SideNav from "@/components/SideNav.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="GitSyntropy | Workspace">
-  <div class="fixed inset-0 z-0 pointer-events-none bg-grid-pattern opacity-20"></div>
-  <AppNav />
-  <WorkspaceClient client:load />
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(204,255,0,0.1),_transparent_70%)] blur-[120px] animate-pulse-slow"></div>
+    <div class="absolute bottom-[-5%] right-[-10%] w-[700px] h-[700px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(0,212,255,0.07),_transparent_70%)] blur-[100px]"></div>
+    <div class="absolute inset-0 opacity-[0.025] bg-grid-pattern bg-[size:32px_32px]"></div>
+  </div>
+  <SideNav />
+  <div class="ml-[220px]">
+    <WorkspaceClient client:load />
+  </div>
 </BaseLayout>

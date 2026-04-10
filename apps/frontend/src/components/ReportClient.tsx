@@ -43,7 +43,7 @@ export function ReportClient() {
 
   if (notFound) {
     return (
-      <div className="flex-1 w-full max-w-3xl mx-auto px-4 pt-40 pb-24 text-center">
+      <div className="flex-1 w-full max-w-3xl mx-auto px-4 pt-10 pb-24 text-center">
         <span className="material-symbols-outlined text-5xl text-gray-600 mb-4 block">description</span>
         <h2 className="text-xl font-semibold text-white font-display mb-2">Report not found</h2>
         <p className="text-gray-500 text-sm mb-6">This report may have been cleared or doesn't exist.</p>
@@ -56,7 +56,7 @@ export function ReportClient() {
 
   if (!report) {
     return (
-      <div className="flex-1 w-full max-w-3xl mx-auto px-4 pt-40 pb-24">
+      <div className="flex-1 w-full max-w-3xl mx-auto px-4 pt-10 pb-24">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-48 bg-white/10 rounded" />
           <div className="h-4 w-full bg-white/5 rounded" />
@@ -71,7 +71,7 @@ export function ReportClient() {
   const timeLabel = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="flex-1 w-full max-w-3xl mx-auto px-4 md:px-8 pt-36 pb-24">
+    <div className="flex-1 w-full max-w-3xl mx-auto px-4 md:px-8 pt-10 pb-24">
       {/* Back link */}
       <a
         href="/dashboard"

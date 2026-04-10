@@ -1,0 +1,52 @@
+---
+const links = [
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/workspace", label: "Workspace", icon: "schema" },
+  { href: "/compatibility", label: "Compatibility", icon: "compare_arrows" },
+  { href: "/assessment", label: "Assessment", icon: "psychology" },
+  { href: "/insights", label: "Insights", icon: "insights" },
+  { href: "/guide", label: "Guide", icon: "menu_book" },
+];
+
+const path = Astro.url.pathname;
+---
+
+<nav class="fixed left-0 top-0 bottom-0 w-[220px] z-50 flex flex-col bg-[#080808]/95 backdrop-blur-md border-r border-white/8">
+  <!-- Logo -->
+  <div class="px-4 pt-6 pb-5">
+    <a href="/" class="flex items-center gap-2 font-bold text-lg tracking-tight text-white hover:text-primary transition-colors group">
+      <span class="material-symbols-outlined text-primary">psychology</span>
+      <span class="font-display">GitSyntropy</span>
+    </a>
+  </div>
+
+  <div class="mx-4 border-t border-white/8 mb-3"></div>
+
+  <!-- Nav links -->
+  <div class="flex-1 flex flex-col gap-0.5 px-3">
+    {links.map((link) => {
+      const active = path === link.href || path.startsWith(link.href + '/');
+      return (
+        <a
+          href={link.href}
+          class={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            active
+              ? 'bg-primary/12 text-primary border border-primary/20'
+              : 'text-gray-500 hover:text-white hover:bg-white/6 border border-transparent'
+          }`}
+        >
+          <span class={`material-symbols-outlined text-[20px] flex-shrink-0 ${active ? 'text-primary' : ''}`}>{link.icon}</span>
+          {link.label}
+        </a>
+      );
+    })}
+  </div>
+
+  <!-- Login -->
+  <div class="px-3 pb-6 pt-4 border-t border-white/8">
+    <a href="/auth" class="btn btn-primary text-sm w-full flex items-center justify-center gap-2 py-2.5">
+      <span class="material-symbols-outlined text-[18px]">login</span>
+      Login
+    </a>
+  </div>
+</nav>

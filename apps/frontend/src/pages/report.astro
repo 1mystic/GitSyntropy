@@ -1,5 +1,5 @@
 ---
-import AppNav from "@/components/AppNav.astro";
+import SideNav from "@/components/SideNav.astro";
 import { ReportClient } from "@/components/ReportClient";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
@@ -11,6 +11,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     <div class="absolute inset-0 opacity-[0.03] bg-grid-pattern bg-[size:32px_32px]"></div>
   </div>
 
-  <AppNav />
-  <ReportClient client:load />
+  <SideNav />
+  <div class="ml-[220px]">
+    <ReportClient client:load />
+  </div>
 </BaseLayout>

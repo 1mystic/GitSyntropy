@@ -45,6 +45,13 @@ function WorkspaceInner() {
   const [wLoading, setWLoading] = useState(false);
   const [wError, setWError] = useState<string | null>(null);
 
+  // ── Team Edit Modal ─────────────────────────────────────────────────────
+  const [showEditTeam, setShowEditTeam] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   // ── Invite Modal ────────────────────────────────────────────────────────
   const [showInvite, setShowInvite] = useState(false);
   const [invUserId, setInvUserId] = useState("");
@@ -210,6 +217,30 @@ function WorkspaceInner() {
     setInvHandle("");
     setInvRole("");
     setInvError(null);
+  };
+
+  // ── Edit team ───────────────────────────────────────────────────────────
+  const openEditTeam = () => {
+    setEditName(activeTeam?.name ?? "");
+    setEditDesc(activeTeam?.description ?? "");
+    setEditError(null);
+    setShowEditTeam(true);
+  };
+
+  const handleEditTeam = async () => {
+    if (!activeTeam || !editName.trim()) return;
+    setEditLoading(true);
+    setEditError(null);
+    try {
+      const updated = await api.updateTeam(activeTeam.id, editName.trim(), editDesc.trim() || undefined);
+      setActiveTeam(updated);
+      syncTeams(updated);
+      setShowEditTeam(false);
+    } catch {
+      setEditError("Failed to update team.");
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   // ── Remove member ───────────────────────────────────────────────────────
@@ -490,8 +521,60 @@ function WorkspaceInner() {
         </div>
       )}
 
+      {/* ── Edit Team Modal ─────────────────────────────────────────────── */}
+      {showEditTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="glass-card w-full max-w-md rounded-2xl border border-white/10 shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <h2 className="text-lg font-bold font-display text-white">Edit Team</h2>
+              <button onClick={() => setShowEditTeam(false)} className="text-gray-400 hover:text-white transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-xs text-gray-500 mb-1.5 block font-mono uppercase">Team Name *</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleEditTeam()}
+                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1.5 block font-mono uppercase">Description</label>
+                <textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  rows={3}
+                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
+                />
+              </div>
+              {editError && <p className="text-xs text-red-400">{editError}</p>}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowEditTeam(false)}
+                  className="flex-1 py-2.5 text-sm text-gray-400 border border-white/10 rounded-xl hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditTeam}
+                  disabled={!editName.trim() || editLoading}
+                  className="flex-1 btn btn-primary py-2.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {editLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main Workspace ───────────────────────────────────────────────── */}
-      <div className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-40 pb-24 flex flex-col min-h-screen relative z-10">
+      <div className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen relative z-10">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 font-display">
@@ -514,7 +597,14 @@ function WorkspaceInner() {
             <div className="p-6 border-b border-white/10">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 font-display">Team Setup</h2>
-                <span className="material-symbols-outlined text-gray-500 text-sm">tune</span>
+                <button
+                  onClick={openEditTeam}
+                  disabled={!activeTeam}
+                  className="text-gray-500 hover:text-primary transition-colors disabled:opacity-30"
+                  title="Edit team"
+                >
+                  <span className="material-symbols-outlined text-sm">tune</span>
+                </button>
               </div>
               <p className="text-xs text-gray-600 mb-3">Select a team and run a full multi-agent analysis — GitHub signals, psychometrics, and Claude synthesis.</p>
 
@@ -613,6 +703,19 @@ function WorkspaceInner() {
                 <p className="text-xs text-gray-500">Select or create a team to manage members.</p>
               )}
             </div>
+
+            {/* Compatibility shortcut */}
+            {activeTeam && activeTeam.members.length >= 2 && (
+              <div className="px-6 pb-4">
+                <a
+                  href="/compatibility"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-purple-400 border border-purple-400/20 rounded-lg hover:bg-purple-400/10 transition-all"
+                >
+                  <span className="material-symbols-outlined text-sm">compare_arrows</span>
+                  Pairwise Compatibility
+                </a>
+              </div>
+            )}
 
             {/* Run button */}
             <div className="p-6 border-t border-white/10 bg-black/20">

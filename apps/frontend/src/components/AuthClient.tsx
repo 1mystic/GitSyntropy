@@ -75,9 +75,9 @@ export function AuthClient() {
   }, [session, isOAuthCompleting]);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen pt-20">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       {/* LEFT PANEL: Brand / Visuals */}
-      <div className="relative hidden lg:flex w-1/2 h-full flex-col justify-center items-center overflow-hidden bg-midnight border-r border-white/40 min-h-[calc(100vh-80px)]">
+      <div className="relative hidden lg:flex w-1/2 h-full flex-col justify-center items-center overflow-hidden bg-midnight border-r border-white/40 min-h-screen">
         <div className="absolute inset-0 w-full h-full opacity-60 pointer-events-none">
           <div className="animate-float absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/40 rounded-full blur-[120px]"></div>
           <div className="animate-float absolute bottom-[-10%] right-[-10%] w-[70%] h-[70%] bg-accent-teal/30 rounded-full blur-[100px]" style={{ animationDirection: 'reverse', animationDuration: '15s' }}></div>
@@ -116,7 +116,7 @@ export function AuthClient() {
       </div>
 
       {/* RIGHT PANEL: Auth Forms */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16 relative">
+      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16 relative min-h-screen">
         <div className="w-full max-w-md relative z-10">
           <div className="mb-10 text-center lg:text-left">
             <h2 className="text-3xl font-bold mb-2 font-display">Welcome Back</h2>
@@ -140,12 +140,11 @@ export function AuthClient() {
           ) : (
             <>
               {/* GitHub Auth Button */}
-              <button 
+              <button
                 onClick={startGithubOAuth}
                 disabled={isOAuthStarting || isOAuthCompleting}
-                className="w-full btn btn-secondary py-3.5 px-4 flex items-center justify-center gap-3 transition-all mb-6"
+                className="w-full btn btn-secondary py-3.5 px-4 flex items-center justify-center gap-3 transition-all mb-6 relative overflow-hidden"
               >
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                 <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg" alt="GitHub" className="w-5 h-5 invert" />
                 <span>
                   {isOAuthCompleting ? "Completing login..." : isOAuthStarting ? "Starting OAuth..." : "Continue with GitHub"}

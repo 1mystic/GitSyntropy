@@ -1,10 +1,18 @@
 ---
-import AppNav from "@/components/AppNav.astro";
+import SideNav from "@/components/SideNav.astro";
 import { DashboardClient } from "@/components/DashboardClient";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="GitSyntropy | Dashboard">
-  <AppNav />
-  <DashboardClient client:load />
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute top-[-15%] left-[-10%] w-[700px] h-[700px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(204,255,0,0.12),_transparent_70%)] blur-[120px] animate-pulse-slow"></div>
+    <div class="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(0,212,255,0.08),_transparent_70%)] blur-[100px]"></div>
+    <div class="absolute top-[50%] right-[30%] w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(147,51,234,0.06),_transparent_70%)] blur-[80px]"></div>
+    <div class="absolute inset-0 opacity-[0.025] bg-grid-pattern bg-[size:32px_32px]"></div>
+  </div>
+  <SideNav />
+  <div class="ml-[220px]">
+    <DashboardClient client:load />
+  </div>
 </BaseLayout>

@@ -1,5 +1,5 @@
 ---
-import AppNav from "@/components/AppNav.astro";
+import SideNav from "@/components/SideNav.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
@@ -10,9 +10,9 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     <div class="absolute inset-0 bg-grid-pattern opacity-20"></div>
   </div>
 
-  <AppNav />
-
-  <main class="relative z-10 w-full max-w-[900px] mx-auto px-4 md:px-8 pt-40 pb-24 flex flex-col gap-20">
+  <SideNav />
+  <div class="ml-[220px]">
+  <main class="relative z-10 w-full max-w-[900px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col gap-20">
 
     <!-- Header -->
     <header class="flex flex-col gap-4">
@@ -305,4 +305,5 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     </section>
 
   </main>
+  </div>
 </BaseLayout>

@@ -38,6 +38,7 @@ from .schemas import (
     OrchestratorRunRequest,
     OrchestratorRunResponse,
     TeamCreateRequest,
+    TeamUpdateRequest,
     TeamMemberResponse,
     TeamResponse,
 )
@@ -54,6 +55,7 @@ from .services import (
     create_jwt,
     create_oauth_state,
     create_team,
+    update_team,
     decode_jwt,
     exchange_github_code_for_identity,
     get_agent_run,
@@ -282,6 +284,14 @@ async def list_teams_route(user_id: str, db: AsyncSession = Depends(get_db)) -> 
 @app.get(f"{settings.api_prefix}/teams/{{team_id}}", response_model=TeamResponse)
 async def get_team_route(team_id: str, db: AsyncSession = Depends(get_db)) -> TeamResponse:
     data = await get_team(team_id, db)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    return TeamResponse(**data)
+
+
+@app.patch(f"{settings.api_prefix}/teams/{{team_id}}", response_model=TeamResponse)
+async def update_team_route(team_id: str, payload: TeamUpdateRequest, db: AsyncSession = Depends(get_db)) -> TeamResponse:
+    data = await update_team(team_id, payload.name, payload.description, db)
     if data is None:
         raise HTTPException(status_code=404, detail="Team not found")
     return TeamResponse(**data)

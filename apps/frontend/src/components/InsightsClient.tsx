@@ -151,7 +151,7 @@ function InsightsInner() {
 
   if (AUTH_REQUIRED && !session) {
     return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-12 w-full max-w-3xl mx-auto">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-3xl mx-auto">
         <section className="glass-panel p-8 rounded-none w-full text-center">
           <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
           <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to view synthesis insights.</p>
@@ -160,6 +160,27 @@ function InsightsInner() {
       </main>
     );
   }
+
+  // Aggregate KPIs from saved reports in localStorage
+  const savedReports = (() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(localStorage.getItem("gitsyntropy.reports") ?? "[]") as {
+        id: string; teamName: string; score: number; resilienceScore: number; createdAt: string;
+      }[];
+    } catch { return []; }
+  })();
+
+  const kpiTotalRuns = savedReports.length;
+  const kpiAvgScore = savedReports.length
+    ? Math.round(savedReports.reduce((s, r) => s + r.score, 0) / savedReports.length)
+    : null;
+  const kpiBest = savedReports.length
+    ? savedReports.reduce((best, r) => (r.score > best.score ? r : best), savedReports[0])
+    : null;
+  const kpiLastDate = savedReports[0]
+    ? new Date(savedReports[0].createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : null;
 
   const [streaming, setStreaming] = useState(false);
   const [streamDone, setStreamDone] = useState(false);
@@ -264,7 +285,7 @@ function InsightsInner() {
   };
 
   return (
-    <main className="relative z-10 w-full max-w-[1200px] mx-auto px-4 md:px-8 pt-40 pb-20 flex flex-col min-h-screen">
+    <main className="relative z-10 w-full max-w-[1200px] mx-auto px-4 md:px-8 pt-10 pb-20 flex flex-col min-h-screen">
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
@@ -298,6 +319,26 @@ function InsightsInner() {
           </p>
         </div>
       </div>
+
+      {/* Aggregate KPI bar */}
+      {kpiTotalRuns > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {[
+            { label: "Total Runs", value: String(kpiTotalRuns), icon: "history", color: "text-primary" },
+            { label: "Avg Team Score", value: kpiAvgScore !== null ? `${kpiAvgScore}/36` : "—", icon: "analytics", color: "text-accent-teal" },
+            { label: "Best Team", value: kpiBest?.teamName ?? "—", icon: "emoji_events", color: "text-amber-400" },
+            { label: "Last Analysis", value: kpiLastDate ?? "—", icon: "calendar_today", color: "text-purple-400" },
+          ].map((kpi) => (
+            <div key={kpi.label} className="glass-panel rounded-none p-4 flex items-start gap-3 border border-white/5">
+              <span className={`material-symbols-outlined text-[20px] ${kpi.color} flex-shrink-0 mt-0.5`}>{kpi.icon}</span>
+              <div className="min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">{kpi.label}</p>
+                <p className="text-lg font-bold text-white font-display truncate">{kpi.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* What does this page do — idle explanation */}
       {!streaming && !streamDone && !streamError && (

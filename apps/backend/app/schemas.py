@@ -193,6 +193,11 @@ class TeamCreateRequest(BaseModel):
     created_by: str
 
 
+class TeamUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    description: str | None = None
+
+
 class AddMemberRequest(BaseModel):
     user_id: str
     github_handle: str | None = None

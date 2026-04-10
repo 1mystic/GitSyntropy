@@ -1,10 +1,17 @@
 ---
-import AppNav from "@/components/AppNav.astro";
 import { AuthClient } from "@/components/AuthClient";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
-<BaseLayout title="GitSyntropy | Auth">
-  <AppNav />
+<BaseLayout title="GitSyntropy | Sign In">
+  <!-- Full-page grid -->
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute inset-0 opacity-20 bg-grid-pattern bg-[size:32px_32px]"></div>
+  </div>
+  <!-- Brand mark floating top-right -->
+  <a href="/" class="fixed top-4 left-6 z-50 flex items-center gap-2 font-bold text-xl tracking-tight text-white hover:text-primary transition-colors px-3 py-2 rounded-xl bg-white/8 backdrop-blur-sm border border-white/10 hover:bg-white/12 hover:border-white/20 shadow-lg">
+    <span class="material-symbols-outlined text-primary">psychology</span>
+    <span class="font-display">GitSyntropy</span>
+  </a>
   <AuthClient client:load />
 </BaseLayout>

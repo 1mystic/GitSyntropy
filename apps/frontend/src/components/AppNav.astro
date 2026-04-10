@@ -1,12 +1,8 @@
 ---
 const links = [
-  { href: "/", label: "Landing" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/assessment", label: "Assessment" },
-  { href: "/compatibility", label: "Compatibility" },
   { href: "/workspace", label: "Workspace" },
-  { href: "/insights", label: "Insights" },
-  { href: "/guide", label: "Guide" }
+  { href: "/guide", label: "Guide" },
 ];
 ---
 
@@ -17,7 +13,7 @@ const links = [
       <span class="font-display">GitSyntropy</span>
     </a>
     <div class="hidden lg:flex items-center gap-2">
-      {links.slice(1).map((link) => (
+      {links.map((link) => (
         <a href={link.href} class="text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-full transition-colors">
           {link.label}
         </a>

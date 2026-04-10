@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
+import { useStore } from "@nanostores/react";
 
 import { type CompatibilityResponse, api } from "@/lib/api";
-import { $session } from "@/lib/stores";
-import { AUTH_REQUIRED } from "@/lib/featureFlags";
+import { $session, $teams } from "@/lib/stores";
+import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 
 export function CompatibilityClient() {
-  const session = $session.get();
-  if (AUTH_REQUIRED && !session) {
+  const _session = $session.get();
+  if (AUTH_REQUIRED && !_session) {
     return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-12 w-full max-w-3xl mx-auto">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-3xl mx-auto">
         <section className="glass-panel p-8 rounded-none w-full text-center">
           <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
           <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to view compatibility analysis.</p>
@@ -18,9 +19,32 @@ export function CompatibilityClient() {
     );
   }
 
+  const session = $session.get();
+  const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
+  const teams = useStore($teams);
+
+  // Build a flat list of all members from all teams for quick-select
+  const allMembers = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { id: string; label: string; teamName: string }[] = [];
+    for (const team of teams) {
+      for (const m of team.members) {
+        if (!seen.has(m.user_id)) {
+          seen.add(m.user_id);
+          out.push({
+            id: m.user_id,
+            label: m.github_handle ? `@${m.github_handle} (${m.user_id})` : m.user_id,
+            teamName: team.name,
+          });
+        }
+      }
+    }
+    return out;
+  }, [teams]);
+
   const [loading, setLoading] = useState(false);
-  const [memberA, setMemberA] = useState("alice");
-  const [memberB, setMemberB] = useState("bob");
+  const [memberA, setMemberA] = useState(userId);
+  const [memberB, setMemberB] = useState("");
   const [dataMode, setDataMode] = useState<"full" | "incomplete">("full");
   const [data, setData] = useState<CompatibilityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +71,7 @@ export function CompatibilityClient() {
   }, [data?.level]);
 
   return (
-    <main className="relative z-10 w-full max-w-[1200px] mx-auto px-4 md:px-8 pt-40 pb-20 flex flex-col min-h-screen">
+    <main className="relative z-10 w-full max-w-[1200px] mx-auto px-4 md:px-8 pt-10 pb-20 flex flex-col min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
           <span className="text-primary font-mono text-xs uppercase tracking-widest mb-2 block">Compatibility Engine</span>
@@ -64,21 +88,46 @@ export function CompatibilityClient() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-xs text-gray-500 font-mono uppercase tracking-wider">Member A</label>
-            <input
-              value={memberA}
-              onChange={(e) => setMemberA(e.target.value)}
-              placeholder="e.g. alice, 1mystic"
-              className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white placeholder-gray-600 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-            />
+            {allMembers.length > 0 ? (
+              <select
+                value={memberA}
+                onChange={(e) => setMemberA(e.target.value)}
+                className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all appearance-none"
+              >
+                {allMembers.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-[#121212]">{m.label}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={memberA}
+                onChange={(e) => setMemberA(e.target.value)}
+                placeholder="e.g. alice, 1mystic"
+                className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white placeholder-gray-600 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+              />
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-xs text-gray-500 font-mono uppercase tracking-wider">Member B</label>
-            <input
-              value={memberB}
-              onChange={(e) => setMemberB(e.target.value)}
-              placeholder="e.g. bob, dev_user"
-              className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white placeholder-gray-600 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-            />
+            {allMembers.length > 0 ? (
+              <select
+                value={memberB}
+                onChange={(e) => setMemberB(e.target.value)}
+                className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all appearance-none"
+              >
+                <option value="" className="bg-[#121212]">— select member —</option>
+                {allMembers.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-[#121212]">{m.label}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={memberB}
+                onChange={(e) => setMemberB(e.target.value)}
+                placeholder="e.g. bob, dev_user"
+                className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white placeholder-gray-600 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+              />
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-xs text-gray-500 font-mono uppercase tracking-wider">Data Mode</label>

@@ -61,9 +61,7 @@ function DashboardInner() {
 
   const teams = useStore($teams);
 
-  const [health, setHealth] = useState<{ status: string; version: string } | null>(null);
   const [healthError, setHealthError] = useState(false);
-  const [healthLoading, setHealthLoading] = useState(true);
 
   // Team selection
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
@@ -110,11 +108,7 @@ function DashboardInner() {
   };
 
   useEffect(() => {
-    void api
-      .health()
-      .then((data) => setHealth({ status: data.status, version: data.version }))
-      .catch(() => setHealthError(true))
-      .finally(() => setHealthLoading(false));
+    void api.health().catch(() => setHealthError(true));
   }, []);
 
   // Load teams into store if not yet populated
@@ -296,62 +290,50 @@ function DashboardInner() {
   const activeTeam = teams.find((t) => t.id === selectedTeamId);
 
   return (
-    <div className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-40 pb-24 flex flex-col min-h-screen">
+    <div className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 font-display">
             Dashboard
           </h1>
-          <div className="flex items-center gap-3 mt-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span
-                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${health?.status === "ok" ? "bg-accent-neon" : "bg-red-500"}`}
-                />
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${health?.status === "ok" ? "bg-accent-neon" : "bg-red-500"}`}
-                />
-              </span>
-              <p className="text-gray-400 text-sm font-medium">
-                {healthLoading
-                  ? "Checking API..."
-                  : healthError
-                    ? "Backend offline"
-                    : `System operational · v${health?.version}`}
-              </p>
-            </div>
-            <span className="text-xs font-mono text-gray-500 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
-              You: {userId}
-            </span>
-            {/* Team selector */}
-            {teams.length === 0 && !teamsLoading && (
-              <div className="mt-1 p-2 border border-dashed border-white/20 rounded text-xs text-gray-500">
-                No teams yet —{" "}
-                <a href="/workspace" className="text-primary hover:text-white transition-colors">create your first team in Workspace →</a>
-              </div>
-            )}
-            {(teamsLoading || teams.length > 0) && (
-              <div className="flex items-center gap-2">
-                <span className="text-gray-600 text-xs font-mono">TEAM</span>
-                {teamsLoading ? (
-                  <div className="w-28 h-7 bg-white/5 border border-white/10 rounded animate-pulse" />
-                ) : (
-                  <select
-                    value={selectedTeamId}
-                    onChange={(e) => setSelectedTeamId(e.target.value)}
-                    className="bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-primary transition-all"
-                  >
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            )}
-          </div>
         </div>
-        <div className="flex items-center gap-3">
+        {/* Right actions pane */}
+        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 backdrop-blur-sm shadow-lg flex-wrap">
+          {/* Status + user badge */}
+          <div className="flex items-center gap-2 pr-2 border-r border-white/10">
+            <span className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${!healthError ? "bg-accent-neon" : "bg-red-500"}`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${!healthError ? "bg-accent-neon" : "bg-red-500"}`} />
+            </span>
+            <span className="text-xs font-mono text-gray-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+              {userId}
+            </span>
+          </div>
+          {/* Team selector */}
+          {teams.length === 0 && !teamsLoading && (
+            <span className="text-xs text-gray-500 px-1">
+              <a href="/workspace" className="text-primary hover:text-white transition-colors">+ Create team</a>
+            </span>
+          )}
+          {(teamsLoading || teams.length > 0) && (
+            <div className="flex items-center gap-2 pr-2 border-r border-white/10">
+              <span className="text-gray-500 text-xs font-mono">TEAM</span>
+              {teamsLoading ? (
+                <div className="w-24 h-6 bg-white/5 border border-white/10 rounded animate-pulse" />
+              ) : (
+                <select
+                  value={selectedTeamId}
+                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  className="bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-primary transition-all"
+                >
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
           <button
             onClick={() => void runAnalysis()}
             disabled={analysisLoading}
@@ -697,6 +679,49 @@ function DashboardInner() {
           </div>
         )}
       </div>
+
+      {/* Contextual Quick Actions */}
+      <section className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a
+          href="/assessment"
+          className="glass-card rounded-none p-5 flex items-center gap-4 border border-white/5 hover:border-accent-teal/40 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center flex-shrink-0 group-hover:bg-accent-teal/20 transition-colors">
+            <span className="material-symbols-outlined text-accent-teal text-[20px]">psychology</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white font-display">Assessment</p>
+            <p className="text-xs text-gray-500 mt-0.5">Complete or review your psychometric profile</p>
+          </div>
+          <span className="material-symbols-outlined text-gray-600 group-hover:text-accent-teal transition-colors ml-auto flex-shrink-0">arrow_forward</span>
+        </a>
+        <a
+          href="/compatibility"
+          className="glass-card rounded-none p-5 flex items-center gap-4 border border-white/5 hover:border-purple-400/40 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-purple-400/10 border border-purple-400/20 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-400/20 transition-colors">
+            <span className="material-symbols-outlined text-purple-400 text-[20px]">compare_arrows</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white font-display">Compatibility</p>
+            <p className="text-xs text-gray-500 mt-0.5">Run a pairwise score between two members</p>
+          </div>
+          <span className="material-symbols-outlined text-gray-600 group-hover:text-purple-400 transition-colors ml-auto flex-shrink-0">arrow_forward</span>
+        </a>
+        <a
+          href="/insights"
+          className="glass-card rounded-none p-5 flex items-center gap-4 border border-white/5 hover:border-primary/40 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+            <span className="material-symbols-outlined text-primary text-[20px]">auto_awesome</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white font-display">Insights</p>
+            <p className="text-xs text-gray-500 mt-0.5">View your AI-generated team synthesis report</p>
+          </div>
+          <span className="material-symbols-outlined text-gray-600 group-hover:text-primary transition-colors ml-auto flex-shrink-0">arrow_forward</span>
+        </a>
+      </section>
 
       {/* Recent Reports */}
       {reports.length > 0 && (

@@ -1,5 +1,5 @@
 ---
-import AppNav from "@/components/AppNav.astro";
+import SideNav from "@/components/SideNav.astro";
 import { AssessmentClient } from "@/components/AssessmentClient";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
@@ -12,6 +12,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     <div class="absolute inset-0 opacity-[0.03] bg-grid-pattern"></div>
   </div>
 
-  <AppNav />
-  <AssessmentClient client:load />
+  <SideNav />
+  <div class="ml-[220px]">
+    <AssessmentClient client:load />
+  </div>
 </BaseLayout>
