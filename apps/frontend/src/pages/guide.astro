@@ -12,7 +12,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 
   <SideNav />
 
-  <div class="ml-[220px]">
+  <div class="lg:ml-[220px]">
     <div class="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24">
 
       <!-- Page header -->
@@ -290,9 +290,9 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 
         </main>
 
-        <!-- RIGHT: Sticky section nav -->
-        <aside class="xl:col-span-4 hidden xl:block">
-          <div class="sticky top-8 glass-panel rounded-none p-5 border border-white/8">
+        <!-- RIGHT: Sticky section nav (hidden for now) -->
+        <!-- <aside class="xl:col-span-4 hidden xl:block self-start sticky top-0 h-screen overflow-y-auto">
+          <div class="glass-panel rounded-none p-5 border border-white/8 min-h-screen">
             <p class="text-[10px] font-mono text-gray-600 uppercase tracking-widest mb-4">On this page</p>
             <nav class="flex flex-col gap-0.5" id="guide-toc">
               {[
@@ -329,7 +329,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
               </a>
             </div>
           </div>
-        </aside>
+        </aside> -->
 
       </div>
     </div>

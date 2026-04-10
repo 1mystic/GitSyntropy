@@ -11,10 +11,29 @@ const links = [
 const path = Astro.url.pathname;
 ---
 
-<nav class="fixed left-0 top-0 bottom-0 w-[220px] z-50 flex flex-col bg-[#080808]/95 backdrop-blur-md border-r border-white/8">
+<!-- Mobile bookmark toggle tab -->
+<button
+  id="nav-toggle"
+  class="lg:hidden fixed top-1/2 -translate-y-1/2 left-0 z-[60] flex flex-col items-center justify-center gap-1 w-5 py-4 rounded-r-lg bg-[#080808]/95 border border-l-0 border-white/12 text-gray-400 hover:text-primary backdrop-blur-md transition-[left] duration-300 shadow-lg"
+  aria-label="Toggle menu"
+>
+  <span id="nav-toggle-icon" class="material-symbols-outlined text-[14px] leading-none">chevron_right</span>
+</button>
+
+<!-- Backdrop -->
+<div
+  id="nav-backdrop"
+  class="lg:hidden fixed inset-0 z-[49] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300"
+></div>
+
+<!-- Sidebar -->
+<nav
+  id="side-nav"
+  class="fixed left-0 top-0 bottom-0 w-[220px] z-50 flex flex-col bg-[#080808]/95 backdrop-blur-md border-r border-white/8 transition-transform duration-300 -translate-x-full lg:translate-x-0"
+>
   <!-- Logo -->
   <div class="px-4 pt-6 pb-5">
-    <a href="/" class="flex items-center gap-2 font-bold text-lg tracking-tight text-white hover:text-primary transition-colors group">
+    <a href="/" class="flex items-center gap-2 font-bold text-lg tracking-tight text-white hover:text-primary transition-colors">
       <span class="material-symbols-outlined text-primary">psychology</span>
       <span class="font-display">GitSyntropy</span>
     </a>
@@ -50,3 +69,33 @@ const path = Astro.url.pathname;
     </a>
   </div>
 </nav>
+
+<script>
+  const nav = document.getElementById('side-nav');
+  const backdrop = document.getElementById('nav-backdrop');
+  const toggleBtn = document.getElementById('nav-toggle');
+  const toggleIcon = document.getElementById('nav-toggle-icon');
+  let isOpen = false;
+
+  function open() {
+    isOpen = true;
+    nav?.classList.remove('-translate-x-full');
+    backdrop?.classList.remove('opacity-0', 'pointer-events-none');
+    backdrop?.classList.add('opacity-100');
+    // Shift tab to sit flush with the sidebar edge
+    if (toggleBtn) toggleBtn.style.left = '220px';
+    if (toggleIcon) toggleIcon.textContent = 'chevron_left';
+  }
+
+  function close() {
+    isOpen = false;
+    nav?.classList.add('-translate-x-full');
+    backdrop?.classList.add('opacity-0', 'pointer-events-none');
+    backdrop?.classList.remove('opacity-100');
+    if (toggleBtn) toggleBtn.style.left = '0px';
+    if (toggleIcon) toggleIcon.textContent = 'chevron_right';
+  }
+
+  toggleBtn?.addEventListener('click', () => isOpen ? close() : open());
+  backdrop?.addEventListener('click', close);
+</script>

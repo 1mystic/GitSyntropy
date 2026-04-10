@@ -590,9 +590,9 @@ function WorkspaceInner() {
           </div>
         </header>
 
-        <div className="flex flex-1 overflow-hidden glass-card rounded-2xl border border-white/10 min-h-[600px] mb-10 shadow-2xl">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden glass-card rounded-2xl border border-white/10 min-h-[600px] mb-10 shadow-2xl">
           {/* Left Sidebar */}
-          <aside className="w-80 border-r border-white/10 bg-white/5 flex flex-col z-10 overflow-y-auto backdrop-blur-md">
+          <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-white/10 bg-white/5 flex flex-col z-10 overflow-y-auto backdrop-blur-md">
             {/* Team selector */}
             <div className="p-6 border-b border-white/10">
               <div className="flex items-center justify-between mb-4">
