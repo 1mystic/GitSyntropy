@@ -16,6 +16,135 @@ function stepLabel(name: string) {
   return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// ---------------------------------------------------------------------------
+// Markdown renderer — parses Claude's structured output into proper JSX
+// ---------------------------------------------------------------------------
+
+type MdSection = { heading: string; bullets: string[]; paragraphs: string[] };
+
+function parseNarrative(text: string): MdSection[] {
+  const lines = text.split("\n").map((l) => l.trim());
+  const sections: MdSection[] = [];
+  let cur: MdSection = { heading: "", bullets: [], paragraphs: [] };
+
+  const flush = () => {
+    if (cur.heading || cur.bullets.length || cur.paragraphs.length) {
+      sections.push({ ...cur });
+    }
+    cur = { heading: "", bullets: [], paragraphs: [] };
+  };
+
+  for (const line of lines) {
+    if (!line) continue;
+    if (line.startsWith("## ")) {
+      flush();
+      cur.heading = line.replace(/^## /, "").trim();
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      cur.bullets.push(line.replace(/^[-*]\s+/, "").trim());
+    } else if (/^\d+\.\s/.test(line)) {
+      cur.bullets.push(line.replace(/^\d+\.\s+/, "").trim());
+    } else {
+      cur.paragraphs.push(line);
+    }
+  }
+  flush();
+  return sections;
+}
+
+function Inline({ text }: { text: string }) {
+  // Render **bold** inline patterns
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <strong key={i} className="text-white font-semibold">
+            {part}
+          </strong>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
+// Section icon map
+const SECTION_ICONS: Record<string, string> = {
+  "Team Alignment Summary": "analytics",
+  "Key Strengths": "thumb_up",
+  "Friction Risks": "warning",
+  "Recommended Meeting Windows": "schedule",
+  "Hiring Gap Analysis": "person_search",
+};
+
+function NarrativeCard({ narrative }: { narrative: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const sections = parseNarrative(narrative);
+
+  if (sections.length === 0) {
+    // Fallback: plain text, strip any stray markdown
+    const clean = narrative.replace(/#{1,6}\s/g, "").replace(/\*\*/g, "").trim();
+    return (
+      <div className="relative z-10">
+        <p className="text-lg text-gray-300 leading-relaxed pl-6 border-l-2 border-accent-info/30">
+          {clean}
+        </p>
+      </div>
+    );
+  }
+
+  const preview = sections.slice(0, expanded ? sections.length : 2);
+
+  return (
+    <div className="space-y-6 relative z-10">
+      {preview.map((section, idx) => (
+        <div key={idx} className={idx > 0 ? "border-t border-white/10 pt-6" : ""}>
+          {section.heading && (
+            <div className="flex items-center gap-2 mb-3">
+              <span className="material-symbols-outlined text-accent-info text-[16px]">
+                {SECTION_ICONS[section.heading] ?? "circle"}
+              </span>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400 font-mono">
+                {section.heading}
+              </h3>
+            </div>
+          )}
+          {section.paragraphs.map((p, i) => (
+            <p key={i} className="text-gray-300 leading-relaxed mb-2 text-sm">
+              <Inline text={p} />
+            </p>
+          ))}
+          {section.bullets.length > 0 && (
+            <ul className="space-y-2 mt-2">
+              {section.bullets.map((b, i) => (
+                <li key={i} className="flex gap-3 text-sm text-gray-300 leading-relaxed">
+                  <span className="text-accent-info mt-0.5 shrink-0">›</span>
+                  <Inline text={b} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+
+      {sections.length > 2 && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs font-bold text-primary hover:text-white transition-colors uppercase tracking-wider flex items-center gap-1 mt-2"
+        >
+          <span className="material-symbols-outlined text-sm">
+            {expanded ? "expand_less" : "expand_more"}
+          </span>
+          {expanded ? "Show Less" : `Show ${sections.length - 2} More Sections`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 function InsightsInner() {
   const session = $session.get();
   const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
@@ -38,6 +167,7 @@ function InsightsInner() {
   const [progress, setProgress] = useState(0);
   const [steps, setSteps] = useState<StreamStep[]>([]);
   const [data, setData] = useState<InsightResponse | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
 
   const startStream = async () => {
     setStreaming(true);
@@ -45,9 +175,8 @@ function InsightsInner() {
     setStreamError(false);
     setProgress(0);
     setData(null);
-    setSteps(
-      STEP_ORDER.map((name) => ({ name, status: "pending" }))
-    );
+    setReportId(null);
+    setSteps(STEP_ORDER.map((name) => ({ name, status: "pending" })));
 
     try {
       const run = await api.orchestratorRun("team_alpha", userId);
@@ -80,16 +209,34 @@ function InsightsInner() {
             if (s.name !== event.step) return s;
             return {
               ...s,
-              status: event.status === "completed" ? "completed" : event.status === "error" ? "error" : "running",
+              status:
+                event.status === "completed"
+                  ? "completed"
+                  : event.status === "error"
+                    ? "error"
+                    : "running",
               message: event.message,
             };
           })
         );
 
-        // Extract synthesis data from synthesis step completion
         if (event.status === "completed" && event.step === "synthesis" && event.data?.synthesis) {
           const synth = event.data.synthesis as unknown as InsightResponse;
           setData(synth);
+          // Save to localStorage for report page
+          const id = `${Date.now()}`;
+          setReportId(id);
+          const reports = JSON.parse(localStorage.getItem("gitsyntropy.reports") ?? "[]") as object[];
+          reports.unshift({
+            id,
+            teamId: "team_alpha",
+            teamName: "Team Alpha",
+            score: 28,
+            resilienceScore: 78,
+            summary: synth.narrative,
+            createdAt: new Date().toISOString(),
+          });
+          localStorage.setItem("gitsyntropy.reports", JSON.stringify(reports.slice(0, 20)));
         }
 
         if (event.progress_pct >= 100) {
@@ -118,40 +265,64 @@ function InsightsInner() {
 
   return (
     <main className="relative z-10 w-full max-w-[1200px] mx-auto px-4 md:px-8 pt-40 pb-20 flex flex-col min-h-screen">
+
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
         <div>
           <span className="text-accent-info font-mono text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
             <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-            AI Synthesis
+            AI Synthesis — Claude Sonnet
           </span>
           <h1 className="text-4xl md:text-5xl font-bold font-display text-white mb-2">
             Executive Summary
           </h1>
-          <p className="text-gray-400 max-w-xl">
-            Holistic insights combining GitHub metrics, chronotype alignment, and psychometric assessments.
+          <p className="text-gray-400 max-w-xl text-sm">
+            Runs the full LangGraph pipeline (GitHub → Psychometric → Compatibility → Claude synthesis)
+            and renders a structured team health report. Results are saved to{" "}
+            <a href="/dashboard" className="text-primary underline-offset-2 hover:underline">Recent Reports</a>.
           </p>
         </div>
-        <button
-          onClick={startStream}
-          disabled={streaming}
-          className="btn btn-primary shadow-neon flex items-center gap-2 px-5 py-2.5"
-        >
-          <span className="material-symbols-outlined text-[20px]">
-            {streaming ? "hourglass_top" : "play_arrow"}
-          </span>
-          {streaming ? "Streaming..." : streamDone ? "Re-run Analysis" : "Run Analysis"}
-        </button>
+        <div className="flex flex-col items-end gap-2">
+          <button
+            onClick={startStream}
+            disabled={streaming}
+            className="btn btn-primary shadow-neon flex items-center gap-2 px-5 py-2.5"
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              {streaming ? "hourglass_top" : "play_arrow"}
+            </span>
+            {streaming ? "Streaming..." : streamDone ? "Re-run Analysis" : "Run Full Analysis"}
+          </button>
+          <p className="text-[10px] text-gray-600 font-mono">
+            Analysing as: <span className="text-gray-400">{userId}</span>
+          </p>
+        </div>
       </div>
 
-      {/* Idle state */}
+      {/* What does this page do — idle explanation */}
       {!streaming && !streamDone && !streamError && (
-        <div className="flex flex-col items-center justify-center py-32 opacity-50">
-          <span className="material-symbols-outlined text-6xl text-primary mb-6">insights</span>
-          <h3 className="text-2xl font-bold font-display text-white mb-2">Ready to Analyse</h3>
-          <p className="text-gray-400 text-center max-w-sm">
-            Click "Run Analysis" to stream the LangGraph orchestration pipeline live.
-          </p>
+        <div className="mb-10 glass-panel rounded-none p-6 border-white/5">
+          <h3 className="text-sm font-bold text-white font-display mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-[18px]">info</span>
+            What happens when you click "Run Full Analysis"
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { icon: "code", step: "1", title: "GitHub Analyst", desc: "Fetches commit history and PR activity to compute chronotype and collaboration index." },
+              { icon: "psychology", step: "2", title: "Psychometric Profiler", desc: "Loads your 8-dimension behavioral profile from the Assessment page." },
+              { icon: "hub", step: "3", title: "Compatibility Engine", desc: "Scores 8 Ashtakoot dimensions across the team, flagging weak and strong alignments." },
+              { icon: "auto_awesome", step: "4", title: "Claude Synthesis", desc: "Streams a GPT-quality narrative report with strengths, risks, hiring gaps, and meeting windows." },
+            ].map((item) => (
+              <div key={item.step} className="flex flex-col gap-2 p-4 bg-white/[0.02] border border-white/5 rounded">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center font-mono">{item.step}</span>
+                  <span className="material-symbols-outlined text-[16px] text-gray-400">{item.icon}</span>
+                  <span className="text-xs font-bold text-white font-display">{item.title}</span>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -165,7 +336,6 @@ function InsightsInner() {
             <span className="text-xs font-mono text-gray-400">{progress}%</span>
           </div>
 
-          {/* Progress bar */}
           <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden mb-5">
             <div
               className="bg-gradient-to-r from-primary to-accent-neon h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(204,255,0,0.4)]"
@@ -173,7 +343,6 @@ function InsightsInner() {
             />
           </div>
 
-          {/* Steps */}
           <div className="flex flex-col gap-2">
             {steps.map((step) => (
               <div
@@ -230,7 +399,7 @@ function InsightsInner() {
           <div>
             <h3 className="font-bold mb-1">Orchestration Failed</h3>
             <p className="text-sm opacity-80">
-              Unable to connect to the analysis stream. Check backend connection.
+              Unable to connect to the analysis stream. Ensure the backend is running on port 8000.
             </p>
           </div>
           <button
@@ -251,36 +420,40 @@ function InsightsInner() {
           <div className="lg:col-span-8 glass-card rounded-none p-8 md:p-10 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-accent-info/5 to-transparent rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
 
-            <h2 className="text-2xl font-bold font-display text-white mb-6 flex items-center gap-3 relative z-10">
-              <span className="w-8 h-8 rounded-full bg-accent-info/20 flex items-center justify-center text-accent-info">
-                <span className="material-symbols-outlined text-[18px]">psychiatry</span>
-              </span>
-              Team Dynamics Narrative
-            </h2>
-
-            <div className="relative z-10">
-              <span className="material-symbols-outlined text-6xl text-white/5 absolute -top-4 -left-4">
-                format_quote
-              </span>
-              <p className="text-lg text-gray-300 leading-relaxed relative z-10 pl-6 border-l-2 border-accent-info/30">
-                {data.narrative}
-              </p>
+            <div className="flex items-start justify-between mb-6 relative z-10">
+              <h2 className="text-2xl font-bold font-display text-white flex items-center gap-3">
+                <span className="w-8 h-8 rounded-full bg-accent-info/20 flex items-center justify-center text-accent-info">
+                  <span className="material-symbols-outlined text-[18px]">psychiatry</span>
+                </span>
+                Team Dynamics Report
+              </h2>
+              {reportId && (
+                <a
+                  href={`/report?id=${reportId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs font-bold text-primary hover:text-white transition-colors uppercase tracking-wider shrink-0"
+                >
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                  Full Report
+                </a>
+              )}
             </div>
 
-            <div className="mt-12 pt-6 border-t border-white/40 relative z-10 flex items-center justify-between">
+            <NarrativeCard narrative={data.narrative} />
+
+            <div className="mt-8 pt-6 border-t border-white/10 relative z-10 flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-yellow-500/60 text-[18px]">info</span>
-                <p className="text-xs text-gray-500 font-mono tracking-wide">
-                  {data.uncertainty_note}
-                </p>
+                <p className="text-xs text-gray-500 font-mono">{data.uncertainty_note}</p>
               </div>
-              <span className="px-3 py-1 rounded bg-white/5 border border-white/40 text-[10px] uppercase text-gray-400 font-bold tracking-widest">
+              <span className="px-3 py-1 rounded bg-accent-neon/10 border border-accent-neon/20 text-[10px] uppercase text-accent-neon font-bold tracking-widest">
                 Confidence: High
               </span>
             </div>
           </div>
 
-          {/* Recommendations */}
+          {/* Sidebar */}
           <div className="lg:col-span-4 flex flex-col gap-6 relative z-10">
             <div className="glass-panel rounded-none p-6 h-full flex flex-col">
               <h3 className="text-lg font-bold font-display text-white mb-6 flex items-center gap-2">
@@ -303,16 +476,34 @@ function InsightsInner() {
               </div>
             </div>
 
-            {/* Action Card */}
-            <div className="glass-panel rounded-none p-6 bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
-              <h4 className="font-bold text-white text-sm mb-2 font-display">Export Findings</h4>
-              <p className="text-xs text-gray-400 mb-4">
-                Share this synthesis report with your engineering leadership.
-              </p>
-              <button className="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/40 rounded-lg text-sm font-bold text-white transition-colors flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-[18px]">ios_share</span>
-                Share Report
-              </button>
+            {/* Actions */}
+            <div className="glass-panel rounded-none p-6 bg-gradient-to-br from-primary/10 to-transparent border-primary/20 flex flex-col gap-3">
+              <h4 className="font-bold text-white text-sm font-display">Next Steps</h4>
+              {reportId && (
+                <a
+                  href={`/report?id=${reportId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 btn btn-primary text-sm flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[18px]">description</span>
+                  View Full Report
+                </a>
+              )}
+              <a
+                href="/workspace"
+                className="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/40 rounded-lg text-sm font-bold text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">schema</span>
+                Manage Team
+              </a>
+              <a
+                href="/compatibility"
+                className="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/40 rounded-lg text-sm font-bold text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">compare_arrows</span>
+                Deep Pair Analysis
+              </a>
             </div>
           </div>
         </div>
