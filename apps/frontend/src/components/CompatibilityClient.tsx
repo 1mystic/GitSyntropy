@@ -67,7 +67,8 @@ export function CompatibilityClient() {
             <input
               value={memberA}
               onChange={(e) => setMemberA(e.target.value)}
-              className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+              placeholder="e.g. alice, 1mystic"
+              className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white placeholder-gray-600 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -75,7 +76,8 @@ export function CompatibilityClient() {
             <input
               value={memberB}
               onChange={(e) => setMemberB(e.target.value)}
-              className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+              placeholder="e.g. bob, dev_user"
+              className="bg-white/5 border border-white/40 rounded-none px-4 py-3 text-white placeholder-gray-600 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -101,8 +103,29 @@ export function CompatibilityClient() {
           </div>
         </div>
         {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
+        <p className="text-xs text-gray-600 mt-4">
+          Enter user IDs or GitHub handles of any two team members. Use "Full Data" for real assessment scores, or "Incomplete (Mock)" to test with simulated data.
+        </p>
       </div>
 
+      {data && (
+        <div className="mb-8 glass-panel rounded-none p-5 border border-primary/20 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-white mb-1">Ready to go deeper?</p>
+            <p className="text-xs text-gray-400">Run a full multi-agent team analysis or view all pairings in the dashboard.</p>
+          </div>
+          <div className="flex gap-3 flex-shrink-0">
+            <a href="/workspace" className="btn btn-primary text-xs px-4 py-2 flex items-center gap-1">
+              <span className="material-symbols-outlined text-sm">schema</span>
+              Full Team Analysis
+            </a>
+            <a href="/dashboard" className="btn btn-secondary text-xs px-4 py-2 flex items-center gap-1">
+              <span className="material-symbols-outlined text-sm">dashboard</span>
+              Dashboard
+            </a>
+          </div>
+        </div>
+      )}
       {data && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Score Card */}

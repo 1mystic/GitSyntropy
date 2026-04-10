@@ -321,7 +321,16 @@ function DashboardInner() {
                     : `System operational · v${health?.version}`}
               </p>
             </div>
+            <span className="text-xs font-mono text-gray-500 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+              You: {userId}
+            </span>
             {/* Team selector */}
+            {teams.length === 0 && !teamsLoading && (
+              <div className="mt-1 p-2 border border-dashed border-white/20 rounded text-xs text-gray-500">
+                No teams yet —{" "}
+                <a href="/workspace" className="text-primary hover:text-white transition-colors">create your first team in Workspace →</a>
+              </div>
+            )}
             {(teamsLoading || teams.length > 0) && (
               <div className="flex items-center gap-2">
                 <span className="text-gray-600 text-xs font-mono">TEAM</span>
@@ -449,7 +458,7 @@ function DashboardInner() {
             <div className="mt-6">
               <p className="text-sm text-gray-400 max-w-sm line-clamp-3">
                 {analysisResult
-                  ? analysisResult.summary.replace(/#{1,6}\s/g, "").replace(/\*\*/g, "")
+                  ? analysisResult.summary.replace(/#{1,6}\s[^\n]*/g, "").replace(/\*\*/g, "").replace(/^- /gm, "").replace(/\n+/g, " ")
                   : "Click 'Run Analysis' to start the multi-agent pipeline."}
               </p>
               {analysisResult && (
@@ -477,11 +486,12 @@ function DashboardInner() {
 
         {/* GitHub Sync */}
         <div className="col-span-1 md:col-span-1 xl:col-span-1 row-span-2 glass-card rounded-none p-6 flex flex-col relative">
-          <div className="flex justify-between items-center mb-6">
+          <div className="mb-4">
             <h3 className="text-white font-semibold flex items-center gap-2 font-display">
               <span className="material-symbols-outlined text-amber-300">schedule</span>
               GitHub Sync
             </h3>
+            <p className="text-xs text-gray-500 mt-1">Enter a team member's GitHub username to analyse their commit patterns and chronotype.</p>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -703,6 +713,7 @@ function DashboardInner() {
               const snippet = report.summary
                 .replace(/#{1,6}\s[^\n]*/g, "")
                 .replace(/\*\*/g, "")
+                .replace(/^- /gm, "")
                 .replace(/\n+/g, " ")
                 .trim()
                 .slice(0, 160);

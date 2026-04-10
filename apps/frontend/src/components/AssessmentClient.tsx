@@ -17,6 +17,18 @@ const DIMENSION_CONFIG: Record<string, { label: string; description: string; wei
   varna_alignment:          { label: "Innovation Drive",      description: "Appetite for novel approaches vs proven methods", weight: 1 },
 };
 
+// q1=varna (weight 1) ... q8=nadi (weight 8), matching backend ASHTAKOOT_WEIGHTS order
+const QUESTION_DIMENSION: Record<string, (typeof DIMENSION_CONFIG)[keyof typeof DIMENSION_CONFIG]> = {
+  q1: DIMENSION_CONFIG.varna_alignment,
+  q2: DIMENSION_CONFIG.vashya_influence,
+  q3: DIMENSION_CONFIG.tara_resilience,
+  q4: DIMENSION_CONFIG.yoni_workstyle,
+  q5: DIMENSION_CONFIG.graha_maitri_cognition,
+  q6: DIMENSION_CONFIG.gana_temperament,
+  q7: DIMENSION_CONFIG.bhakoot_strategy,
+  q8: DIMENSION_CONFIG.nadi_chronotype_sync,
+};
+
 function ScoreScreen({ scores }: { scores: Record<string, number> }) {
   const dimensions = Object.entries(DIMENSION_CONFIG).sort((a, b) => b[1].weight - a[1].weight);
 
@@ -224,6 +236,7 @@ function AssessmentInner() {
           <div>
             <h1 className="text-3xl font-bold font-display tracking-tight text-white mb-1">Behavioral Assessment</h1>
             <p className="text-gray-400 text-sm">8 dimensions · ~5 minutes · used in compatibility scoring</p>
+            <p className="text-xs font-mono text-gray-500 mt-1">Profiling: <span className="text-primary">{userId}</span></p>
           </div>
           <div className="text-right">
             <span className="text-2xl font-bold font-display text-accent-neon">{progress}%</span>
@@ -275,9 +288,15 @@ function AssessmentInner() {
               Question {currentIndex + 1} of {totalCount}
             </span>
 
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-12 font-display leading-tight">
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4 font-display leading-tight">
               {activeQuestion.prompt}
             </h2>
+            {QUESTION_DIMENSION[activeQuestion.id] && (
+              <p className="text-sm text-gray-500 mb-10 leading-relaxed">
+                <span className="font-semibold text-gray-400">{QUESTION_DIMENSION[activeQuestion.id].label}</span>
+                {" — "}{QUESTION_DIMENSION[activeQuestion.id].description}
+              </p>
+            )}
 
             <div className="relative w-full px-4 mb-10">
               <input

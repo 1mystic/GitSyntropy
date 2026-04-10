@@ -1,0 +1,308 @@
+---
+import AppNav from "@/components/AppNav.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="GitSyntropy | Guide">
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px]"></div>
+    <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-accent-teal/5 blur-[100px]"></div>
+    <div class="absolute inset-0 bg-grid-pattern opacity-20"></div>
+  </div>
+
+  <AppNav />
+
+  <main class="relative z-10 w-full max-w-[900px] mx-auto px-4 md:px-8 pt-40 pb-24 flex flex-col gap-20">
+
+    <!-- Header -->
+    <header class="flex flex-col gap-4">
+      <span class="text-primary font-mono text-xs uppercase tracking-widest">Documentation</span>
+      <h1 class="text-4xl md:text-6xl font-bold font-display tracking-tight text-white leading-tight">
+        How GitSyntropy Works
+      </h1>
+      <p class="text-gray-400 text-lg max-w-2xl leading-relaxed">
+        A complete guide to the platform — from psychometric profiling to AI-synthesised team reports.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-2">
+        <a href="#getting-started" class="text-xs font-mono text-gray-400 hover:text-primary transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-primary/30">Getting Started</a>
+        <a href="#assessment" class="text-xs font-mono text-gray-400 hover:text-primary transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-primary/30">Assessment</a>
+        <a href="#github-sync" class="text-xs font-mono text-gray-400 hover:text-primary transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-primary/30">GitHub Sync</a>
+        <a href="#compatibility" class="text-xs font-mono text-gray-400 hover:text-primary transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-primary/30">Compatibility Engine</a>
+        <a href="#pipeline" class="text-xs font-mono text-gray-400 hover:text-primary transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-primary/30">Analysis Pipeline</a>
+        <a href="#insights" class="text-xs font-mono text-gray-400 hover:text-primary transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-primary/30">Insights Report</a>
+      </div>
+    </header>
+
+    <!-- Getting Started -->
+    <section id="getting-started" class="flex flex-col gap-8">
+      <div>
+        <span class="text-xs font-mono text-primary uppercase tracking-widest">01</span>
+        <h2 class="text-2xl md:text-3xl font-bold font-display text-white mt-1">Getting Started</h2>
+        <p class="text-gray-400 mt-2">Three steps to your first team analysis.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a href="/assessment" class="glass-card rounded-none p-6 flex flex-col gap-4 border border-white/5 hover:border-accent-teal/30 transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center">
+            <span class="material-symbols-outlined text-accent-teal text-[20px]">psychology</span>
+          </div>
+          <div>
+            <p class="text-xs font-mono text-gray-500 mb-1">STEP 1</p>
+            <h3 class="font-bold text-white mb-2 font-display">Complete the Assessment</h3>
+            <p class="text-xs text-gray-500 leading-relaxed">Answer 8 questions that measure your behavioural dimensions. Takes about 5 minutes. Your profile is stored and used in all future analyses.</p>
+          </div>
+        </a>
+        <a href="/workspace" class="glass-card rounded-none p-6 flex flex-col gap-4 border border-white/5 hover:border-amber-400/30 transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
+            <span class="material-symbols-outlined text-amber-400 text-[20px]">group_add</span>
+          </div>
+          <div>
+            <p class="text-xs font-mono text-gray-500 mb-1">STEP 2</p>
+            <h3 class="font-bold text-white mb-2 font-display">Create a Team</h3>
+            <p class="text-xs text-gray-500 leading-relaxed">In the Workspace, create a team and add members by user ID. Then sync each member's GitHub handle to pull in commit patterns and chronotype data.</p>
+          </div>
+        </a>
+        <a href="/workspace" class="glass-card rounded-none p-6 flex flex-col gap-4 border border-white/5 hover:border-primary/30 transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary text-[20px]">play_arrow</span>
+          </div>
+          <div>
+            <p class="text-xs font-mono text-gray-500 mb-1">STEP 3</p>
+            <h3 class="font-bold text-white mb-2 font-display">Run Full Analysis</h3>
+            <p class="text-xs text-gray-500 leading-relaxed">Click "Run Full Analysis" in the Workspace. A 4-agent LangGraph pipeline runs in real time and Claude synthesises the final report.</p>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Divider -->
+    <div class="border-t border-white/10"></div>
+
+    <!-- Assessment -->
+    <section id="assessment" class="flex flex-col gap-6">
+      <div>
+        <span class="text-xs font-mono text-accent-teal uppercase tracking-widest">02</span>
+        <h2 class="text-2xl md:text-3xl font-bold font-display text-white mt-1">Behavioral Assessment</h2>
+        <p class="text-gray-400 mt-2 max-w-2xl">
+          The assessment measures 8 behavioural dimensions on a weighted scale. Each dimension feeds directly into the compatibility engine — higher-weight dimensions have more influence on the final score.
+        </p>
+      </div>
+
+      <div class="glass-panel rounded-none p-6 border border-white/5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            { weight: 8, label: "Chronotype Sync", desc: "Peak work-hour overlap — when energy peaks align across the team", color: "text-primary" },
+            { weight: 7, label: "Stress Response", desc: "How you respond under pressure and tight deadlines", color: "text-red-400" },
+            { weight: 6, label: "Risk Tolerance", desc: "Bold vs cautious decision-making tendencies", color: "text-orange-400" },
+            { weight: 5, label: "Decision Style", desc: "Data-driven vs intuitive reasoning preference", color: "text-yellow-400" },
+            { weight: 4, label: "Work Style", desc: "Solo-focus vs collaborative working preference", color: "text-accent-teal" },
+            { weight: 3, label: "Team Resilience", desc: "Capacity to absorb and recover from setbacks", color: "text-blue-400" },
+            { weight: 2, label: "Leadership Orientation", desc: "Tendency to lead, follow, or self-direct", color: "text-purple-400" },
+            { weight: 1, label: "Innovation Drive", desc: "Appetite for novel approaches vs proven methods", color: "text-gray-300" },
+          ].map((dim) => (
+            <div class="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
+              <span class={`text-xs font-bold font-mono w-8 flex-shrink-0 mt-0.5 ${dim.color}`}>{dim.weight}pt</span>
+              <div>
+                <p class="text-sm font-semibold text-white">{dim.label}</p>
+                <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{dim.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div class="flex items-start gap-3 p-4 bg-accent-teal/5 border border-accent-teal/20 rounded">
+        <span class="material-symbols-outlined text-accent-teal text-sm flex-shrink-0 mt-0.5">info</span>
+        <p class="text-xs text-gray-400 leading-relaxed">
+          Your profile is saved automatically after submission. You can retake the assessment at any time — the latest submission is always used. All team members should complete it before running a team analysis.
+        </p>
+      </div>
+    </section>
+
+    <!-- Divider -->
+    <div class="border-t border-white/10"></div>
+
+    <!-- GitHub Sync -->
+    <section id="github-sync" class="flex flex-col gap-6">
+      <div>
+        <span class="text-xs font-mono text-amber-400 uppercase tracking-widest">03</span>
+        <h2 class="text-2xl md:text-3xl font-bold font-display text-white mt-1">GitHub Sync</h2>
+        <p class="text-gray-400 mt-2 max-w-2xl">
+          The GitHub Analyst agent fetches the last 30 days of commit activity from a member's public GitHub handle to build their <strong class="text-white">chronotype profile</strong> — their natural work-hour pattern.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="glass-panel rounded-none p-5 border border-white/5 flex flex-col gap-3">
+          <h3 class="text-sm font-bold text-white font-display flex items-center gap-2">
+            <span class="material-symbols-outlined text-amber-300 text-[18px]">schedule</span>
+            What gets fetched
+          </h3>
+          <ul class="space-y-2 text-xs text-gray-400">
+            <li class="flex gap-2"><span class="text-primary">→</span> Commit timestamps (hour of day distribution)</li>
+            <li class="flex gap-2"><span class="text-primary">→</span> PR merge frequency and review patterns</li>
+            <li class="flex gap-2"><span class="text-primary">→</span> Collaboration index (cross-author review activity)</li>
+            <li class="flex gap-2"><span class="text-primary">→</span> Activity rhythm score (consistency of schedule)</li>
+          </ul>
+        </div>
+        <div class="glass-panel rounded-none p-5 border border-white/5 flex flex-col gap-3">
+          <h3 class="text-sm font-bold text-white font-display flex items-center gap-2">
+            <span class="material-symbols-outlined text-accent-teal text-[18px]">bedtime</span>
+            Chronotype categories
+          </h3>
+          <ul class="space-y-2 text-xs text-gray-400">
+            <li class="flex gap-2"><span class="text-primary">→</span> <span><strong class="text-white">Lark</strong> — peaks before 10 AM, consistent early committer</span></li>
+            <li class="flex gap-2"><span class="text-primary">→</span> <span><strong class="text-white">Daytime</strong> — active 10 AM – 5 PM, standard schedule</span></li>
+            <li class="flex gap-2"><span class="text-primary">→</span> <span><strong class="text-white">Evening</strong> — ramps up after 5 PM, collaborative afternoon</span></li>
+            <li class="flex gap-2"><span class="text-primary">→</span> <span><strong class="text-white">Owl</strong> — peaks after 10 PM, late-night deep work</span></li>
+            <li class="flex gap-2"><span class="text-primary">→</span> <span><strong class="text-white">Flexible</strong> — uniform distribution, no strong peak</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="flex items-start gap-3 p-4 bg-amber-400/5 border border-amber-400/20 rounded">
+        <span class="material-symbols-outlined text-amber-400 text-sm flex-shrink-0 mt-0.5">warning</span>
+        <p class="text-xs text-gray-400 leading-relaxed">
+          GitHub Sync only works with public repositories. The sync runs via the Dashboard's GitHub Sync card — enter the member's GitHub handle, not their GitSyntropy user ID.
+        </p>
+      </div>
+    </section>
+
+    <!-- Divider -->
+    <div class="border-t border-white/10"></div>
+
+    <!-- Compatibility Engine -->
+    <section id="compatibility" class="flex flex-col gap-6">
+      <div>
+        <span class="text-xs font-mono text-purple-400 uppercase tracking-widest">04</span>
+        <h2 class="text-2xl md:text-3xl font-bold font-display text-white mt-1">Compatibility Engine</h2>
+        <p class="text-gray-400 mt-2 max-w-2xl">
+          Pairwise compatibility is scored using the <strong class="text-white">Ashtakoot framework</strong> — 8 dimensions each with a maximum weight, totalling 36 points.
+          Scores above 28/36 are considered excellent collaboration potential.
+        </p>
+      </div>
+
+      <div class="glass-panel rounded-none p-6 border border-white/5">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-sm font-bold text-white font-display">Score Interpretation</h3>
+          <span class="text-xs font-mono text-gray-500">Max: 36 points</span>
+        </div>
+        <div class="space-y-3">
+          {[
+            { range: "28 – 36", label: "Excellent", desc: "High alignment across all dimensions. Strong collaboration potential.", color: "bg-accent-neon text-black" },
+            { range: "21 – 27", label: "Good", desc: "Solid compatibility with minor friction areas. Will work well together.", color: "bg-accent-teal/20 text-accent-teal border border-accent-teal/30" },
+            { range: "14 – 20", label: "Workable", desc: "Mixed alignment. Requires active communication in weak dimensions.", color: "bg-yellow-400/10 text-yellow-400 border border-yellow-400/20" },
+            { range: "0 – 13", label: "Challenging", desc: "Significant misalignment. Consider pairing strategies and coaching.", color: "bg-red-500/10 text-red-400 border border-red-500/20" },
+          ].map((row) => (
+            <div class="flex items-start gap-4 p-3 bg-white/3 rounded">
+              <span class={`text-xs font-bold px-2 py-1 rounded flex-shrink-0 font-mono ${row.color}`}>{row.range}</span>
+              <div>
+                <p class="text-sm font-semibold text-white">{row.label}</p>
+                <p class="text-xs text-gray-500 mt-0.5">{row.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <p class="text-xs text-gray-600">
+        Dimensions flagged as "weak" (scoring below 40% of their maximum) are highlighted as critical vulnerabilities — these are the areas where the pair is most likely to experience friction.
+      </p>
+    </section>
+
+    <!-- Divider -->
+    <div class="border-t border-white/10"></div>
+
+    <!-- Pipeline -->
+    <section id="pipeline" class="flex flex-col gap-6">
+      <div>
+        <span class="text-xs font-mono text-primary uppercase tracking-widest">05</span>
+        <h2 class="text-2xl md:text-3xl font-bold font-display text-white mt-1">Team Analysis Pipeline</h2>
+        <p class="text-gray-400 mt-2 max-w-2xl">
+          "Run Full Analysis" triggers a <strong class="text-white">LangGraph multi-agent pipeline</strong> that streams results in real time. Four agents run in sequence, each building on the previous.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        {[
+          { step: "01", name: "GitHub Analyst", icon: "hub", color: "text-amber-300 bg-amber-300/10 border-amber-300/20", desc: "Fetches the last 30 days of commit and PR activity for every team member. Classifies each member's chronotype and computes collaboration index and rhythm score." },
+          { step: "02", name: "Psychometric Profiler", icon: "psychology", color: "text-accent-teal bg-accent-teal/10 border-accent-teal/20", desc: "Loads each member's assessment answers and maps them to the 8 Ashtakoot dimensions. Produces a weighted behavioural profile per person." },
+          { step: "03", name: "Compatibility Engine", icon: "compare_arrows", color: "text-purple-400 bg-purple-400/10 border-purple-400/20", desc: "Runs pairwise Ashtakoot scoring across all member pairs. Identifies strong and weak dimensions, surfaces risk flags (e.g. chronotype mismatches), and computes the aggregate team score." },
+          { step: "04", name: "Claude Synthesis", icon: "auto_awesome", color: "text-primary bg-primary/10 border-primary/20", desc: "Claude Sonnet 4.6 streams a structured narrative report — strengths, vulnerabilities, hiring recommendations, and a Monte Carlo candidate simulation for optimal team fit." },
+        ].map((agent) => (
+          <div class="glass-panel rounded-none p-5 border border-white/5 flex items-start gap-5">
+            <div class={`w-10 h-10 rounded-lg border flex items-center justify-center flex-shrink-0 ${agent.color}`}>
+              <span class="material-symbols-outlined text-[20px]">{agent.icon}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-3 mb-1.5">
+                <span class="text-[10px] font-mono text-gray-600">{agent.step}</span>
+                <h3 class="text-sm font-bold text-white font-display">{agent.name}</h3>
+              </div>
+              <p class="text-xs text-gray-400 leading-relaxed">{agent.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Divider -->
+    <div class="border-t border-white/10"></div>
+
+    <!-- Insights Report -->
+    <section id="insights" class="flex flex-col gap-6">
+      <div>
+        <span class="text-xs font-mono text-accent-neon uppercase tracking-widest">06</span>
+        <h2 class="text-2xl md:text-3xl font-bold font-display text-white mt-1">Insights Report</h2>
+        <p class="text-gray-400 mt-2 max-w-2xl">
+          The Insights page displays Claude's structured narrative. Each section is clickable and expandable. The report covers:
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[
+          { icon: "verified", label: "Team Strengths", desc: "Dimensions where the team scores highest — what to double down on." },
+          { icon: "gpp_bad", label: "Critical Vulnerabilities", desc: "Weak dimension pairs that are most likely to cause friction or delays." },
+          { icon: "bedtime", label: "Chronotype Dynamics", desc: "Work-hour overlap analysis — who's in sync and who's asynchronous." },
+          { icon: "person_add", label: "Hiring Recommendations", desc: "What behavioural profile would complement the current team's gaps." },
+          { icon: "casino", label: "Monte Carlo Simulation", desc: "1000-iteration simulation of candidate profiles to find the statistically optimal hire." },
+          { icon: "directions", label: "Recommended Actions", desc: "Concrete next steps for improving team health and collaboration." },
+        ].map((item) => (
+          <div class="flex items-start gap-3 p-4 glass-panel rounded-none border border-white/5">
+            <span class="material-symbols-outlined text-accent-neon text-[20px] flex-shrink-0 mt-0.5">{item.icon}</span>
+            <div>
+              <p class="text-sm font-semibold text-white mb-0.5">{item.label}</p>
+              <p class="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div class="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded">
+        <span class="material-symbols-outlined text-primary text-sm flex-shrink-0 mt-0.5">tips_and_updates</span>
+        <p class="text-xs text-gray-400 leading-relaxed">
+          Reports are saved to your browser's local storage. You can access any previous report by clicking "View Full Report" from the Dashboard, or navigating directly to <code class="text-primary font-mono">/report?id=...</code>
+        </p>
+      </div>
+    </section>
+
+    <!-- Bottom CTA -->
+    <section class="glass-panel rounded-none p-8 border border-primary/20 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+      <div>
+        <h3 class="text-lg font-bold font-display text-white mb-1">Ready to get started?</h3>
+        <p class="text-sm text-gray-400">Complete your assessment first — it takes about 5 minutes and unlocks the full pipeline.</p>
+      </div>
+      <div class="flex gap-3 flex-shrink-0">
+        <a href="/assessment" class="btn btn-primary px-5 py-2.5 text-sm flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">psychology</span>
+          Take Assessment
+        </a>
+        <a href="/workspace" class="btn btn-secondary px-5 py-2.5 text-sm flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">schema</span>
+          Workspace
+        </a>
+      </div>
+    </section>
+
+  </main>
+</BaseLayout>

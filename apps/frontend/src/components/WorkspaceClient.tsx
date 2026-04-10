@@ -404,7 +404,7 @@ function WorkspaceInner() {
                 <div>
                   <h3 className="text-xl font-bold text-white">{wCreatedTeam?.name ?? wName}</h3>
                   <p className="text-sm text-gray-400 mt-1.5">
-                    {wCreatedTeam?.members.length ?? 1} member{(wCreatedTeam?.members.length ?? 1) !== 1 ? "s" : ""} · Ready for simulation
+                    {wCreatedTeam?.members.length ?? 1} member{(wCreatedTeam?.members.length ?? 1) !== 1 ? "s" : ""} · Ready for full analysis
                   </p>
                   {wCreatedTeam?.description && (
                     <p className="text-xs text-gray-500 mt-2">{wCreatedTeam.description}</p>
@@ -513,9 +513,10 @@ function WorkspaceInner() {
             {/* Team selector */}
             <div className="p-6 border-b border-white/10">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 font-display">Simulation Config</h2>
+                <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 font-display">Team Setup</h2>
                 <span className="material-symbols-outlined text-gray-500 text-sm">tune</span>
               </div>
+              <p className="text-xs text-gray-600 mb-3">Select a team and run a full multi-agent analysis — GitHub signals, psychometrics, and Claude synthesis.</p>
 
               <div className="space-y-3">
                 <div>
@@ -621,7 +622,7 @@ function WorkspaceInner() {
                 disabled={startingRun || connection === "connecting" || connection === "streaming"}
               >
                 <span className="material-symbols-outlined">play_arrow</span>
-                {startingRun ? "Starting..." : connection === "streaming" ? "Running..." : "Run Simulation"}
+                {startingRun ? "Starting..." : connection === "streaming" ? "Running..." : "Run Full Analysis"}
               </button>
             </div>
           </aside>
