@@ -670,8 +670,8 @@ export function WorkspaceClient() {
                     </div>
                   )}
 
-                  {/* Event Stream Log */}
-                  {events.map((event, idx) => {
+                  {/* Event Stream Log — filter out synthesis_token events (no step field) */}
+                  {events.filter((e) => !!e.step).map((event, idx) => {
                     const isError = event.status === "error";
                     const isCompleted = event.status === "completed";
                     const isRunning = event.status === "running";

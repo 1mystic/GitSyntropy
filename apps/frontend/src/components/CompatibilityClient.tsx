@@ -137,13 +137,13 @@ export function CompatibilityClient() {
               {data.label}
             </div>
             
-            {data.warnings && data.warnings.length > 0 && (
+            {data.risk_flags && data.risk_flags.length > 0 && (
               <div className="mt-8 w-full p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-none text-left">
                 <p className="text-yellow-400 text-xs font-bold uppercase mb-2 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[16px]">warning</span> Warnings
+                  <span className="material-symbols-outlined text-[16px]">warning</span> Risk Flags
                 </p>
                 <ul className="text-xs text-gray-400 space-y-1 list-disc pl-4">
-                  {data.warnings.map((w, idx) => (
+                  {data.risk_flags.map((w, idx) => (
                     <li key={idx}>{w}</li>
                   ))}
                 </ul>
@@ -155,29 +155,27 @@ export function CompatibilityClient() {
           <div className="lg:col-span-2 glass-panel rounded-none p-8 relative">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold font-display text-white">Dimension Breakdown</h3>
-              <span className="text-sm text-gray-500 font-mono">{Object.keys(data.breakdown).length} Vectors</span>
+              <span className="text-sm text-gray-500 font-mono">{data.dimension_breakdown?.length ?? 0} Vectors</span>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-              {Object.entries(data.breakdown).map(([dim, scoreObj]) => {
-                const max = scoreObj.max;
-                const score = scoreObj.score;
-                const isWeak = data.weak_dimensions.includes(dim);
-                const pct = (score / max) * 100;
-                
+              {(data.dimension_breakdown ?? []).map((item) => {
+                const isWeak = data.weak_dimensions.includes(item.dimension);
+                const pct = (item.score / item.weight) * 100;
+
                 return (
-                  <div key={dim} className="flex flex-col gap-2">
+                  <div key={item.dimension} className="flex flex-col gap-2">
                     <div className="flex justify-between items-end">
                       <span className="text-sm font-medium text-gray-300 capitalize flex items-center gap-2">
-                        {dim.replace(/_/g, ' ')}
+                        {item.dimension.replace(/_/g, ' ')}
                         {isWeak && <span className="material-symbols-outlined text-[14px] text-red-400" title="Weak Signal">error</span>}
                       </span>
                       <span className="text-xs font-mono text-gray-500">
-                        <span className="text-white font-bold">{score}</span> / {max}
+                        <span className="text-white font-bold">{item.score}</span> / {item.weight}
                       </span>
                     </div>
                     <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className={`h-full rounded-full transition-all duration-500 ${isWeak ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-primary shadow-[0_0_8px_rgba(204,255,0,0.4)]'}`}
                         style={{ width: `${pct}%` }}
                       ></div>
