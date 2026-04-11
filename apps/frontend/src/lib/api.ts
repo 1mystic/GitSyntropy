@@ -2,7 +2,46 @@ const API_BASE = import.meta.env.PUBLIC_API_BASE ?? "http://localhost:8000/api/v
 
 export type HealthResponse = { status: string; service: string; version: string };
 export type AnalysisResponse = { run_id: string; team_id: string; status: string; score: number; summary: string };
-export type AuthResponse = { access_token: string; expires_in: number; user_id: string; token_type: string };
+export type AuthResponse = {
+  access_token: string;
+  expires_in: number;
+  user_id: string;
+  token_type: string;
+  github_handle?: string;
+  github_name?: string;
+  github_avatar_url?: string;
+  is_superadmin?: boolean;
+};
+export type UserProfileResponse = {
+  user_id: string;
+  github_handle?: string;
+  github_name?: string;
+  github_avatar_url?: string;
+  github_email?: string;
+  is_superadmin?: boolean;
+  created_at?: string;
+};
+export type AdminUserResponse = {
+  user_id: string;
+  github_handle?: string;
+  github_name?: string;
+  github_avatar_url?: string;
+  github_email?: string;
+  is_superadmin?: boolean;
+  created_at?: string;
+  last_seen_at?: string;
+  team_count: number;
+  assessment_complete: boolean;
+  github_syncs: number;
+  agent_runs: number;
+};
+export type AdminStatsResponse = {
+  total_users: number;
+  total_teams: number;
+  total_assessments: number;
+  total_github_syncs: number;
+  total_agent_runs: number;
+};
 export type GithubStartResponse = {
   provider: "github";
   authorization_url: string;
@@ -125,6 +164,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+async function authedRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
+  });
+}
+
 export const api = {
   health: () => request<HealthResponse>("/health"),
   mockAnalysis: (teamId: string) =>
@@ -186,6 +232,13 @@ export const api = {
     }),
   removeMember: (team_id: string, user_id: string) =>
     requestVoid(`/teams/${team_id}/members/${encodeURIComponent(user_id)}`, { method: "DELETE" }),
+
+  // Authenticated user profile
+  me: (token: string) => authedRequest<UserProfileResponse>("/users/me", token),
+
+  // Admin (superadmin only)
+  adminStats: (token: string) => authedRequest<AdminStatsResponse>("/admin/stats", token),
+  adminUsers: (token: string) => authedRequest<AdminUserResponse[]>("/admin/users", token),
 };
 
 export const wsUrlForRun = (runId: string) => {

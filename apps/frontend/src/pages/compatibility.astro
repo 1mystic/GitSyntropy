@@ -1,6 +1,7 @@
 ---
 import SideNav from "@/components/SideNav.astro";
 import { CompatibilityClient } from "@/components/CompatibilityClient";
+import { ProtectedGate } from "@/components/ProtectedGate";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
@@ -10,9 +11,11 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     <div class="absolute bottom-0 right-[10%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(57,255,20,0.08),_transparent_70%)] blur-[80px]"></div>
     <div class="absolute inset-0 opacity-[0.03] bg-grid-pattern bg-[size:40px_40px]"></div>
   </div>
-  
+
   <SideNav />
   <div class="lg:ml-[220px]">
-    <CompatibilityClient client:load />
+    <ProtectedGate client:load>
+      <CompatibilityClient client:load />
+    </ProtectedGate>
   </div>
 </BaseLayout>

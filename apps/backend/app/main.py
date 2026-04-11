@@ -14,6 +14,8 @@ from .config import settings
 from .database import create_tables, get_db
 from .schemas import (
     AddMemberRequest,
+    AdminStatsResponse,
+    AdminUserResponse,
     AnalysisRequest,
     AnalysisResponse,
     AssessmentQuestion,
@@ -41,6 +43,7 @@ from .schemas import (
     TeamUpdateRequest,
     TeamMemberResponse,
     TeamResponse,
+    UserProfileResponse,
 )
 from .services import (
     AuthTokenError,
@@ -59,9 +62,13 @@ from .services import (
     decode_jwt,
     exchange_github_code_for_identity,
     get_agent_run,
+    get_all_users_admin,
     get_assessment_response,
     get_github_sync,
+    get_platform_stats,
     get_team,
+    get_user_profile,
+    is_superadmin,
     list_teams_for_user,
     mock_compatibility_scores,
     monte_carlo_candidate_simulation,
@@ -70,6 +77,7 @@ from .services import (
     stream_orchestrator_updates,
     submit_assessment_response,
     synthesis_from_compat,
+    touch_user_last_seen,
     trigger_github_sync,
 )
 
@@ -158,8 +166,17 @@ async def auth_github_callback(request: Request, payload: GithubAuthCallbackRequ
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     user_id = identity["user_id"]
-    token, expires_in = create_jwt(user_id=user_id)
-    return AuthTokenResponse(access_token=token, expires_in=expires_in, user_id=user_id)
+    github_handle = identity.get("github_handle") or None
+    token, expires_in = create_jwt(user_id=user_id, github_handle=github_handle)
+    return AuthTokenResponse(
+        access_token=token,
+        expires_in=expires_in,
+        user_id=user_id,
+        github_handle=github_handle,
+        github_name=identity.get("name") or None,
+        github_avatar_url=identity.get("avatar_url") or None,
+        is_superadmin=is_superadmin(github_handle),
+    )
 
 
 @app.post(f"{settings.api_prefix}/auth/login", response_model=AuthTokenResponse)
@@ -185,6 +202,68 @@ async def auth_session(token: str = Depends(_require_bearer_token)) -> AuthSessi
     except (AuthTokenError, ValueError, TypeError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token") from None
     return AuthSessionResponse(authenticated=True, user_id=user_id, expires_at=expires_at)
+
+
+# ---------------------------------------------------------------------------
+# Current user profile
+# ---------------------------------------------------------------------------
+
+def _decode_token_claims(authorization: str | None = Header(default=None)) -> dict:
+    """Reusable: decode JWT and return claims dict, raising 401 on failure."""
+    token = _require_bearer_token(authorization)
+    try:
+        return decode_jwt(token)
+    except (AuthTokenError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token") from None
+
+
+@app.get(f"{settings.api_prefix}/users/me", response_model=UserProfileResponse)
+async def get_me(authorization: str | None = Header(default=None), db: AsyncSession = Depends(get_db)) -> UserProfileResponse:
+    claims = _decode_token_claims(authorization)
+    user_id = str(claims.get("sub", ""))
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    github_handle = claims.get("github_handle")
+    await touch_user_last_seen(user_id, db)
+    profile = await get_user_profile(user_id, db)
+    return UserProfileResponse(
+        user_id=user_id,
+        github_handle=profile.github_handle if profile else github_handle,
+        github_name=profile.github_name if profile else None,
+        github_avatar_url=profile.github_avatar_url if profile else None,
+        github_email=profile.github_email if profile else None,
+        is_superadmin=is_superadmin(profile.github_handle if profile else github_handle),
+        created_at=profile.created_at if profile else None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Superadmin guard
+# ---------------------------------------------------------------------------
+
+def _require_superadmin(authorization: str | None = Header(default=None)) -> dict:
+    """Dependency — allows only the configured superadmin through."""
+    claims = _decode_token_claims(authorization)
+    github_handle = claims.get("github_handle")
+    if not is_superadmin(github_handle):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin access required")
+    return claims
+
+
+# ---------------------------------------------------------------------------
+# Admin endpoints (superadmin only)
+# ---------------------------------------------------------------------------
+
+@app.get(f"{settings.api_prefix}/admin/stats", response_model=AdminStatsResponse)
+async def admin_stats(claims: dict = Depends(_require_superadmin), db: AsyncSession = Depends(get_db)) -> AdminStatsResponse:
+    stats = await get_platform_stats(db)
+    return AdminStatsResponse(**stats)
+
+
+@app.get(f"{settings.api_prefix}/admin/users", response_model=list[AdminUserResponse])
+async def admin_users(claims: dict = Depends(_require_superadmin), db: AsyncSession = Depends(get_db)) -> list[AdminUserResponse]:
+    users = await get_all_users_admin(db)
+    return [AdminUserResponse(**u) for u in users]
 
 
 # ---------------------------------------------------------------------------

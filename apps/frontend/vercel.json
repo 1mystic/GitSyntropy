@@ -5,6 +5,12 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "env": {
-    "PUBLIC_API_URL": "https://gitsyntropy-backend.railway.app"
-  }
+    "PUBLIC_API_BASE": "https://gitsyntropy-api.up.railway.app/api/v1",
+    "PUBLIC_WS_BASE": "wss://gitsyntropy-api.up.railway.app",
+    "PUBLIC_AUTH_REQUIRED": "true",
+    "PUBLIC_GUEST_TRIAL": "true"
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

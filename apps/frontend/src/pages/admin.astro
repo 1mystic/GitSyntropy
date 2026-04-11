@@ -1,0 +1,17 @@
+---
+import { AdminClient } from "@/components/AdminClient";
+import SideNav from "@/components/SideNav.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="GitSyntropy | Admin">
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute top-[-15%] right-[-10%] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(204,255,0,0.08),_transparent_70%)] blur-[120px] animate-pulse-slow"></div>
+    <div class="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(255,60,60,0.06),_transparent_70%)] blur-[100px]"></div>
+    <div class="absolute inset-0 opacity-[0.025] bg-grid-pattern bg-[size:32px_32px]"></div>
+  </div>
+  <SideNav />
+  <div class="lg:ml-[220px]">
+    <AdminClient client:load />
+  </div>
+</BaseLayout>

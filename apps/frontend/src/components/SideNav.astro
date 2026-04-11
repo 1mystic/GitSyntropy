@@ -1,4 +1,6 @@
 ---
+import { NavUser } from "@/components/NavUser";
+
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/workspace", label: "Workspace", icon: "schema" },
@@ -61,13 +63,8 @@ const path = Astro.url.pathname;
     })}
   </div>
 
-  <!-- Login -->
-  <div class="px-3 pb-6 pt-4 border-t border-white/8">
-    <a href="/auth" class="btn btn-primary text-sm w-full flex items-center justify-center gap-2 py-2.5">
-      <span class="material-symbols-outlined text-[18px]">login</span>
-      Login
-    </a>
-  </div>
+  <!-- User section (session-aware) -->
+  <NavUser client:load />
 </nav>
 
 <script>

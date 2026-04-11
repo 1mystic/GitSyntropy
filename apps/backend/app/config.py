@@ -25,5 +25,9 @@ class Settings(BaseSettings):
     github_client_secret: str = ""
     github_access_token: str = ""   # Personal access token for server-side GitHub API calls
 
+    # Superadmin — site owner who can access /admin routes
+    superadmin_github_handle: str = "1mystic"
+    superadmin_email: str = "23f2004201@ss.com"
+
 
 settings = Settings()

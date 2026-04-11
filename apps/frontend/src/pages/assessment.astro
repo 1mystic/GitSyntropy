@@ -1,6 +1,7 @@
 ---
 import SideNav from "@/components/SideNav.astro";
 import { AssessmentClient } from "@/components/AssessmentClient";
+import { ProtectedGate } from "@/components/ProtectedGate";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
@@ -14,6 +15,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 
   <SideNav />
   <div class="lg:ml-[220px]">
-    <AssessmentClient client:load />
+    <ProtectedGate client:load>
+      <AssessmentClient client:load />
+    </ProtectedGate>
   </div>
 </BaseLayout>

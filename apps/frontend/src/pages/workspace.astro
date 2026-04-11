@@ -1,5 +1,6 @@
 ---
 import { WorkspaceClient } from "@/components/WorkspaceClient";
+import { ProtectedGate } from "@/components/ProtectedGate";
 import SideNav from "@/components/SideNav.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
@@ -12,6 +13,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
   </div>
   <SideNav />
   <div class="lg:ml-[220px]">
-    <WorkspaceClient client:load />
+    <ProtectedGate client:load>
+      <WorkspaceClient client:load />
+    </ProtectedGate>
   </div>
 </BaseLayout>

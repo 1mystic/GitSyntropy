@@ -57,6 +57,10 @@ class AuthTokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user_id: str
+    github_handle: str | None = None
+    github_name: str | None = None
+    github_avatar_url: str | None = None
+    is_superadmin: bool = False
 
 
 class GithubAuthStartResponse(BaseModel):
@@ -260,3 +264,44 @@ class CandidateSimulateResponse(BaseModel):
     weak_dimensions_targeted: list[str]
     confidence: float
     status: str
+
+
+# ---------------------------------------------------------------------------
+# User profile
+# ---------------------------------------------------------------------------
+
+class UserProfileResponse(BaseModel):
+    user_id: str
+    github_handle: str | None = None
+    github_name: str | None = None
+    github_avatar_url: str | None = None
+    github_email: str | None = None
+    is_superadmin: bool = False
+    created_at: datetime | None = None
+
+
+# ---------------------------------------------------------------------------
+# Admin (superadmin only)
+# ---------------------------------------------------------------------------
+
+class AdminUserResponse(BaseModel):
+    user_id: str
+    github_handle: str | None = None
+    github_name: str | None = None
+    github_avatar_url: str | None = None
+    github_email: str | None = None
+    is_superadmin: bool = False
+    created_at: datetime | None = None
+    last_seen_at: datetime | None = None
+    team_count: int = 0
+    assessment_complete: bool = False
+    github_syncs: int = 0
+    agent_runs: int = 0
+
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    total_teams: int
+    total_assessments: int
+    total_github_syncs: int
+    total_agent_runs: int

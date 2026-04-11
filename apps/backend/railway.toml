@@ -5,8 +5,22 @@ builder = "nixpacks"
 NIXPACKS_PYTHON_VERSION = "3.12"
 
 [deploy]
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1"
 healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+# ---------------------------------------------------------------------------
+# Required environment variables — set these in Railway project Settings →
+# Variables before deploying.
+#
+# GS_DATABASE_URL          postgresql+asyncpg://user:pass@host:5432/db
+# GS_JWT_SECRET            <long random string>
+# GS_GITHUB_CLIENT_ID      Iv23li... (from GitHub OAuth App)
+# GS_GITHUB_CLIENT_SECRET  <GitHub OAuth secret>
+# GS_GITHUB_REDIRECT_URL   https://<your-vercel-domain>/auth
+# GS_FRONTEND_URL          https://<your-vercel-domain>
+# GS_ANTHROPIC_API_KEY     sk-ant-...
+# GS_SUPERADMIN_GITHUB_HANDLE  1mystic
+# ---------------------------------------------------------------------------

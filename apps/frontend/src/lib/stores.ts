@@ -6,6 +6,11 @@ export type Session = {
   token: string;
   expiresIn: number;
   issuedAt: number;
+  // GitHub profile (populated after OAuth)
+  githubHandle?: string;
+  githubName?: string;
+  githubAvatarUrl?: string;
+  isSuperadmin?: boolean;
 };
 
 export type SyncState = {

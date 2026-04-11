@@ -10,8 +10,10 @@ from langgraph.graph import END, START, StateGraph
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import func as sa_func
+
 from .config import settings
-from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember
+from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember, UserProfile
 from .schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
 
 # Lazy imports to avoid startup errors when optional packages aren't configured
@@ -24,15 +26,21 @@ def _get_github_client(access_token: str):
 # JWT helpers
 # ---------------------------------------------------------------------------
 
-def create_jwt(user_id: str) -> tuple[str, int]:
+def create_jwt(user_id: str, github_handle: str | None = None) -> tuple[str, int]:
     expires_in = settings.jwt_exp_minutes * 60
     expiry = datetime.now(tz=UTC) + timedelta(seconds=expires_in)
-    token = jwt.encode(
-        {"sub": user_id, "exp": expiry, "iss": settings.jwt_issuer},
-        settings.jwt_secret,
-        algorithm=settings.jwt_algorithm,
-    )
+    claims: dict[str, Any] = {"sub": user_id, "exp": expiry, "iss": settings.jwt_issuer}
+    if github_handle:
+        claims["github_handle"] = github_handle
+    token = jwt.encode(claims, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     return token, expires_in
+
+
+def is_superadmin(github_handle: str | None) -> bool:
+    """True if the GitHub handle matches the configured superadmin."""
+    if not github_handle:
+        return False
+    return github_handle.lower() == settings.superadmin_github_handle.lower()
 
 
 class AuthTokenError(Exception):
@@ -105,7 +113,7 @@ async def exchange_github_code_for_identity(code: str, db: AsyncSession) -> dict
             github_user = user_resp.json()
 
         user_id = f"gh_{github_user['id']}"
-        return {
+        identity = {
             "user_id": user_id,
             "github_handle": github_user.get("login", ""),
             "name": github_user.get("name", ""),
@@ -113,13 +121,160 @@ async def exchange_github_code_for_identity(code: str, db: AsyncSession) -> dict
             "avatar_url": github_user.get("avatar_url", ""),
             "access_token": access_token,
         }
+        await upsert_user_profile(
+            user_id=user_id,
+            github_handle=identity["github_handle"],
+            github_name=identity["name"] or None,
+            github_email=identity["email"] or None,
+            github_avatar_url=identity["avatar_url"] or None,
+            github_access_token=access_token or None,
+            db=db,
+        )
+        return identity
     else:
         # Dev fallback: derive stable user_id from code string
         clean = "".join(char for char in code.lower() if char.isalnum())
         if not clean:
             raise ValueError("OAuth code is invalid.")
         user_id = f"user_github_{clean[-8:]}"
-        return {"user_id": user_id, "github_handle": clean[-8:], "name": "", "email": "", "avatar_url": "", "access_token": ""}
+        identity = {"user_id": user_id, "github_handle": clean[-8:], "name": "", "email": "", "avatar_url": "", "access_token": ""}
+        await upsert_user_profile(
+            user_id=user_id,
+            github_handle=identity["github_handle"],
+            github_name=None,
+            github_email=None,
+            github_avatar_url=None,
+            github_access_token=None,
+            db=db,
+        )
+        return identity
+
+
+# ---------------------------------------------------------------------------
+# User profile — upsert on every OAuth login
+# ---------------------------------------------------------------------------
+
+async def upsert_user_profile(
+    user_id: str,
+    github_handle: str | None,
+    github_name: str | None,
+    github_email: str | None,
+    github_avatar_url: str | None,
+    github_access_token: str | None,
+    db: AsyncSession,
+) -> UserProfile:
+    result = await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
+    profile = result.scalar_one_or_none()
+    now = datetime.now(tz=UTC)
+    if profile is None:
+        profile = UserProfile(
+            user_id=user_id,
+            github_handle=github_handle,
+            github_name=github_name,
+            github_email=github_email,
+            github_avatar_url=github_avatar_url,
+            github_access_token=github_access_token,
+            last_seen_at=now,
+        )
+        db.add(profile)
+    else:
+        if github_handle:
+            profile.github_handle = github_handle
+        if github_name is not None:
+            profile.github_name = github_name
+        if github_email is not None:
+            profile.github_email = github_email
+        if github_avatar_url is not None:
+            profile.github_avatar_url = github_avatar_url
+        if github_access_token is not None:
+            profile.github_access_token = github_access_token
+        profile.last_seen_at = now
+    await db.commit()
+    await db.refresh(profile)
+    return profile
+
+
+async def get_user_profile(user_id: str, db: AsyncSession) -> UserProfile | None:
+    result = await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def touch_user_last_seen(user_id: str, db: AsyncSession) -> None:
+    result = await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
+    profile = result.scalar_one_or_none()
+    if profile is not None:
+        profile.last_seen_at = datetime.now(tz=UTC)
+        await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Admin — platform-wide stats and user listing (superadmin only)
+# ---------------------------------------------------------------------------
+
+async def get_platform_stats(db: AsyncSession) -> dict[str, int]:
+    total_users_result = await db.execute(select(sa_func.count(UserProfile.user_id)))
+    total_teams_result = await db.execute(select(sa_func.count(Team.id)))
+    total_assessments_result = await db.execute(select(sa_func.count(PsychometricProfile.id)))
+    total_syncs_result = await db.execute(select(sa_func.count(GithubProfile.id)))
+    total_runs_result = await db.execute(select(sa_func.count(AgentRun.id)))
+
+    return {
+        "total_users": total_users_result.scalar_one() or 0,
+        "total_teams": total_teams_result.scalar_one() or 0,
+        "total_assessments": total_assessments_result.scalar_one() or 0,
+        "total_github_syncs": total_syncs_result.scalar_one() or 0,
+        "total_agent_runs": total_runs_result.scalar_one() or 0,
+    }
+
+
+async def get_all_users_admin(db: AsyncSession) -> list[dict[str, Any]]:
+    profiles_result = await db.execute(select(UserProfile).order_by(UserProfile.created_at.desc()))
+    profiles = profiles_result.scalars().all()
+
+    users = []
+    for p in profiles:
+        # Count teams this user belongs to
+        team_count_result = await db.execute(
+            select(sa_func.count(TeamMember.team_id)).where(TeamMember.user_id == p.user_id)
+        )
+        team_count = team_count_result.scalar_one() or 0
+
+        # Check if assessment is complete
+        assessment_result = await db.execute(
+            select(PsychometricProfile).where(
+                PsychometricProfile.user_id == p.user_id,
+                PsychometricProfile.complete == True,  # noqa: E712
+            )
+        )
+        assessment_complete = assessment_result.scalar_one_or_none() is not None
+
+        # Count GitHub syncs
+        syncs_result = await db.execute(
+            select(sa_func.count(GithubProfile.id)).where(GithubProfile.user_id == p.user_id)
+        )
+        github_syncs = syncs_result.scalar_one() or 0
+
+        # Count agent runs
+        runs_result = await db.execute(
+            select(sa_func.count(AgentRun.id)).where(AgentRun.user_id == p.user_id)
+        )
+        agent_runs = runs_result.scalar_one() or 0
+
+        users.append({
+            "user_id": p.user_id,
+            "github_handle": p.github_handle,
+            "github_name": p.github_name,
+            "github_avatar_url": p.github_avatar_url,
+            "github_email": p.github_email,
+            "is_superadmin": is_superadmin(p.github_handle),
+            "created_at": p.created_at,
+            "last_seen_at": p.last_seen_at,
+            "team_count": team_count,
+            "assessment_complete": assessment_complete,
+            "github_syncs": github_syncs,
+            "agent_runs": agent_runs,
+        })
+    return users
 
 
 # ---------------------------------------------------------------------------

@@ -158,7 +158,7 @@ WebSocket stream -> Frontend (Astro + React)
 
 The engine scores 8 behavioral dimensions derived from the assessment and GitHub signals. Each dimension carries a weight (1-8) calibrated so that high-stakes alignment factors (chronotype, stress response) contribute more to the total.
 
-Scores reflect not just averages but variance -- two team members with opposite profiles on a high-weight dimension trigger a risk flag even if the mean score is acceptable. This variance sensitivity is what separates the model from a naive sum.
+Scores reflect not just averages but variance, two team members with opposite profiles on a high-weight dimension trigger a risk flag even if the mean score is acceptable. This variance sensitivity is what separates the model from a naive sum.
 
 Maximum possible score: 36 points.
 

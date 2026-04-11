@@ -10,19 +10,22 @@ export function AuthClient() {
   const session = useStore($session);
   const [email, setEmail] = useState("athena@gitsyntropy.dev");
   const [password, setPassword] = useState("localdev123");
-  const [oauthUrl, setOauthUrl] = useState("");
   const [oauthState, setOauthState] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isOAuthStarting, setIsOAuthStarting] = useState(false);
   const [isOAuthCompleting, setIsOAuthCompleting] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  const applySession = (data: { user_id: string; access_token: string; expires_in: number }) => {
+  const applySession = (data: { user_id: string; access_token: string; expires_in: number; github_handle?: string; github_name?: string; github_avatar_url?: string; is_superadmin?: boolean }) => {
     setSession({
       userId: data.user_id,
       token: data.access_token,
       expiresIn: data.expires_in,
-      issuedAt: Date.now()
+      issuedAt: Date.now(),
+      githubHandle: data.github_handle,
+      githubName: data.github_name,
+      githubAvatarUrl: data.github_avatar_url,
+      isSuperadmin: data.is_superadmin ?? false,
     });
     const next = new URLSearchParams(window.location.search).get("next");
     window.location.assign(next?.startsWith("/") ? next : "/workspace");
@@ -46,23 +49,29 @@ export function AuthClient() {
     setIsOAuthStarting(true);
     try {
       const data = await api.githubStart();
+      // Persist state in sessionStorage so it survives the GitHub redirect round-trip
+      sessionStorage.setItem("gs_oauth_state", data.state);
       setOauthState(data.state);
-      setOauthUrl(data.authorization_url);
+      // Actually redirect to GitHub — do NOT just show the URL
+      window.location.href = data.authorization_url;
     } catch {
-      setAuthError("Unable to start GitHub OAuth.");
-    } finally {
+      setAuthError("Unable to start GitHub OAuth. Is the backend running?");
       setIsOAuthStarting(false);
     }
+    // Note: don't set isOAuthStarting false on success — page is navigating away
   };
 
   const completeGithubOAuth = async (code: string) => {
     setAuthError("");
     setIsOAuthCompleting(true);
+    // Recover state from sessionStorage (survives the GitHub redirect round-trip)
+    const savedState = sessionStorage.getItem("gs_oauth_state") || oauthState || undefined;
     try {
-      const data = await api.githubCallback(code, oauthState || undefined);
+      const data = await api.githubCallback(code, savedState);
+      sessionStorage.removeItem("gs_oauth_state");
       applySession(data);
     } catch {
-      setAuthError("OAuth callback failed.");
+      setAuthError("GitHub sign-in failed. Please try again.");
     } finally {
       setIsOAuthCompleting(false);
     }
@@ -72,8 +81,9 @@ export function AuthClient() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (!code || isOAuthCompleting || session) return;
-    void completeGithubOAuth(code);
+    // Clean up URL immediately so refresh doesn't re-trigger
     window.history.replaceState({}, "", window.location.pathname);
+    void completeGithubOAuth(code);
   }, [session, isOAuthCompleting]);
 
   return (
@@ -127,17 +137,35 @@ export function AuthClient() {
           
           {session ? (
             <div className="glass-card p-8 rounded-2xl flex flex-col items-center gap-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-accent-green/20 text-accent-neon flex items-center justify-center">
-                <span className="material-symbols-outlined text-3xl">check_circle</span>
+              {session.githubAvatarUrl ? (
+                <img src={session.githubAvatarUrl} alt="GitHub avatar" className="w-16 h-16 rounded-full ring-2 ring-primary/40" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-accent-green/20 text-accent-neon flex items-center justify-center">
+                  <span className="material-symbols-outlined text-3xl">check_circle</span>
+                </div>
+              )}
+              <div>
+                <h3 className="text-xl font-bold font-display">
+                  {session.githubName || (session.githubHandle ? `@${session.githubHandle}` : "Signed in")}
+                </h3>
+                {session.githubHandle && (
+                  <p className="text-gray-400 text-sm mt-1">
+                    <a href={`https://github.com/${session.githubHandle}`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                      @{session.githubHandle}
+                    </a>
+                    {session.isSuperadmin && <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-mono">admin</span>}
+                  </p>
+                )}
               </div>
-              <h3 className="text-xl font-bold font-display">Signed in successfully</h3>
-              <p className="text-gray-400">You are connected as <span className="text-white font-mono">{session.userId}</span></p>
-              <button 
-                className="mt-4 px-6 py-2 border border-white/40 rounded-full hover:bg-white/5 transition-colors"
-                onClick={() => clearSession()}
-              >
-                Sign Out
-              </button>
+              <div className="flex gap-3 mt-2">
+                <a href="/workspace" className="btn btn-primary text-sm px-6 py-2">Go to Workspace</a>
+                <button
+                  className="px-6 py-2 border border-white/40 rounded-full text-sm hover:bg-white/5 transition-colors"
+                  onClick={() => clearSession()}
+                >
+                  Sign Out
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -202,13 +230,13 @@ export function AuthClient() {
                 </motion.button>
               </motion.form>
               
-              {oauthUrl && (
-                <div className="mt-4 p-4 text-xs bg-white/5 rounded-lg border border-white/40 text-gray-400 break-all">
-                  <p className="font-bold text-white mb-1">OAuth URL Generated:</p>
-                  <code>{oauthUrl}</code>
+              {isOAuthCompleting && (
+                <div className="mt-4 p-4 text-sm bg-primary/5 rounded-lg border border-primary/20 text-primary text-center flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined animate-spin text-base">refresh</span>
+                  Completing GitHub sign-in…
                 </div>
               )}
-              
+
               <p className="text-center text-sm text-gray-500 mt-8">
                 Don't have an account? <a href="#" className="text-white hover:text-primary transition-colors underline decoration-white/30 underline-offset-4">Request Access</a>
               </p>

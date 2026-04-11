@@ -1,6 +1,7 @@
 ---
 import SideNav from "@/components/SideNav.astro";
 import { InsightsClient } from "@/components/InsightsClient";
+import { ProtectedGate } from "@/components/ProtectedGate";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
@@ -10,9 +11,11 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     <div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(0,212,255,0.05),_transparent_70%)] blur-[80px]"></div>
     <div class="absolute inset-0 opacity-[0.03] bg-grid-pattern bg-[size:32px_32px]"></div>
   </div>
-  
+
   <SideNav />
   <div class="lg:ml-[220px]">
-    <InsightsClient client:load />
+    <ProtectedGate client:load>
+      <InsightsClient client:load />
+    </ProtectedGate>
   </div>
 </BaseLayout>

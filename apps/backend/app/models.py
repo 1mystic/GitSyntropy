@@ -107,6 +107,23 @@ class TeamMember(Base):
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class UserProfile(Base):
+    """One row per authenticated user — upserted on every OAuth login."""
+
+    __tablename__ = "user_profiles"
+
+    user_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    github_handle: Mapped[str | None] = mapped_column(String(255), index=True)
+    github_name: Mapped[str | None] = mapped_column(String(255))
+    github_email: Mapped[str | None] = mapped_column(String(255))
+    github_avatar_url: Mapped[str | None] = mapped_column(Text)
+    # Encrypted in production via GS_JWT_SECRET; stored for re-syncing
+    github_access_token: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class TeamScore(Base):
     """Versioned team Ashtakoot scores — one row per run."""
 

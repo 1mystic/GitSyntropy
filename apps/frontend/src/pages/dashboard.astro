@@ -1,6 +1,7 @@
 ---
 import SideNav from "@/components/SideNav.astro";
 import { DashboardClient } from "@/components/DashboardClient";
+import { ProtectedGate } from "@/components/ProtectedGate";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
@@ -13,6 +14,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
   </div>
   <SideNav />
   <div class="lg:ml-[220px]">
-    <DashboardClient client:load />
+    <ProtectedGate client:load>
+      <DashboardClient client:load />
+    </ProtectedGate>
   </div>
 </BaseLayout>
