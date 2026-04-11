@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 ASHTAKOOT_DIMENSIONS = [
@@ -319,4 +319,5 @@ class UserSearchResult(BaseModel):
 
 
 class UpdateProfileRequest(BaseModel):
-    display_name: str | None = Field(default=None, max_length=80)
+    model_config = ConfigDict(extra="ignore")
+    display_name: Annotated[str | None, Field(max_length=80)] = None
