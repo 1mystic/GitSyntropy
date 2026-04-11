@@ -5,8 +5,8 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "env": {
-    "PUBLIC_API_BASE": "https://gitsyntropy-api.up.railway.app/api/v1",
-    "PUBLIC_WS_BASE": "wss://gitsyntropy-api.up.railway.app",
+    "PUBLIC_API_BASE": "https://gitsyntropy-api.onrender.com/api/v1",
+    "PUBLIC_WS_BASE": "wss://gitsyntropy-api.onrender.com",
     "PUBLIC_AUTH_REQUIRED": "true",
     "PUBLIC_GUEST_TRIAL": "true"
   },
