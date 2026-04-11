@@ -1,5 +1,7 @@
 import { useStore } from "@nanostores/react";
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { fadeInUp, slideDown, stagger } from "@/lib/motion";
 
 import { api } from "@/lib/api";
 import { $session, clearSession, setSession } from "@/lib/stores";
@@ -77,7 +79,7 @@ export function AuthClient() {
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
       {/* LEFT PANEL: Brand / Visuals */}
-      <div className="relative hidden lg:flex w-1/2 h-full flex-col justify-center items-center overflow-hidden bg-midnight border-r border-white/40 min-h-screen">
+      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="relative hidden lg:flex w-1/2 h-full flex-col justify-center items-center overflow-hidden bg-midnight border-r border-white/40 min-h-screen">
         <div className="absolute inset-0 w-full h-full opacity-60 pointer-events-none">
           <div className="animate-float absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/40 rounded-full blur-[120px]"></div>
           <div className="animate-float absolute bottom-[-10%] right-[-10%] w-[70%] h-[70%] bg-accent-teal/30 rounded-full blur-[100px]" style={{ animationDirection: 'reverse', animationDuration: '15s' }}></div>
@@ -113,11 +115,11 @@ export function AuthClient() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* RIGHT PANEL: Auth Forms */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16 relative min-h-screen">
-        <div className="w-full max-w-md relative z-10">
+        <motion.div variants={slideDown} initial="hidden" animate="visible" className="w-full max-w-md relative z-10">
           <div className="mb-10 text-center lg:text-left">
             <h2 className="text-3xl font-bold mb-2 font-display">Welcome Back</h2>
             <p className="text-gray-400">Log in to view your team's sync metrics.</p>
@@ -163,8 +165,8 @@ export function AuthClient() {
                 </div>
               )}
 
-              <form onSubmit={(e) => { e.preventDefault(); runLogin(); }} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
+              <motion.form variants={stagger} initial="hidden" animate="visible" onSubmit={(e) => { e.preventDefault(); runLogin(); }} className="flex flex-col gap-4">
+                <motion.div variants={fadeInUp} className="flex flex-col gap-1.5">
                   <label className="text-sm text-gray-400 font-medium ml-1">Email Address</label>
                   <input 
                     type="email" 
@@ -173,9 +175,9 @@ export function AuthClient() {
                     placeholder="you@company.com" 
                     className="w-full bg-[#0A0A0B] border border-white/40 rounded-none px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all"
                   />
-                </div>
-                
-                <div className="flex flex-col gap-1.5">
+                </motion.div>
+
+                <motion.div variants={fadeInUp} className="flex flex-col gap-1.5">
                   <div className="flex justify-between items-center ml-1">
                     <label className="text-sm text-gray-400 font-medium">Password</label>
                     <a href="#" className="text-xs text-primary hover:text-primary-text transition-colors">Forgot?</a>
@@ -187,16 +189,18 @@ export function AuthClient() {
                     placeholder="••••••••" 
                     className="w-full bg-[#0A0A0B] border border-white/40 rounded-none px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all"
                   />
-                </div>
+                </motion.div>
 
-                <button 
-                  type="submit" 
+                <motion.button
+                  variants={fadeInUp}
+                  whileTap={{ scale: 0.97 }}
+                  type="submit"
                   disabled={isSigningIn}
                   className="w-full btn btn-primary py-3.5 mt-2"
                 >
                   {isSigningIn ? "Signing In..." : "Sign In to Workspace"}
-                </button>
-              </form>
+                </motion.button>
+              </motion.form>
               
               {oauthUrl && (
                 <div className="mt-4 p-4 text-xs bg-white/5 rounded-lg border border-white/40 text-gray-400 break-all">
@@ -210,7 +214,7 @@ export function AuthClient() {
               </p>
             </>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

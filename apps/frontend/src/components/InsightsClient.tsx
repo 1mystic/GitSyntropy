@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 import { api, wsUrlForRun, type InsightResponse, type OrchestratorStreamEvent } from "@/lib/api";
 import { $orchestrator, $session } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
@@ -285,10 +287,10 @@ function InsightsInner() {
   };
 
   return (
-    <main className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
+    <motion.main variants={fadeInUp} initial="hidden" animate="visible" className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+      <motion.div variants={slideDown} initial="hidden" animate="visible" className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
           <span className="text-accent-info font-mono text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
             <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
@@ -318,26 +320,26 @@ function InsightsInner() {
             Analysing as: <span className="text-gray-400">{userId}</span>
           </p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Aggregate KPI bar */}
       {kpiTotalRuns > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {[
             { label: "Total Runs", value: String(kpiTotalRuns), icon: "history", color: "text-primary" },
             { label: "Avg Team Score", value: kpiAvgScore !== null ? `${kpiAvgScore}/36` : "—", icon: "analytics", color: "text-accent-teal" },
             { label: "Best Team", value: kpiBest?.teamName ?? "—", icon: "emoji_events", color: "text-amber-400" },
             { label: "Last Analysis", value: kpiLastDate ?? "—", icon: "calendar_today", color: "text-purple-400" },
           ].map((kpi) => (
-            <div key={kpi.label} className="glass-panel rounded-none p-4 flex items-start gap-3 border border-white/5">
+            <motion.div variants={fadeInUp} key={kpi.label} className="glass-panel rounded-none p-4 flex items-start gap-3 border border-white/5">
               <span className={`material-symbols-outlined text-[20px] ${kpi.color} flex-shrink-0 mt-0.5`}>{kpi.icon}</span>
               <div className="min-w-0">
                 <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">{kpi.label}</p>
                 <p className="text-lg font-bold text-white font-display truncate">{kpi.value}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* What does this page do — idle explanation */}
@@ -454,11 +456,12 @@ function InsightsInner() {
       )}
 
       {/* Synthesis result */}
+      <AnimatePresence>
       {data && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
           {/* Main Narrative */}
-          <div className="lg:col-span-8 glass-card rounded-none p-8 md:p-10 relative overflow-hidden">
+          <motion.div variants={scaleIn} className="lg:col-span-8 glass-card rounded-none p-8 md:p-10 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-accent-info/5 to-transparent rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
 
             <div className="flex items-start justify-between mb-6 relative z-10">
@@ -483,7 +486,7 @@ function InsightsInner() {
 
             <NarrativeCard narrative={data.narrative} />
 
-            <div className="mt-8 pt-6 border-t border-white/10 relative z-10 flex items-center justify-between gap-4 flex-wrap">
+            <motion.div variants={fadeInUp} className="mt-8 pt-6 border-t border-white/10 relative z-10 flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-yellow-500/60 text-[18px]">info</span>
                 <p className="text-xs text-gray-500 font-mono">{data.uncertainty_note}</p>
@@ -491,11 +494,11 @@ function InsightsInner() {
               <span className="px-3 py-1 rounded bg-accent-neon/10 border border-accent-neon/20 text-[10px] uppercase text-accent-neon font-bold tracking-widest">
                 Confidence: High
               </span>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-4 flex flex-col gap-6 relative z-10">
+          <motion.div variants={fadeInUp} className="lg:col-span-4 flex flex-col gap-6 relative z-10">
             <div className="glass-panel rounded-none p-6 h-full flex flex-col">
               <h3 className="text-lg font-bold font-display text-white mb-6 flex items-center gap-2">
                 <span className="material-symbols-outlined text-accent-neon text-[20px]">lightbulb</span>
@@ -546,10 +549,11 @@ function InsightsInner() {
                 Deep Pair Analysis
               </a>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
-    </main>
+      </AnimatePresence>
+    </motion.main>
   );
 }
 

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 
 import { api } from "@/lib/api";
 import { $assessment, $session } from "@/lib/stores";
@@ -229,9 +231,9 @@ function AssessmentInner() {
   }
 
   return (
-    <main className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
+    <motion.main variants={fadeInUp} initial="hidden" animate="visible" className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
       {/* Page header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+      <motion.header variants={slideDown} initial="hidden" animate="visible" className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
           <span className="text-primary font-mono text-xs uppercase tracking-widest mb-2 block">Psychometric Profiling</span>
           <h1 className="text-4xl md:text-5xl font-bold font-display tracking-tight text-white">Behavioral Assessment</h1>
@@ -241,7 +243,7 @@ function AssessmentInner() {
           <span className="text-4xl font-bold font-display text-accent-neon">{progress}%</span>
           <span className="text-gray-500 text-sm block font-mono mt-0.5">Profiling: <span className="text-primary">{userId}</span></span>
         </div>
-      </header>
+      </motion.header>
 
       {/* Progress bar */}
       <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10 mb-10">
@@ -275,8 +277,9 @@ function AssessmentInner() {
             </div>
           )}
 
+          <AnimatePresence mode="wait">
           {!loading && !loadError && activeQuestion && (
-            <div className="glass-panel rounded-none p-8 md:p-12 relative overflow-hidden group flex-1">
+            <motion.div key={activeQuestion.id} variants={scaleIn} initial="hidden" animate="visible" exit={{ opacity: 0, y: -10 }} className="glass-panel rounded-none p-8 md:p-12 relative overflow-hidden group flex-1">
               <div className="absolute top-0 right-0 p-4">
                 <span className="material-symbols-outlined text-white/10 text-6xl transform rotate-12 group-hover:text-primary/20 transition-colors duration-500">
                   psychology
@@ -317,8 +320,9 @@ function AssessmentInner() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
 
           {/* Navigation */}
           {!loading && !loadError && (
@@ -354,7 +358,7 @@ function AssessmentInner() {
         </div>
 
         {/* RIGHT: Dimension tracker */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
+        <motion.div variants={stagger} initial="hidden" animate="visible" className="lg:col-span-5 flex flex-col gap-4">
           <div className="glass-panel rounded-none p-6 flex flex-col gap-1">
             <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-[16px] text-primary">radar</span>
@@ -397,15 +401,15 @@ function AssessmentInner() {
             })}
           </div>
 
-          <div className="glass-panel rounded-none p-5 border border-white/5">
+          <motion.div variants={fadeInUp} className="glass-panel rounded-none p-5 border border-white/5">
             <p className="text-xs text-gray-500 leading-relaxed">
               <span className="text-white font-semibold">How scoring works:</span> Each dimension has a maximum weight (1–8pt). Higher-weight dimensions influence compatibility scores more. Answer all 8 to unlock team analysis.
             </p>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
       </div>
-    </main>
+    </motion.main>
   );
 }
 

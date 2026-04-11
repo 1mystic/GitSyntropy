@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 
 import { api, type OrchestratorStreamEvent, type Team, wsUrlForRun } from "@/lib/api";
 import { $session, $teams } from "@/lib/stores";
@@ -275,9 +277,10 @@ function WorkspaceInner() {
   return (
     <>
       {/* ── Create Team Wizard Modal ─────────────────────────────────────── */}
+      <AnimatePresence>
       {showWizard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="glass-card w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl">
+        <motion.div variants={fadeInUp} initial="hidden" animate="visible" exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <motion.div variants={scaleIn} initial="hidden" animate="visible" className="glass-card w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b border-white/10">
               <div>
                 <h2 className="text-lg font-bold font-display text-white">
@@ -446,9 +449,10 @@ function WorkspaceInner() {
                 </button>
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* ── Add Member Modal ─────────────────────────────────────────────── */}
       {showInvite && (
@@ -574,8 +578,8 @@ function WorkspaceInner() {
       )}
 
       {/* ── Main Workspace ───────────────────────────────────────────────── */}
-      <div className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen relative z-10">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
+      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen relative z-10">
+        <motion.header variants={slideDown} initial="hidden" animate="visible" className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 font-display">
               Workspace
@@ -588,9 +592,9 @@ function WorkspaceInner() {
               <p className="text-gray-400 text-sm font-medium">Team Simulator v2.4</p>
             </div>
           </div>
-        </header>
+        </motion.header>
 
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden glass-card rounded-2xl border border-white/10 min-h-[600px] mb-10 shadow-2xl">
+        <motion.div variants={scaleIn} initial="hidden" animate="visible" className="flex flex-col md:flex-row flex-1 overflow-hidden glass-card rounded-2xl border border-white/10 min-h-[600px] mb-10 shadow-2xl">
           {/* Left Sidebar */}
           <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-white/10 bg-white/5 flex flex-col z-10 overflow-y-auto backdrop-blur-md">
             {/* Team selector */}
@@ -830,8 +834,8 @@ function WorkspaceInner() {
               )}
             </div>
           </main>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </>
   );
 }

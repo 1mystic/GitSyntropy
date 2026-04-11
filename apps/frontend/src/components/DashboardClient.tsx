@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
+import { AnimatePresence, motion } from "framer-motion";
+import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 import { api, wsUrlForRun, type CompatibilityResponse, type GithubSyncResponse, type OrchestratorStreamEvent } from "@/lib/api";
 import { $compatibility, $orchestrator, $session, $sync, $teams } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
@@ -290,9 +292,9 @@ function DashboardInner() {
   const activeTeam = teams.find((t) => t.id === selectedTeamId);
 
   return (
-    <div className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
+    <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
       {/* Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
+      <motion.header variants={slideDown} initial="hidden" animate="visible" className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 font-display">
             Dashboard
@@ -334,7 +336,8 @@ function DashboardInner() {
               )}
             </div>
           )}
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => void runAnalysis()}
             disabled={analysisLoading}
             className="btn btn-primary shadow-neon transition-all flex items-center gap-2 px-4 py-2 text-sm"
@@ -343,14 +346,14 @@ function DashboardInner() {
               {analysisLoading ? "hourglass_top" : "play_arrow"}
             </span>
             {analysisLoading ? "Running..." : "Run Analysis"}
-          </button>
+          </motion.button>
         </div>
-      </header>
+      </motion.header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 auto-rows-min pb-10">
+      <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 auto-rows-min pb-10">
 
         {/* Team Resilience Score */}
-        <div className="col-span-1 md:col-span-2 xl:col-span-2 row-span-2 glass-card rounded-none p-8 relative overflow-hidden group border border-primary/20 bg-[radial-gradient(at_0%_0%,_hsla(270,60%,20%,0.5)_0,_transparent_50%),_radial-gradient(at_100%_100%,_hsla(260,80%,15%,0.5)_0,_transparent_50%)]">
+        <motion.div variants={fadeInUp} className="col-span-1 md:col-span-2 xl:col-span-2 row-span-2 glass-card rounded-none p-8 relative overflow-hidden group border border-primary/20 bg-[radial-gradient(at_0%_0%,_hsla(270,60%,20%,0.5)_0,_transparent_50%),_radial-gradient(at_100%_100%,_hsla(260,80%,15%,0.5)_0,_transparent_50%)]">
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/20 blur-[80px] rounded-full" />
           <div className="absolute left-10 bottom-10 w-32 h-32 bg-accent-neon/10 blur-[50px] rounded-full" />
 
@@ -464,10 +467,10 @@ function DashboardInner() {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* GitHub Sync */}
-        <div className="col-span-1 md:col-span-1 xl:col-span-1 row-span-2 glass-card rounded-none p-6 flex flex-col relative">
+        <motion.div variants={fadeInUp} className="col-span-1 md:col-span-1 xl:col-span-1 row-span-2 glass-card rounded-none p-6 flex flex-col relative">
           <div className="mb-4">
             <h3 className="text-white font-semibold flex items-center gap-2 font-display">
               <span className="material-symbols-outlined text-amber-300">schedule</span>
@@ -550,10 +553,10 @@ function DashboardInner() {
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* Assessment Readiness */}
-        <div className="col-span-1 md:col-span-1 xl:col-span-1 glass-card rounded-none p-6 flex flex-col justify-between">
+        <motion.div variants={fadeInUp} className="col-span-1 md:col-span-1 xl:col-span-1 glass-card rounded-none p-6 flex flex-col justify-between">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-white font-semibold text-sm font-display">Assessment Readiness</h3>
             {!assessmentLoading && !assessmentError && (
@@ -596,10 +599,10 @@ function DashboardInner() {
           >
             {assessmentReady ? "Review Answers" : "Continue Assessment"} →
           </a>
-        </div>
+        </motion.div>
 
         {/* Compatibility Snapshot */}
-        <div className="col-span-1 md:col-span-1 xl:col-span-1 glass-card rounded-none p-6 relative flex flex-col justify-between">
+        <motion.div variants={fadeInUp} className="col-span-1 md:col-span-1 xl:col-span-1 glass-card rounded-none p-6 relative flex flex-col justify-between">
           <div>
             <h3 className="text-white font-semibold text-sm mb-1 font-display">
               Compatibility Snapshot
@@ -652,11 +655,12 @@ function DashboardInner() {
               </p>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Team Dimension Radar — shown when compat data available */}
+        <AnimatePresence>
         {compatResult && (
-          <div className="col-span-1 md:col-span-2 xl:col-span-4 glass-card rounded-none p-6 border border-primary/10">
+          <motion.div variants={scaleIn} initial="hidden" animate="visible" exit={{ opacity: 0, scale: 0.97 }} className="col-span-1 md:col-span-2 xl:col-span-4 glass-card rounded-none p-6 border border-primary/10">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-white font-semibold font-display flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[20px]">radar</span>
@@ -676,13 +680,16 @@ function DashboardInner() {
               </div>
             </div>
             <RadarChart dimensionScores={compatResult.dimension_scores} />
-          </div>
+          </motion.div>
         )}
-      </div>
+        </AnimatePresence>
+      </motion.div>
 
       {/* Contextual Quick Actions */}
-      <section className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <a
+      <motion.section variants={stagger} initial="hidden" animate="visible" className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <motion.a
+          variants={fadeInUp}
+          whileHover={{ y: -2 }}
           href="/assessment"
           className="glass-card rounded-none p-5 flex items-center gap-4 border border-white/5 hover:border-accent-teal/40 transition-all group"
         >
@@ -694,8 +701,10 @@ function DashboardInner() {
             <p className="text-xs text-gray-500 mt-0.5">Complete or review your psychometric profile</p>
           </div>
           <span className="material-symbols-outlined text-gray-600 group-hover:text-accent-teal transition-colors ml-auto flex-shrink-0">arrow_forward</span>
-        </a>
-        <a
+        </motion.a>
+        <motion.a
+          variants={fadeInUp}
+          whileHover={{ y: -2 }}
           href="/compatibility"
           className="glass-card rounded-none p-5 flex items-center gap-4 border border-white/5 hover:border-purple-400/40 transition-all group"
         >
@@ -707,8 +716,10 @@ function DashboardInner() {
             <p className="text-xs text-gray-500 mt-0.5">Run a pairwise score between two members</p>
           </div>
           <span className="material-symbols-outlined text-gray-600 group-hover:text-purple-400 transition-colors ml-auto flex-shrink-0">arrow_forward</span>
-        </a>
-        <a
+        </motion.a>
+        <motion.a
+          variants={fadeInUp}
+          whileHover={{ y: -2 }}
           href="/insights"
           className="glass-card rounded-none p-5 flex items-center gap-4 border border-white/5 hover:border-primary/40 transition-all group"
         >
@@ -720,17 +731,17 @@ function DashboardInner() {
             <p className="text-xs text-gray-500 mt-0.5">View your AI-generated team synthesis report</p>
           </div>
           <span className="material-symbols-outlined text-gray-600 group-hover:text-primary transition-colors ml-auto flex-shrink-0">arrow_forward</span>
-        </a>
-      </section>
+        </motion.a>
+      </motion.section>
 
       {/* Recent Reports */}
       {reports.length > 0 && (
-        <section className="mt-10">
+        <motion.section variants={fadeInUp} initial="hidden" animate="visible" className="mt-10">
           <h2 className="text-lg font-semibold text-white font-display flex items-center gap-2 mb-4">
             <span className="material-symbols-outlined text-primary text-[20px]">history</span>
             Recent Reports
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {reports.map((report) => {
               const date = new Date(report.createdAt);
               const label = date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -743,7 +754,9 @@ function DashboardInner() {
                 .trim()
                 .slice(0, 160);
               return (
-                <a
+                <motion.a
+                  variants={fadeInUp}
+                  whileHover={{ y: -2 }}
                   key={report.id}
                   href={`/report?id=${report.id}`}
                   target="_blank"
@@ -765,13 +778,13 @@ function DashboardInner() {
                     View Full Report
                     <span className="material-symbols-outlined text-sm">open_in_new</span>
                   </span>
-                </a>
+                </motion.a>
               );
             })}
-          </div>
-        </section>
+          </motion.div>
+        </motion.section>
       )}
-    </div>
+    </motion.div>
   );
 }
 

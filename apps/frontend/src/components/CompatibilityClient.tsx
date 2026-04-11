@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { useStore } from "@nanostores/react";
+import { AnimatePresence, motion } from "framer-motion";
+import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 
 import { type CompatibilityResponse, api } from "@/lib/api";
 import { $session, $teams } from "@/lib/stores";
@@ -71,8 +73,8 @@ export function CompatibilityClient() {
   }, [data?.level]);
 
   return (
-    <main className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-20 flex flex-col min-h-screen">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+    <motion.main variants={fadeInUp} initial="hidden" animate="visible" className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-20 flex flex-col min-h-screen">
+      <motion.div variants={slideDown} initial="hidden" animate="visible" className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
           <span className="text-primary font-mono text-xs uppercase tracking-widest mb-2 block">Compatibility Engine</span>
           <h1 className="text-4xl md:text-5xl font-bold font-display text-white mb-2">
@@ -82,9 +84,9 @@ export function CompatibilityClient() {
             Weighted Ashtakoot score across 8 dimensions with weak-signal flags.
           </p>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="glass-panel p-6 md:p-8 rounded-none mb-12 border-white/40">
+      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="glass-panel p-6 md:p-8 rounded-none mb-12 border-white/40">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-xs text-gray-500 font-mono uppercase tracking-wider">Member A</label>
@@ -155,10 +157,11 @@ export function CompatibilityClient() {
         <p className="text-xs text-gray-600 mt-4">
           Enter user IDs or GitHub handles of any two team members. Use "Full Data" for real assessment scores, or "Incomplete (Mock)" to test with simulated data.
         </p>
-      </div>
+      </motion.div>
 
+      <AnimatePresence>
       {data && (
-        <div className="mb-8 glass-panel rounded-none p-5 border border-primary/20 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <motion.div variants={scaleIn} initial="hidden" animate="visible" exit={{ opacity: 0, scale: 0.97 }} className="mb-8 glass-panel rounded-none p-5 border border-primary/20 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-white mb-1">Ready to go deeper?</p>
             <p className="text-xs text-gray-400">Run a full multi-agent team analysis or view all pairings in the dashboard.</p>
@@ -173,12 +176,12 @@ export function CompatibilityClient() {
               Dashboard
             </a>
           </div>
-        </div>
+        </motion.div>
       )}
       {data && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Score Card */}
-          <div className="lg:col-span-1 glass-card rounded-none p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group">
+          <motion.div variants={scaleIn} className="lg:col-span-1 glass-card rounded-none p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2"></div>
             
             <h3 className="text-gray-400 font-display uppercase tracking-widest text-sm mb-6">Aggregate Sync Score</h3>
@@ -221,10 +224,10 @@ export function CompatibilityClient() {
                 </ul>
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* Breakdown Dimensions */}
-          <div className="lg:col-span-2 glass-panel rounded-none p-8 relative">
+          <motion.div variants={fadeInUp} className="lg:col-span-2 glass-panel rounded-none p-8 relative">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold font-display text-white">Dimension Breakdown</h3>
               <span className="text-sm text-gray-500 font-mono">{data.dimension_breakdown?.length ?? 0} Vectors</span>
@@ -271,9 +274,10 @@ export function CompatibilityClient() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
-    </main>
+      </AnimatePresence>
+    </motion.main>
   );
 }
