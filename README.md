@@ -9,9 +9,9 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
 ![Deploy](https://img.shields.io/badge/deploy-Railway%20%2B%20Vercel-black?style=flat-square)
 
-**Predict how well developers will work together -- before they do.**
+> ## **Predict how well developers will work together, before they do.**
 
-GitSyntropy is a multi-agent system that scores team compatibility and simulates hiring impact using GitHub behavioral data and psychometric profiling. It surfaces concrete risks and recommendations, not just numbers.
+GitSyntropy is a multi-agent system that scores team compatibility and simulates hiring impact using GitHub behavioral data and psychometric profiling. It surfaces concrete risks and recommendations, not just raw metrics and numbers.
 
 ---
 
