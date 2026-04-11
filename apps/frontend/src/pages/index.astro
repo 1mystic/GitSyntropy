@@ -55,91 +55,9 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
         <div class="absolute -bottom-10 -left-10 w-24 h-24 border-b border-l border-primary/30 rounded-bl-3xl hidden md:block"></div>
         
         <div class="glass-panel rounded-none p-2 border-white/40 relative overflow-hidden group">
-          <!-- "Scribble" Annotation SVG -->
-          <svg class="absolute top-10 right-10 z-20 w-32 h-32 pointer-events-none transform rotate-12" viewBox="0 0 100 100">
-            <path class="scribble-path" d="M10,50 Q30,10 50,50 T90,50" fill="none" stroke="#e5ff66" stroke-width="2"></path>
-            <text fill="#e5ff66" font-family="'Reenie Beanie', cursive" font-size="16" text-anchor="middle" x="50" y="80">Score: 29 / 36</text>
-            <circle cx="50" cy="50" fill="none" r="40" stroke="#e5ff66" stroke-dasharray="5,5" stroke-width="2"></circle>
-          </svg>
-
-          <!-- Inline dashboard preview -->
-          <div class="relative rounded-none overflow-hidden bg-[#0A0A0B] aspect-[16/9] flex flex-col p-6 md:p-8 gap-4">
-            <!-- Mock top bar -->
-            <div class="flex items-center justify-between shrink-0">
-              <div class="flex items-center gap-3">
-                <span class="w-3 h-3 rounded-full bg-red-500/70"></span>
-                <span class="w-3 h-3 rounded-full bg-yellow-500/70"></span>
-                <span class="w-3 h-3 rounded-full bg-green-500/70"></span>
-                <span class="ml-3 text-xs font-mono text-gray-500">atlas-core / compatibility report</span>
-              </div>
-              <span class="text-xs font-mono text-accent-green flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-accent-green inline-block animate-pulse"></span>
-                pipeline complete
-              </span>
-            </div>
-
-            <!-- Mock metric cards row -->
-            <div class="grid grid-cols-4 gap-3 shrink-0">
-              <div class="glass-panel rounded-lg p-3 border border-primary/20">
-                <div class="text-[10px] text-gray-500 uppercase tracking-wider font-mono mb-1">Compatibility</div>
-                <div class="text-lg font-bold text-white font-display">29.1 <span class="text-xs text-gray-400">/ 36</span></div>
-                <div class="text-[10px] text-accent-green font-mono">+20% with hire</div>
-              </div>
-              <div class="glass-panel rounded-lg p-3 border border-accent-teal/20">
-                <div class="text-[10px] text-gray-500 uppercase tracking-wider font-mono mb-1">Chronotype</div>
-                <div class="text-lg font-bold text-white font-display">6 <span class="text-xs text-gray-400">/ 8</span></div>
-                <div class="text-[10px] text-yellow-400 font-mono">6h peak gap</div>
-              </div>
-              <div class="glass-panel rounded-lg p-3 border border-white/10">
-                <div class="text-[10px] text-gray-500 uppercase tracking-wider font-mono mb-1">Stress Response</div>
-                <div class="text-lg font-bold text-white font-display">6 <span class="text-xs text-gray-400">/ 7</span></div>
-                <div class="text-[10px] text-accent-green font-mono">within range</div>
-              </div>
-              <div class="glass-panel rounded-lg p-3 border border-red-500/20">
-                <div class="text-[10px] text-gray-500 uppercase tracking-wider font-mono mb-1">Resilience</div>
-                <div class="text-lg font-bold text-white font-display">1 <span class="text-xs text-gray-400">/ 3</span></div>
-                <div class="text-[10px] text-red-400 font-mono">LOW -- flag</div>
-              </div>
-            </div>
-
-            <!-- Mock dimension bars -->
-            <div class="flex-1 grid grid-cols-2 gap-x-8 gap-y-2 content-start">
-              {[
-                { label: "Chronotype Sync", val: 75, color: "bg-yellow-400" },
-                { label: "Decision Style", val: 60, color: "bg-red-400" },
-                { label: "Work Style", val: 100, color: "bg-accent-green" },
-                { label: "Risk Tolerance", val: 67, color: "bg-primary" },
-                { label: "Innovation Drive", val: 100, color: "bg-accent-teal" },
-                { label: "Leadership Spread", val: 50, color: "bg-purple-400" },
-              ].map(({ label, val, color }) => (
-                <div class="flex items-center gap-3">
-                  <span class="text-[10px] text-gray-500 font-mono w-32 shrink-0">{label}</span>
-                  <div class="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div class={`h-full ${color} rounded-full`} style={`width: ${val}%`}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div class="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/60 via-transparent to-transparent pointer-events-none"></div>
-
-            <!-- Floating stat cards -->
-            <div class="absolute bottom-6 left-6 right-6 flex justify-between items-end z-10">
-              <div class="glass-panel p-3 rounded-lg flex flex-col gap-1 border border-primary/30">
-                <span class="text-[10px] text-gray-400 uppercase tracking-wider font-display">Compatibility Score</span>
-                <span class="text-xl font-bold text-white flex items-center gap-2 font-display">
-                  29 / 36
-                  <span class="text-accent-green text-sm material-symbols-outlined">trending_up</span>
-                </span>
-              </div>
-              <div class="glass-panel p-3 rounded-lg flex flex-col gap-1 border border-accent-teal/30">
-                <span class="text-[10px] text-gray-400 uppercase tracking-wider font-display">Chronotype</span>
-                <span class="text-xl font-bold text-white flex items-center gap-2 font-display">
-                  Aligned
-                  <span class="text-accent-teal text-sm material-symbols-outlined">schedule</span>
-                </span>
-              </div>
-            </div>
+          <div class="relative rounded-none overflow-hidden bg-[#0A0A0B] aspect-[16/9]">
+            <img src="/demo.gif" alt="GitSyntropy dashboard demo" class="absolute top-0 right-0 h-full w-auto max-w-none" style="object-fit: cover; object-position: right top;" />
+            <div class="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/50 via-transparent to-transparent pointer-events-none"></div>
           </div>
         </div>
       </div>
@@ -216,18 +134,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
           </div>
           <h3 class="text-2xl font-bold mb-2 font-display">Chronotype Sync</h3>
           <p class="text-gray-400 mb-8">Detect peak-hour overlap gaps. Flag teams where async-first is the safer working model.</p>
-          <div class="flex-1 w-full bg-midnight rounded-none border border-white/40 p-4 relative min-h-[120px]">
-            <svg class="w-full h-full overflow-visible" preserveAspectRatio="none">
-              <!-- Member A peak: morning curve -->
-              <path d="M0,80 C20,60 40,20 60,25 C80,30 100,60 120,80 C140,90 160,90 180,90" fill="none" stroke="#00d4ff" stroke-width="2" stroke-dasharray="none" opacity="0.8"></path>
-              <!-- Member B peak: evening curve -->
-              <path d="M0,90 C20,90 40,80 60,75 C80,65 100,30 120,20 C140,25 160,50 180,80" fill="none" stroke="#e5ff66" stroke-width="2" opacity="0.8"></path>
-              <circle class="animate-pulse" cx="60" cy="25" fill="#00d4ff" r="3"></circle>
-              <circle class="animate-pulse" cx="120" cy="20" fill="#e5ff66" r="3"></circle>
-            </svg>
-            <div class="absolute top-4 right-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-xs px-2 py-1 rounded font-display">
-              6h peak gap
-            </div>
+          <div class="flex-1 w-full rounded-none overflow-hidden relative min-h-[120px]">
+            <img src="/sync.png" alt="GitHub sync panel" class="w-full h-full object-cover object-top" />
           </div>
         </div>
       </div>
