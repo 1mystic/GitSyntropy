@@ -50,13 +50,13 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       </div>
       
       <!-- Hero Image / 3D Abstract -->
-      <div class="w-full max-w-4xl mt-16 relative">
+      <div class="w-full max-w-[1200px] mt-16 relative">
         <div class="absolute -top-10 -right-10 w-24 h-24 border-t border-r border-primary/30 rounded-tr-3xl hidden md:block"></div>
         <div class="absolute -bottom-10 -left-10 w-24 h-24 border-b border-l border-primary/30 rounded-bl-3xl hidden md:block"></div>
         
-        <div class="glass-panel rounded-none p-2 border-white/40 relative overflow-hidden group">
-          <div class="relative rounded-none overflow-hidden bg-[#0A0A0B] aspect-[16/9]">
-            <img src="/demo.gif" alt="GitSyntropy dashboard demo" class="absolute top-0 right-0 h-full w-auto max-w-none" style="object-fit: cover; object-position: right top;" />
+        <div class="glass-panel rounded-none p-3 border-white/40 relative overflow-hidden group">
+          <div class="relative rounded-none overflow-hidden bg-[#0A0A0B] aspect-[1499/961]">
+            <img src="/demo.gif" alt="GitSyntropy dashboard demo" class="block w-full h-full object-contain object-center scale-[1.02]" />
             <div class="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/50 via-transparent to-transparent pointer-events-none"></div>
           </div>
         </div>
@@ -123,6 +123,9 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
                 git_connect_status: OK
               </div>
             </div>
+            <div class="mt-8 w-full rounded-none overflow-hidden border border-white/20 bg-[#0A0A0B]">
+              <img src="/insights.png" alt="Insights synthesis preview" class="block w-full h-auto object-contain object-center" loading="lazy" />
+            </div>
           </div>
         </div>
         
@@ -134,8 +137,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
           </div>
           <h3 class="text-2xl font-bold mb-2 font-display">Chronotype Sync</h3>
           <p class="text-gray-400 mb-8">Detect peak-hour overlap gaps. Flag teams where async-first is the safer working model.</p>
-          <div class="flex-1 w-full rounded-none overflow-hidden relative min-h-[120px]">
-            <img src="/sync.png" alt="GitHub sync panel" class="w-full h-full object-cover object-top" />
+          <div class="mt-auto w-full rounded-none overflow-hidden border border-white/20 bg-[#0A0A0B]">
+            <img src="/sync.png" alt="GitHub sync panel" class="block w-full h-auto object-contain object-center" loading="lazy" />
           </div>
         </div>
       </div>
