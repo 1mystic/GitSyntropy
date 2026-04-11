@@ -1,15 +1,10 @@
-import type { PropsWithChildren } from "react";
+import { type PropsWithChildren, useEffect, useState } from "react";
 import { useStore } from "@nanostores/react";
-import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
-import { $session, clearSession, isSessionExpired } from "@/lib/stores";
+import { $session, clearSession, hydrateSession, isSessionExpired } from "@/lib/stores";
 import { AUTH_REQUIRED, GUEST_TRIAL_ENABLED } from "@/lib/featureFlags";
 
-/**
- * GuestBanner — shown at the top of every guest-mode page.
- * Clicking "Sign in" redirects to /auth with ?next= for return navigation.
- */
 function GuestBanner() {
   const nextPath = typeof window !== "undefined" ? window.location.pathname : "/";
   return (
@@ -31,63 +26,81 @@ function GuestBanner() {
   );
 }
 
-type ProtectedGateProps = PropsWithChildren<{
-  /** If true, unauthenticated visitors see a hard redirect to /auth (no guest mode). */
-  strict?: boolean;
-}>;
+type Props = PropsWithChildren<{ strict?: boolean }>;
 
-export function ProtectedGate({ children, strict = false }: ProtectedGateProps) {
-  // Dev mode — no auth enforcement
+export function ProtectedGate({ children, strict = false }: Props) {
+  // Skip all auth logic during Astro SSR/SSG build
+  if (typeof window === "undefined") {
+    return <>{children}</>;
+  }
+
+  // Dev mode — no enforcement
   if (!AUTH_REQUIRED) {
     return <>{children}</>;
   }
 
   const session = useStore($session);
-  const nextPath = typeof window !== "undefined" ? window.location.pathname : "/";
+  const [sessionValid, setSessionValid] = useState<boolean | null>(null);
 
-  const sessionQuery = useQuery({
-    queryKey: ["auth-session", session?.token],
-    queryFn: () => api.session(session!.token),
-    enabled: Boolean(session?.token),
-    retry: false,
-  });
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    hydrateSession();
+  }, []);
 
-  // Expire stale sessions
-  if (session && isSessionExpired(session)) {
-    clearSession();
+  // Validate token against backend (no react-query, plain fetch)
+  useEffect(() => {
+    if (!session?.token) {
+      setSessionValid(false);
+      return;
+    }
+    if (isSessionExpired(session)) {
+      clearSession();
+      setSessionValid(false);
+      return;
+    }
+    api.session(session.token)
+      .then(() => setSessionValid(true))
+      .catch(() => {
+        clearSession();
+        setSessionValid(false);
+      });
+  }, [session?.token]);
+
+  const isAuthed = session && sessionValid === true;
+  const checking = session && sessionValid === null;
+  const nextPath = window.location.pathname;
+
+  // Checking in progress — show brief loader
+  if (checking) {
+    return (
+      <div className="relative z-10 flex items-center justify-center min-h-screen">
+        <p className="text-gray-600 text-sm">Validating session…</p>
+      </div>
+    );
   }
 
-  const isAuthed = session && !sessionQuery.isError && !isSessionExpired(session);
-
-  // Hard block (strict pages) OR guest trial disabled → redirect to auth
-  if (!isAuthed && (strict || !GUEST_TRIAL_ENABLED)) {
-    return (
-      <section className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
-        <div className="glass-panel p-10 rounded-none w-full max-w-md text-center flex flex-col items-center gap-6">
-          <span className="material-symbols-outlined text-5xl text-primary">lock</span>
-          <div>
-            <h3 className="text-xl font-bold font-display">Sign in required</h3>
-            <p className="text-gray-400 mt-2 text-sm">Connect your GitHub account to access this page.</p>
+  // Not authenticated
+  if (!isAuthed) {
+    // Strict pages: hard block
+    if (strict || !GUEST_TRIAL_ENABLED) {
+      return (
+        <section className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
+          <div className="glass-panel p-10 rounded-none w-full max-w-md text-center flex flex-col items-center gap-6">
+            <span className="material-symbols-outlined text-5xl text-primary">lock</span>
+            <div>
+              <h3 className="text-xl font-bold font-display">Sign in required</h3>
+              <p className="text-gray-400 mt-2 text-sm">Connect your GitHub account to access this page.</p>
+            </div>
+            <a href={`/auth?next=${encodeURIComponent(nextPath)}`} className="btn btn-primary w-full justify-center">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg" alt="" className="w-4 h-4 invert" />
+              Sign in with GitHub
+            </a>
           </div>
-          <a href={`/auth?next=${encodeURIComponent(nextPath)}`} className="btn btn-primary w-full justify-center">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg" alt="" className="w-4 h-4 invert" />
-            Sign in with GitHub
-          </a>
-        </div>
-      </section>
-    );
-  }
+        </section>
+      );
+    }
 
-  if (sessionQuery.isPending && session) {
-    return (
-      <section className="relative z-10 flex flex-col items-center justify-center min-h-screen">
-        <p className="text-gray-500 text-sm">Validating session…</p>
-      </section>
-    );
-  }
-
-  // Guest trial — show children (with demo data) + banner
-  if (!isAuthed && GUEST_TRIAL_ENABLED) {
+    // Guest trial — show children (demo data) + banner
     return (
       <>
         <GuestBanner />
