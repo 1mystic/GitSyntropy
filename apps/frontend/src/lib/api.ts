@@ -142,6 +142,12 @@ export type Team = {
   created_at: string;
   members: TeamMember[];
 };
+export type UserSearchResult = {
+  user_id: string;
+  github_handle?: string | null;
+  display_name?: string | null;
+  github_avatar_url?: string | null;
+};
 
 async function requestVoid(path: string, init?: RequestInit): Promise<void> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -235,6 +241,14 @@ export const api = {
 
   // Authenticated user profile
   me: (token: string) => authedRequest<UserProfileResponse>("/users/me", token),
+  updateDisplayName: (token: string, display_name: string | null) =>
+    authedRequest<UserProfileResponse>("/users/me/display-name", token, {
+      method: "PATCH",
+      body: JSON.stringify({ display_name }),
+    }),
+
+  // User search (no auth required — searching public handles/names)
+  searchUsers: (q: string) => request<UserSearchResult[]>(`/users/search?q=${encodeURIComponent(q)}`),
 
   // Admin (superadmin only)
   adminStats: (token: string) => authedRequest<AdminStatsResponse>("/admin/stats", token),

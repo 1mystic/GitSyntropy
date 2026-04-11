@@ -16,6 +16,8 @@ from .schemas import (
     AddMemberRequest,
     AdminStatsResponse,
     AdminUserResponse,
+    UpdateProfileRequest,
+    UserSearchResult,
     AnalysisRequest,
     AnalysisResponse,
     AssessmentQuestion,
@@ -48,6 +50,8 @@ from .schemas import (
 from .services import (
     AuthTokenError,
     add_team_member,
+    search_users,
+    update_user_display_name,
     assessment_questions,
     build_github_authorization_url,
     cat_estimated_remaining,
@@ -95,9 +99,17 @@ app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=li
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+_cors_origins = [
+    settings.frontend_url,
+    "http://localhost:4321",
+    "http://localhost:3000",
+]
+if settings.extra_cors_origins:
+    _cors_origins.extend([o.strip() for o in settings.extra_cors_origins.split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:4321", "http://localhost:3000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -234,6 +246,38 @@ async def get_me(authorization: str | None = Header(default=None), db: AsyncSess
         github_email=profile.github_email if profile else None,
         is_superadmin=is_superadmin(profile.github_handle if profile else github_handle),
         created_at=profile.created_at if profile else None,
+    )
+
+
+@app.get(f"{settings.api_prefix}/users/search", response_model=list[UserSearchResult])
+async def search_users_route(q: str = "", db: AsyncSession = Depends(get_db)) -> list[UserSearchResult]:
+    if len(q) < 2:
+        return []
+    results = await search_users(q, db)
+    return [UserSearchResult(**r) for r in results]
+
+
+@app.patch(f"{settings.api_prefix}/users/me/display-name", response_model=UserProfileResponse)
+async def update_display_name_route(
+    payload: UpdateProfileRequest,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> UserProfileResponse:
+    claims = _decode_token_claims(authorization)
+    user_id = str(claims.get("sub", ""))
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    profile = await update_user_display_name(user_id, payload.display_name, db)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="User profile not found")
+    return UserProfileResponse(
+        user_id=user_id,
+        github_handle=profile.github_handle,
+        github_name=profile.github_name,
+        github_avatar_url=profile.github_avatar_url,
+        github_email=profile.github_email,
+        is_superadmin=is_superadmin(profile.github_handle),
+        created_at=profile.created_at,
     )
 
 

@@ -305,3 +305,18 @@ class AdminStatsResponse(BaseModel):
     total_assessments: int
     total_github_syncs: int
     total_agent_runs: int
+
+
+# ---------------------------------------------------------------------------
+# User search + profile update
+# ---------------------------------------------------------------------------
+
+class UserSearchResult(BaseModel):
+    user_id: str
+    github_handle: str | None = None
+    display_name: str | None = None
+    github_avatar_url: str | None = None
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: str | None = Field(default=None, max_length=80)

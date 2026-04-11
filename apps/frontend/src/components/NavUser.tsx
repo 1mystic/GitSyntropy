@@ -1,12 +1,38 @@
 import { useStore } from "@nanostores/react";
 import { $session, clearSession, hydrateSession } from "@/lib/stores";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 export function NavUser() {
   // Hydrate session from localStorage on first render
   useEffect(() => { hydrateSession(); }, []);
 
   const session = useStore($session);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const openEditName = () => {
+    setNameInput(session?.githubName || "");
+    setNameError(null);
+    setEditingName(true);
+  };
+
+  const saveDisplayName = async () => {
+    if (!session?.token) return;
+    setNameSaving(true);
+    setNameError(null);
+    try {
+      await api.updateDisplayName(session.token, nameInput.trim() || null);
+      $session.set({ ...session, githubName: nameInput.trim() || session.githubHandle || "" });
+      setEditingName(false);
+    } catch {
+      setNameError("Failed to save. Try again.");
+    } finally {
+      setNameSaving(false);
+    }
+  };
 
   if (!session) {
     return (
@@ -42,6 +68,41 @@ export function NavUser() {
           <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono flex-shrink-0">admin</span>
         )}
       </div>
+
+      {/* Inline display name editor */}
+      {editingName ? (
+        <div className="px-2 space-y-1.5">
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") saveDisplayName(); if (e.key === "Escape") setEditingName(false); }}
+            placeholder="Display name…"
+            className="w-full bg-black/20 border border-white/10 rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+            autoFocus
+          />
+          {nameError && <p className="text-xs text-red-400 px-0.5">{nameError}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEditingName(false)}
+              className="flex-1 py-1 text-xs text-gray-400 border border-white/10 rounded-lg hover:bg-white/5 transition-all"
+            >Cancel</button>
+            <button
+              onClick={saveDisplayName}
+              disabled={nameSaving}
+              className="flex-1 py-1 text-xs bg-primary/80 hover:bg-primary text-white rounded-lg transition-all disabled:opacity-50"
+            >{nameSaving ? "Saving…" : "Save"}</button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={openEditName}
+          className="flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-white hover:bg-white/6 border border-transparent transition-all w-full text-left"
+        >
+          <span className="material-symbols-outlined text-[16px]">edit</span>
+          Edit display name
+        </button>
+      )}
 
       {/* Admin link — only for superadmin */}
       {session.isSuperadmin && (

@@ -9,8 +9,5 @@
     "PUBLIC_WS_BASE": "wss://gitsyntropy.onrender.com",
     "PUBLIC_AUTH_REQUIRED": "true",
     "PUBLIC_GUEST_TRIAL": "true"
-  },
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  }
 }

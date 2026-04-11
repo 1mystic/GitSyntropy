@@ -29,5 +29,9 @@ class Settings(BaseSettings):
     superadmin_github_handle: str = "1mystic"
     superadmin_email: str = "23f2004201@ss.com"
 
+    # Extra CORS origins beyond frontend_url — comma-separated, no spaces
+    # e.g. GS_EXTRA_CORS_ORIGINS=https://git-syntropy.vercel.app,https://preview.vercel.app
+    extra_cors_origins: str = ""
+
 
 settings = Settings()

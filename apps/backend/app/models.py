@@ -117,6 +117,8 @@ class UserProfile(Base):
     github_name: Mapped[str | None] = mapped_column(String(255))
     github_email: Mapped[str | None] = mapped_column(String(255))
     github_avatar_url: Mapped[str | None] = mapped_column(Text)
+    # User-editable display name (overrides github_name in UI)
+    display_name: Mapped[str | None] = mapped_column(String(80))
     # Encrypted in production via GS_JWT_SECRET; stored for re-syncing
     github_access_token: Mapped[str | None] = mapped_column(Text)
 

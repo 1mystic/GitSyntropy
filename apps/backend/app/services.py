@@ -207,6 +207,42 @@ async def touch_user_last_seen(user_id: str, db: AsyncSession) -> None:
         await db.commit()
 
 
+async def update_user_display_name(user_id: str, display_name: str | None, db: AsyncSession) -> UserProfile | None:
+    result = await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        return None
+    profile.display_name = display_name
+    await db.commit()
+    await db.refresh(profile)
+    return profile
+
+
+async def search_users(query: str, db: AsyncSession, limit: int = 10) -> list[dict[str, Any]]:
+    """Search users by github_handle, display_name, or github_name. Returns up to `limit` results."""
+    q = f"%{query.lower()}%"
+    from sqlalchemy import or_, func as _func
+    result = await db.execute(
+        select(UserProfile).where(
+            or_(
+                _func.lower(UserProfile.github_handle).like(q),
+                _func.lower(UserProfile.display_name).like(q),
+                _func.lower(UserProfile.github_name).like(q),
+            )
+        ).limit(limit)
+    )
+    profiles = result.scalars().all()
+    return [
+        {
+            "user_id": p.user_id,
+            "github_handle": p.github_handle,
+            "display_name": p.display_name or p.github_name or p.github_handle,
+            "github_avatar_url": p.github_avatar_url,
+        }
+        for p in profiles
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Admin — platform-wide stats and user listing (superadmin only)
 # ---------------------------------------------------------------------------

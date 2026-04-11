@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 
-import { api, type OrchestratorStreamEvent, type Team, wsUrlForRun } from "@/lib/api";
+import { api, type OrchestratorStreamEvent, type Team, type UserSearchResult, wsUrlForRun } from "@/lib/api";
 import { $session, $teams } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -46,6 +46,11 @@ function WorkspaceInner() {
   const [wInvRole, setWInvRole] = useState("");
   const [wLoading, setWLoading] = useState(false);
   const [wError, setWError] = useState<string | null>(null);
+  const [wInvSearch, setWInvSearch] = useState("");
+  const [wInvSearchResults, setWInvSearchResults] = useState<UserSearchResult[]>([]);
+  const [wInvSearchLoading, setWInvSearchLoading] = useState(false);
+  const [wInvSelectedUser, setWInvSelectedUser] = useState<UserSearchResult | null>(null);
+  const [wInvShowDropdown, setWInvShowDropdown] = useState(false);
 
   // ── Team Edit Modal ─────────────────────────────────────────────────────
   const [showEditTeam, setShowEditTeam] = useState(false);
@@ -61,6 +66,11 @@ function WorkspaceInner() {
   const [invRole, setInvRole] = useState("");
   const [invLoading, setInvLoading] = useState(false);
   const [invError, setInvError] = useState<string | null>(null);
+  const [invSearch, setInvSearch] = useState("");
+  const [invSearchResults, setInvSearchResults] = useState<UserSearchResult[]>([]);
+  const [invSearchLoading, setInvSearchLoading] = useState(false);
+  const [invSelectedUser, setInvSelectedUser] = useState<UserSearchResult | null>(null);
+  const [invShowDropdown, setInvShowDropdown] = useState(false);
 
   // ── Orchestrator ────────────────────────────────────────────────────────
   const [events, setEvents] = useState<OrchestratorStreamEvent[]>([]);
@@ -152,6 +162,26 @@ function WorkspaceInner() {
     }
   };
 
+  const handleWInvSearch = async (q: string) => {
+    setWInvSearch(q);
+    setWInvSelectedUser(null);
+    if (q.length < 2) { setWInvSearchResults([]); setWInvShowDropdown(false); return; }
+    setWInvSearchLoading(true);
+    try {
+      const results = await api.searchUsers(q);
+      setWInvSearchResults(results);
+      setWInvShowDropdown(true);
+    } catch { setWInvSearchResults([]); } finally { setWInvSearchLoading(false); }
+  };
+
+  const handleWInvSelectUser = (u: UserSearchResult) => {
+    setWInvSelectedUser(u);
+    setWInvUserId(u.user_id);
+    setWInvHandle(u.github_handle ?? "");
+    setWInvSearch(u.display_name || u.github_handle || u.user_id);
+    setWInvShowDropdown(false);
+  };
+
   const handleWizardInvite = async () => {
     if (!wCreatedTeam || !wInvUserId.trim()) return;
     setWLoading(true);
@@ -187,9 +217,41 @@ function WorkspaceInner() {
     setWInvHandle("");
     setWInvRole("");
     setWError(null);
+    setWInvSearch("");
+    setWInvSearchResults([]);
+    setWInvSelectedUser(null);
+    setWInvShowDropdown(false);
   };
 
   // ── Invite modal handlers ───────────────────────────────────────────────
+  const handleInviteSearch = async (q: string) => {
+    setInvSearch(q);
+    setInvSelectedUser(null);
+    if (q.length < 2) {
+      setInvSearchResults([]);
+      setInvShowDropdown(false);
+      return;
+    }
+    setInvSearchLoading(true);
+    try {
+      const results = await api.searchUsers(q);
+      setInvSearchResults(results);
+      setInvShowDropdown(true);
+    } catch {
+      setInvSearchResults([]);
+    } finally {
+      setInvSearchLoading(false);
+    }
+  };
+
+  const handleInviteSelectUser = (user: UserSearchResult) => {
+    setInvSelectedUser(user);
+    setInvUserId(user.user_id);
+    setInvHandle(user.github_handle ?? "");
+    setInvSearch(user.display_name || user.github_handle || user.user_id);
+    setInvShowDropdown(false);
+  };
+
   const handleInvite = async () => {
     if (!activeTeam || !invUserId.trim()) return;
     setInvLoading(true);
@@ -219,6 +281,10 @@ function WorkspaceInner() {
     setInvHandle("");
     setInvRole("");
     setInvError(null);
+    setInvSearch("");
+    setInvSearchResults([]);
+    setInvSelectedUser(null);
+    setInvShowDropdown(false);
   };
 
   // ── Edit team ───────────────────────────────────────────────────────────
@@ -342,7 +408,7 @@ function WorkspaceInner() {
             {wStep === 2 && (
               <div className="p-6 space-y-4">
                 <p className="text-sm text-gray-400">
-                  Invite members by user ID. You can always add more later.
+                  Search for registered users by name or GitHub handle. You can always add more later.
                 </p>
 
                 {wCreatedTeam && wCreatedTeam.members.length > 0 && (
@@ -368,38 +434,66 @@ function WorkspaceInner() {
                 )}
 
                 <div className="space-y-3 border-t border-white/10 pt-4">
+                  {/* Search */}
+                  <div className="relative">
+                    <label className="text-xs text-gray-500 mb-1 block font-mono uppercase">Search User</label>
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-base pointer-events-none">search</span>
+                      <input
+                        type="text"
+                        value={wInvSearch}
+                        onChange={(e) => handleWInvSearch(e.target.value)}
+                        onFocus={() => wInvSearchResults.length > 0 && setWInvShowDropdown(true)}
+                        placeholder="Name or GitHub handle…"
+                        className="w-full bg-black/20 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                      />
+                      {wInvSearchLoading && (
+                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-base animate-spin">progress_activity</span>
+                      )}
+                    </div>
+                    {wInvShowDropdown && wInvSearchResults.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl overflow-hidden">
+                        {wInvSearchResults.map((u) => (
+                          <button key={u.user_id} onClick={() => handleWInvSelectUser(u)}
+                            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 text-left transition-colors">
+                            {u.github_avatar_url ? (
+                              <img src={u.github_avatar_url} alt="" className="w-6 h-6 rounded-full shrink-0" />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                <span className="text-[9px] font-bold text-primary">{(u.github_handle || u.user_id).slice(0, 2).toUpperCase()}</span>
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs text-white truncate">{u.display_name || u.github_handle || u.user_id}</p>
+                              {u.github_handle && <p className="text-[10px] text-gray-500">@{u.github_handle}</p>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {wInvShowDropdown && wInvSearch.length >= 2 && wInvSearchResults.length === 0 && !wInvSearchLoading && (
+                      <div className="absolute z-10 w-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-500 text-center shadow-xl">
+                        No users found
+                      </div>
+                    )}
+                  </div>
+                  {wInvSelectedUser && (
+                    <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-1.5">
+                      {wInvSelectedUser.github_avatar_url && <img src={wInvSelectedUser.github_avatar_url} alt="" className="w-5 h-5 rounded-full" />}
+                      <span className="text-xs text-white">{wInvSelectedUser.display_name || wInvSelectedUser.github_handle}</span>
+                      {wInvSelectedUser.github_handle && <span className="text-[10px] text-gray-400 ml-auto">@{wInvSelectedUser.github_handle}</span>}
+                    </div>
+                  )}
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block font-mono uppercase">User ID *</label>
+                    <label className="text-xs text-gray-500 mb-1 block font-mono uppercase">Role (optional)</label>
                     <input
                       type="text"
-                      value={wInvUserId}
-                      onChange={(e) => setWInvUserId(e.target.value)}
+                      value={wInvRole}
+                      onChange={(e) => setWInvRole(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleWizardInvite()}
-                      placeholder="user_github_abc123"
+                      placeholder="Lead, Dev..."
                       className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                     />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block font-mono uppercase">GitHub Handle</label>
-                      <input
-                        type="text"
-                        value={wInvHandle}
-                        onChange={(e) => setWInvHandle(e.target.value)}
-                        placeholder="handle"
-                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block font-mono uppercase">Role</label>
-                      <input
-                        type="text"
-                        value={wInvRole}
-                        onChange={(e) => setWInvRole(e.target.value)}
-                        placeholder="Lead, Dev..."
-                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                      />
-                    </div>
                   </div>
                   {wError && <p className="text-xs text-red-400">{wError}</p>}
                   <button
@@ -470,39 +564,75 @@ function WorkspaceInner() {
               </button>
             </div>
             <div className="p-6 space-y-4">
+              {/* Search box */}
+              <div className="relative">
+                <label className="text-xs text-gray-500 mb-1.5 block font-mono uppercase">Search User *</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-base pointer-events-none">search</span>
+                  <input
+                    type="text"
+                    value={invSearch}
+                    onChange={(e) => handleInviteSearch(e.target.value)}
+                    onFocus={() => invSearchResults.length > 0 && setInvShowDropdown(true)}
+                    placeholder="Search by name or GitHub handle…"
+                    className="w-full bg-black/20 border border-white/10 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                    autoFocus
+                  />
+                  {invSearchLoading && (
+                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-base animate-spin">progress_activity</span>
+                  )}
+                </div>
+                {/* Dropdown results */}
+                {invShowDropdown && invSearchResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl overflow-hidden">
+                    {invSearchResults.map((u) => (
+                      <button
+                        key={u.user_id}
+                        onClick={() => handleInviteSelectUser(u)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 text-left transition-colors"
+                      >
+                        {u.github_avatar_url ? (
+                          <img src={u.github_avatar_url} alt="" className="w-7 h-7 rounded-full shrink-0" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                            <span className="text-xs font-bold text-primary">{(u.github_handle || u.user_id).slice(0, 2).toUpperCase()}</span>
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm text-white truncate">{u.display_name || u.github_handle || u.user_id}</p>
+                          {u.github_handle && <p className="text-xs text-gray-500 truncate">@{u.github_handle}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {invShowDropdown && invSearch.length >= 2 && invSearchResults.length === 0 && !invSearchLoading && (
+                  <div className="absolute z-10 w-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-lg px-3 py-3 text-xs text-gray-500 text-center shadow-xl">
+                    No users found
+                  </div>
+                )}
+              </div>
+              {/* Selected user chip */}
+              {invSelectedUser && (
+                <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">
+                  {invSelectedUser.github_avatar_url && (
+                    <img src={invSelectedUser.github_avatar_url} alt="" className="w-5 h-5 rounded-full" />
+                  )}
+                  <span className="text-sm text-white">{invSelectedUser.display_name || invSelectedUser.github_handle}</span>
+                  {invSelectedUser.github_handle && <span className="text-xs text-gray-400 ml-auto">@{invSelectedUser.github_handle}</span>}
+                </div>
+              )}
+              {/* Role */}
               <div>
-                <label className="text-xs text-gray-500 mb-1.5 block font-mono uppercase">User ID *</label>
+                <label className="text-xs text-gray-500 mb-1 block font-mono uppercase">Role (optional)</label>
                 <input
                   type="text"
-                  value={invUserId}
-                  onChange={(e) => setInvUserId(e.target.value)}
+                  value={invRole}
+                  onChange={(e) => setInvRole(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-                  placeholder="user_github_abc123"
-                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                  autoFocus
+                  placeholder="Lead, Dev, Designer…"
+                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block font-mono uppercase">GitHub Handle</label>
-                  <input
-                    type="text"
-                    value={invHandle}
-                    onChange={(e) => setInvHandle(e.target.value)}
-                    placeholder="handle"
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block font-mono uppercase">Role</label>
-                  <input
-                    type="text"
-                    value={invRole}
-                    onChange={(e) => setInvRole(e.target.value)}
-                    placeholder="Lead, Dev..."
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                  />
-                </div>
               </div>
               {invError && <p className="text-xs text-red-400">{invError}</p>}
               <div className="flex gap-3">
