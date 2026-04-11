@@ -7,6 +7,21 @@ import { type CompatibilityResponse, api } from "@/lib/api";
 import { $session, $teams } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 
+const DIMENSION_LABELS: Record<string, string> = {
+  varna_alignment: "Innovation Drive",
+  vashya_influence: "Leadership Orientation",
+  tara_resilience: "Team Resilience",
+  yoni_workstyle: "Work Style",
+  graha_maitri_cognition: "Decision Style",
+  gana_temperament: "Risk Tolerance",
+  bhakoot_strategy: "Stress Response",
+  nadi_chronotype_sync: "Chronotype Sync",
+};
+
+function getDimensionLabel(dimension: string) {
+  return DIMENSION_LABELS[dimension] ?? dimension.replace(/_/g, " ");
+}
+
 export function CompatibilityClient() {
   const _session = $session.get();
   if (AUTH_REQUIRED && !_session) {
@@ -242,7 +257,7 @@ export function CompatibilityClient() {
                   <div key={item.dimension} className="flex flex-col gap-2">
                     <div className="flex justify-between items-end">
                       <span className="text-sm font-medium text-gray-300 capitalize flex items-center gap-2">
-                        {item.dimension.replace(/_/g, ' ')}
+                        {getDimensionLabel(item.dimension)}
                         {isWeak && <span className="material-symbols-outlined text-[14px] text-red-400" title="Weak Signal">error</span>}
                       </span>
                       <span className="text-xs font-mono text-gray-500">
@@ -268,7 +283,7 @@ export function CompatibilityClient() {
                 <div className="flex flex-wrap gap-2">
                   {data.weak_dimensions.map((dim) => (
                     <span key={dim} className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono capitalize">
-                      {dim.replace(/_/g, ' ')}
+                      {getDimensionLabel(dim)}
                     </span>
                   ))}
                 </div>
