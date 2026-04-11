@@ -13,13 +13,10 @@ function GuestBanner() {
         <span className="w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0" />
         <span>
           <span className="text-white font-medium">Guest Preview</span>
-          <span className="text-gray-500 hidden sm:inline"> — Showing demo data. Sign in to analyse your real GitHub profile.</span>
+          <span className="text-gray-500 hidden sm:inline"> — Showing demo data. Sign in to see your real GitHub profile.</span>
         </span>
       </div>
-      <a
-        href={`/auth?next=${encodeURIComponent(nextPath)}`}
-        className="btn btn-primary text-xs py-1.5 px-4 flex-shrink-0"
-      >
+      <a href={`/auth?next=${encodeURIComponent(nextPath)}`} className="btn btn-primary text-xs py-1.5 px-4 flex-shrink-0">
         Sign in with GitHub
       </a>
     </div>
@@ -29,48 +26,37 @@ function GuestBanner() {
 type Props = PropsWithChildren<{ strict?: boolean }>;
 
 export function ProtectedGate({ children, strict = false }: Props) {
-  // Skip all auth logic during Astro SSR/SSG build
-  if (typeof window === "undefined") {
-    return <>{children}</>;
-  }
-
-  // Dev mode — no enforcement
-  if (!AUTH_REQUIRED) {
-    return <>{children}</>;
-  }
-
+  // ── ALL hooks must be called unconditionally (Rules of Hooks) ──────────
+  // mounted: false on server + first client render → same output → no hydration mismatch
+  const [mounted, setMounted] = useState(false);
   const session = useStore($session);
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
 
-  // Hydrate from localStorage on mount
   useEffect(() => {
     hydrateSession();
+    setMounted(true);
   }, []);
 
-  // Validate token against backend (no react-query, plain fetch)
   useEffect(() => {
-    if (!session?.token) {
-      setSessionValid(false);
-      return;
-    }
-    if (isSessionExpired(session)) {
-      clearSession();
-      setSessionValid(false);
-      return;
-    }
+    if (!mounted) return;
+    if (!session?.token) { setSessionValid(false); return; }
+    if (isSessionExpired(session)) { clearSession(); setSessionValid(false); return; }
+
     api.session(session.token)
       .then(() => setSessionValid(true))
-      .catch(() => {
-        clearSession();
-        setSessionValid(false);
-      });
-  }, [session?.token]);
+      .catch(() => { clearSession(); setSessionValid(false); });
+  }, [session?.token, mounted]);
+  // ── End hooks ──────────────────────────────────────────────────────────
+
+  // Before mount: render children exactly as server did → no hydration mismatch
+  if (!mounted) return <>{children}</>;
+
+  // Dev mode — no enforcement
+  if (!AUTH_REQUIRED) return <>{children}</>;
 
   const isAuthed = session && sessionValid === true;
   const checking = session && sessionValid === null;
-  const nextPath = window.location.pathname;
 
-  // Checking in progress — show brief loader
   if (checking) {
     return (
       <div className="relative z-10 flex items-center justify-center min-h-screen">
@@ -79,10 +65,9 @@ export function ProtectedGate({ children, strict = false }: Props) {
     );
   }
 
-  // Not authenticated
   if (!isAuthed) {
-    // Strict pages: hard block
     if (strict || !GUEST_TRIAL_ENABLED) {
+      const nextPath = window.location.pathname;
       return (
         <section className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
           <div className="glass-panel p-10 rounded-none w-full max-w-md text-center flex flex-col items-center gap-6">
@@ -99,8 +84,6 @@ export function ProtectedGate({ children, strict = false }: Props) {
         </section>
       );
     }
-
-    // Guest trial — show children (demo data) + banner
     return (
       <>
         <GuestBanner />
