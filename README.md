@@ -1,8 +1,37 @@
 # GitSyntropy
 
-Predict how well developers will work together -- before they do.
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Astro](https://img.shields.io/badge/Astro-4.15-FF5D01?style=flat-square&logo=astro&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-1a1a2e?style=flat-square)
+![Claude](https://img.shields.io/badge/Anthropic-Claude-D97757?style=flat-square)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![Deploy](https://img.shields.io/badge/deploy-Railway%20%2B%20Vercel-black?style=flat-square)
+
+**Predict how well developers will work together -- before they do.**
 
 GitSyntropy is a multi-agent system that scores team compatibility and simulates hiring impact using GitHub behavioral data and psychometric profiling. It surfaces concrete risks and recommendations, not just numbers.
+
+---
+
+## Demo
+
+### Dashboard -- run the full analysis pipeline
+
+![Dashboard analysis pipeline demo](docs/demo-dashboard.gif)
+
+### Assessment -- adaptive psychometric profiling
+
+![Assessment demo](docs/demo-assessment.gif)
+
+### Compatibility -- pairwise score breakdown
+
+![Compatibility engine demo](docs/demo-compatibility.gif)
+
+### Insights -- Claude synthesis report streaming
+
+![Insights streaming demo](docs/demo-insights.gif)
 
 ---
 
