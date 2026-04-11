@@ -109,7 +109,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
         <!-- Card 1: Large Integration -->
         <div class="col-8 glass-card rounded-none p-8 relative overflow-hidden group glass-card-hover h-full">
           <div class="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2"></div>
-          <div class="relative z-10 flex flex-col justify-between h-full">
+          <div class="relative z-10 flex flex-col h-full">
             <div>
               <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/40 flex items-center justify-center mb-4 text-white">
                 <span class="material-symbols-outlined">hub</span>
@@ -117,14 +117,16 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
               <h3 class="text-2xl font-bold mb-2 font-display">Seamless Integration</h3>
               <p class="text-gray-400 max-w-sm">Connects instantly with GitHub to ingest workflow data without friction.</p>
             </div>
-            <div class="mt-8 flex gap-4">
+            <div class="mt-6 flex gap-4">
               <div class="px-4 py-2 rounded-lg bg-[#24292e] flex items-center gap-2 text-sm font-mono border border-gray-700">
                 <span class="w-2 h-2 rounded-full bg-green-500"></span>
                 git_connect_status: OK
               </div>
             </div>
-            <div class="mt-8 w-full rounded-none overflow-hidden border border-white/20 bg-[#0A0A0B]">
-              <img src="/insights.png" alt="Insights synthesis preview" class="block w-full h-auto object-contain object-center" loading="lazy" />
+            <div class="mt-auto pt-6 w-full rounded-none overflow-hidden border border-white/20 bg-[#0A0A0B]">
+              <div class="w-full aspect-[1483/781]">
+                <img src="/insights.png" alt="Insights synthesis preview" class="block w-full h-full object-contain object-center" loading="lazy" />
+              </div>
             </div>
           </div>
         </div>
@@ -136,9 +138,11 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
             <span class="material-symbols-outlined">schedule</span>
           </div>
           <h3 class="text-2xl font-bold mb-2 font-display">Chronotype Sync</h3>
-          <p class="text-gray-400 mb-8">Detect peak-hour overlap gaps. Flag teams where async-first is the safer working model.</p>
+          <p class="text-gray-400 mb-6">Detect peak-hour overlap gaps. Flag teams where async-first is the safer working model.</p>
           <div class="mt-auto w-full rounded-none overflow-hidden border border-white/20 bg-[#0A0A0B]">
-            <img src="/sync.png" alt="GitHub sync panel" class="block w-full h-auto object-contain object-center" loading="lazy" />
+            <div class="w-full aspect-[1375/772]">
+              <img src="/sync.png" alt="GitHub sync panel" class="block w-full h-full object-contain object-center" loading="lazy" />
+            </div>
           </div>
         </div>
       </div>
