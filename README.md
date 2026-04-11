@@ -17,27 +17,27 @@ GitSyntropy is a multi-agent system that scores team compatibility and simulates
 
 ## Demo
 
-### Dashboard -- run the full analysis pipeline
+### Dashboard : run the full analysis pipeline
 
-![Dashboard analysis pipeline demo](docs/demo-dashboard.gif)
+![Dashboard analysis pipeline demo](demos/demo.gif)
 
-### Assessment -- adaptive psychometric profiling
+### Workspace : adaptive psychometric profiling
 
-![Assessment demo](docs/demo-assessment.gif)
+![Workspace demo](demos/workspace2.png)
 
-### Compatibility -- pairwise score breakdown
+### Compatibility : pairwise score breakdown
 
-![Compatibility engine demo](docs/demo-compatibility.gif)
+![Compatibility engine demo](demos/compatibility.png)
 
-### Insights -- Claude synthesis report streaming
+### Insights : Claude synthesis report streaming
 
-![Insights streaming demo](docs/demo-insights.gif)
+![Insights streaming demo](demos/insights.png)
 
 ---
 
 ## The Problem
 
-Engineering teams fail due to misalignment in work patterns, communication styles, and decision-making -- not lack of technical skill. Existing tools like MBTI and DISC rely on self-report surveys that are subjective, static, and disconnected from real work behavior.
+Engineering teams fail due to misalignment in work patterns, communication styles, and decision-making : not lack of technical skill. Existing tools like MBTI and DISC rely on self-report surveys that are subjective, static, and disconnected from real work behavior.
 
 GitSyntropy derives compatibility signals from what engineers actually do: commit timing, PR activity, collaboration frequency, and self-assessed behavioral dimensions. It produces a continuously-updatable model of how a team is likely to function together.
 
