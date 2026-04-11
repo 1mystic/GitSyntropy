@@ -209,3 +209,194 @@ Weights: 1–8 (nadi highest). Total max score = 36. `score_pct_100 = total/36*1
 ---
 
 You now have full context. What would you like to work on?
+
+
+render failure latest 
+
+ERROR:    Application startup failed. Exiting.
+Menu
+==> Exited with status 3
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'uvicorn app.main:app --host 0.0.0.0 --port $PORT'
+==> No open ports detected, continuing to scan...
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+INFO:     Started server process [49]
+INFO:     Waiting for application startup.
+ERROR:    Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 526, in _prepare_and_execute
+    prepared_stmt, attributes = await adapt_connection._prepare(
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 773, in _prepare
+    prepared_stmt = await self._connection.prepare(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/asyncpg/connection.py", line 638, in prepare
+    return await self._prepare(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/asyncpg/connection.py", line 657, in _prepare
+    stmt = await self._get_statement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/asyncpg/connection.py", line 443, in _get_statement
+    statement = await self._protocol.prepare(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "asyncpg/protocol/protocol.pyx", line 165, in prepare
+asyncpg.exceptions.DuplicatePreparedStatementError: prepared statement "__asyncpg_stmt_1__" already exists
+HINT:  
+NOTE: pgbouncer with pool_mode set to "transaction" or
+"statement" does not support prepared statements properly.
+You have two options:
+* if you are using pgbouncer for connection pooling to a
+  single server, switch to the connection pool functionality
+  provided by asyncpg, it is a much better option for this
+  purpose;
+* if you have no option of avoiding the use of pgbouncer,
+  then you can set statement_cache_size to 0 when creating
+  the asyncpg connection object.
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 585, in execute
+    self._adapt_connection.await_(
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 563, in _prepare_and_execute
+    self._handle_exception(error)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 513, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 797, in _handle_exception
+    raise translated_error from error
+sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.DuplicatePreparedStatementError'>: prepared statement "__asyncpg_stmt_1__" already exists
+HINT:  
+NOTE: pgbouncer with pool_mode set to "transaction" or
+"statement" does not support prepared statements properly.
+You have two options:
+* if you are using pgbouncer for connection pooling to a
+  single server, switch to the connection pool functionality
+  provided by asyncpg, it is a much better option for this
+  purpose;
+* if you have no option of avoiding the use of pgbouncer,
+  then you can set statement_cache_size to 0 when creating
+  the asyncpg connection object.
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/starlette/routing.py", line 638, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "/opt/render/project/python/Python-3.12.0/lib/python3.12/contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/apps/backend/app/main.py", line 94, in lifespan
+    await create_tables()
+  File "/opt/render/project/src/apps/backend/app/database.py", line 30, in create_tables
+    async with engine.begin() as conn:
+  File "/opt/render/project/python/Python-3.12.0/lib/python3.12/contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/engine.py", line 1068, in begin
+    async with conn:
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/base.py", line 121, in __aenter__
+    return await self.start(is_ctxmanager=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/engine.py", line 275, in start
+    await greenlet_spawn(self.sync_engine.connect)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3293, in connect
+    return self._connection_cls(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 143, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3317, in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 448, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 1272, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 712, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 177, in _do_get
+    with util.safe_reraise():
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 121, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 175, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 389, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 674, in __init__
+    self.__connect()
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 914, in __connect
+    )._exec_w_sync_on_first_run(self.dbapi_connection, self)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/event/attr.py", line 501, in _exec_w_sync_on_first_run
+    self(*args, **kw)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/event/attr.py", line 515, in __call__
+    fn(*args, **kw)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 1897, in go
+    return once_fn(*arg, **kw)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 773, in first_connect
+    dialect.initialize(c)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/base.py", line 3340, in initialize
+    super().initialize(connection)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 528, in initialize
+    self.server_version_info = self._get_server_version_info(
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/base.py", line 3610, in _get_server_version_info
+    v = connection.exec_driver_sql("select pg_catalog.version()").scalar()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1779, in exec_driver_sql
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 585, in execute
+    self._adapt_connection.await_(
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 563, in _prepare_and_execute
+    self._handle_exception(error)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 513, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 797, in _handle_exception
+    raise translated_error from error
+sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.DuplicatePreparedStatementError'>: prepared statement "__asyncpg_stmt_1__" already exists
+HINT:  
+NOTE: pgbouncer with pool_mode set to "transaction" or
+"statement" does not support prepared statements properly.
+You have two options:
+* if you are using pgbouncer for connection pooling to a
+  single server, switch to the connection pool functionality
+  provided by asyncpg, it is a much better option for this
+  purpose;
+* if you have no option of avoiding the use of pgbouncer,
+  then you can set statement_cache_size to 0 when creating
+  the asyncpg connection object.
+[SQL: select pg_catalog.version()]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+ERROR:    Application startup failed. Exiting.
