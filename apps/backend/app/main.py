@@ -1,9 +1,11 @@
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -96,7 +98,9 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await create_tables()
+    # Fire table creation in background so the port binds immediately.
+    # Tables already exist in Supabase; this is just a safety net.
+    asyncio.ensure_future(create_tables())
     yield
 
 
@@ -119,6 +123,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch-all handler so unhandled exceptions return JSON 500 responses
+    that pass through the CORSMiddleware (which only wraps routed responses,
+    not bare propagated exceptions). This prevents the browser from seeing
+    'No Access-Control-Allow-Origin' on 500 errors.
+    """
+    import logging
+    logging.getLogger(__name__).exception("Unhandled exception on %s %s", request.method, request.url)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. Please try again."},
+    )
 
 
 def _require_bearer_token(authorization: str | None = Header(default=None)) -> str:
