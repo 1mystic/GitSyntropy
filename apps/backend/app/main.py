@@ -10,8 +10,11 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from .config import settings
 from .database import create_tables, get_db
+from .models import TeamScore
 from .schemas import (
     AddMemberRequest,
     AdminStatsResponse,
@@ -486,7 +489,29 @@ async def simulate_candidates(request: Request, payload: CandidateSimulateReques
 # ---------------------------------------------------------------------------
 
 @app.get(f"{settings.api_prefix}/insights/synthesis", response_model=InsightResponse)
-async def synthesis() -> InsightResponse:
+async def synthesis(
+    team_id: str | None = None,
+    run_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> InsightResponse:
+    if team_id or run_id:
+        q = select(TeamScore)
+        if run_id:
+            q = q.where(TeamScore.agent_run_id == run_id)
+        elif team_id:
+            q = q.where(TeamScore.team_id == team_id)
+        q = q.order_by(TeamScore.calculated_at.desc()).limit(1)
+        result = await db.execute(q)
+        ts = result.scalar_one_or_none()
+        if ts:
+            data = synthesis_from_compat(
+                total_score=ts.resilience_score,
+                weak_dimensions=ts.weak_dimensions or [],
+            )
+            if ts.narrative_report:
+                data["narrative"] = ts.narrative_report
+            return InsightResponse(**data)
+    # No stored result yet — return template synthesis
     data = synthesis_from_compat(total_score=28.7, weak_dimensions=["vashya_influence"])
     return InsightResponse(**data)
 
@@ -514,6 +539,7 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
     access_token = user_profile.github_access_token if user_profile else None
 
     steps = start_orchestrator_steps(include_candidates)
+    latest_compat: dict | None = None
     try:
         completed_count = 0
         await websocket.send_json(
@@ -533,10 +559,15 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
             github_handle=github_handle,
             access_token=access_token,
             include_candidates=include_candidates,
+            db=db,
         ):
             step_name, step_data = next(iter(step_update.items()))
             completed_count += 1
             progress_pct = int((completed_count / len(steps)) * 100)
+
+            # Track compatibility result so we can persist it after synthesis
+            if step_name == "compatibility_engine":
+                latest_compat = step_data.get("compatibility")
 
             # Stream Claude synthesis tokens token-by-token as they arrive
             if step_name == "synthesis" and isinstance(step_data.get("synthesis_text"), str):
@@ -548,6 +579,19 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
                 }))
                 for token in step_data.get("synthesis_text", ""):
                     await websocket.send_json({"run_id": run_id, "type": "synthesis_token", "token": token})
+
+                # Persist TeamScore to DB after synthesis completes
+                if latest_compat:
+                    try:
+                        await save_team_score(
+                            team_id=team_id,
+                            run_id=run_id,
+                            compat=latest_compat,
+                            narrative=step_data.get("synthesis_text"),
+                            db=db,
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass  # don't let a save failure break the stream
 
             await websocket.send_json(
                 jsonable_encoder({
