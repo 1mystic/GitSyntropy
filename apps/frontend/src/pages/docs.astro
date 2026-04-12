@@ -1,6 +1,14 @@
 ---
 import AppNav from "@/components/AppNav.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const methodColor: Record<string, string> = {
+  GET: "text-accent-teal bg-accent-teal/10",
+  POST: "text-primary bg-primary/10",
+  PATCH: "text-amber-400 bg-amber-400/10",
+  DELETE: "text-red-400 bg-red-400/10",
+  WS: "text-purple-400 bg-purple-400/10",
+};
 ---
 
 <BaseLayout title="Docs | GitSyntropy">
@@ -242,15 +250,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
             { method: "GET", path: "/teams?user_id=", desc: "List all teams for a user.", auth: false },
             { method: "POST", path: "/teams/:id/members", desc: "Add a member to a team.", auth: false },
             { method: "DELETE", path: "/teams/:id/members/:uid", desc: "Remove a member from a team.", auth: false },
-          ].map((ep) => {
-            const methodColor: Record<string, string> = {
-              GET: "text-accent-teal bg-accent-teal/10",
-              POST: "text-primary bg-primary/10",
-              PATCH: "text-amber-400 bg-amber-400/10",
-              DELETE: "text-red-400 bg-red-400/10",
-              WS: "text-purple-400 bg-purple-400/10",
-            };
-            return (
+          ].map((ep) => (
               <div class="flex items-start gap-4 glass-panel rounded-none p-4 border border-white/5">
                 <span class={`text-[10px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 mt-0.5 ${methodColor[ep.method] ?? "text-gray-400 bg-white/5"}`}>{ep.method}</span>
                 <div class="flex-1 min-w-0">
@@ -261,8 +261,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
                   <span class="text-[9px] font-mono text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded flex-shrink-0">AUTH</span>
                 )}
               </div>
-            );
-          })}
+          ))}
         </div>
       </section>
 
