@@ -67,10 +67,14 @@ export function CompatibilityClient() {
   const [error, setError] = useState<string | null>(null);
 
   const run = async () => {
+    if (!memberA.trim() || !memberB.trim()) {
+      setError("Please enter both member IDs to run comparison.");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
-      const result = await api.compatibility(memberA.trim() || "alice", memberB.trim() || "bob", dataMode);
+      const result = await api.compatibility(memberA.trim(), memberB.trim(), dataMode);
       setData(result);
     } catch {
       setError("Compatibility run failed. Please retry.");

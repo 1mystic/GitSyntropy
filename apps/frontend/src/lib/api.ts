@@ -1,5 +1,20 @@
 const API_BASE = import.meta.env.PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
 
+// Simple in-memory TTL cache for GET requests
+const _cache = new Map<string, { data: unknown; expiresAt: number }>();
+function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const hit = _cache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return Promise.resolve(hit.data as T);
+  return fn().then((data) => {
+    _cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+    return data;
+  });
+}
+export function bustCache(keyPrefix?: string) {
+  if (!keyPrefix) { _cache.clear(); return; }
+  for (const k of _cache.keys()) { if (k.startsWith(keyPrefix)) _cache.delete(k); }
+}
+
 export type HealthResponse = { status: string; service: string; version: string };
 export type AnalysisResponse = { run_id: string; team_id: string; status: string; score: number; summary: string };
 export type AuthResponse = {
@@ -200,12 +215,13 @@ export const api = {
     }),
   githubSyncStatus: (sync_id: string) => request<GithubSyncResponse>(`/github/sync/${sync_id}`),
   assessmentQuestions: () => request<AssessmentQuestion[]>("/assessment/questions"),
-  assessmentResponse: (user_id: string) => request<AssessmentSubmitResponse>(`/assessment/responses/${user_id}`),
+  assessmentResponse: (user_id: string) =>
+    cached(`/assessment/responses/${user_id}`, 30_000, () => request<AssessmentSubmitResponse>(`/assessment/responses/${user_id}`)),
   submitAssessment: (user_id: string, answers: Record<string, number>) =>
     request<AssessmentSubmitResponse>("/assessment/responses", {
       method: "POST",
       body: JSON.stringify({ user_id, answers })
-    }),
+    }).then((r) => { bustCache(`/assessment/responses/${user_id}`); return r; }),
   compatibility: (memberA: string, memberB: string, dataMode: "full" | "incomplete" = "full") =>
     request<CompatibilityResponse>("/compatibility/run", {
       method: "POST",
@@ -223,21 +239,24 @@ export const api = {
     request<Team>("/teams", {
       method: "POST",
       body: JSON.stringify({ name, description, created_by }),
-    }),
-  listTeams: (user_id: string) => request<Team[]>(`/teams?user_id=${encodeURIComponent(user_id)}`),
-  getTeam: (team_id: string) => request<Team>(`/teams/${team_id}`),
+    }).then((t) => { bustCache("/teams"); return t; }),
+  listTeams: (user_id: string) =>
+    cached(`/teams?user_id=${user_id}`, 30_000, () => request<Team[]>(`/teams?user_id=${encodeURIComponent(user_id)}`)),
+  getTeam: (team_id: string) =>
+    cached(`/teams/${team_id}`, 15_000, () => request<Team>(`/teams/${team_id}`)),
   updateTeam: (team_id: string, name?: string, description?: string) =>
     request<Team>(`/teams/${team_id}`, {
       method: "PATCH",
       body: JSON.stringify({ name: name ?? null, description: description ?? null }),
-    }),
+    }).then((t) => { bustCache("/teams"); return t; }),
   addMember: (team_id: string, user_id: string, github_handle?: string, role?: string) =>
     request<TeamMember>(`/teams/${team_id}/members`, {
       method: "POST",
       body: JSON.stringify({ user_id, github_handle: github_handle ?? null, role: role ?? null }),
-    }),
+    }).then((m) => { bustCache("/teams"); return m; }),
   removeMember: (team_id: string, user_id: string) =>
-    requestVoid(`/teams/${team_id}/members/${encodeURIComponent(user_id)}`, { method: "DELETE" }),
+    requestVoid(`/teams/${team_id}/members/${encodeURIComponent(user_id)}`, { method: "DELETE" })
+      .then(() => { bustCache("/teams"); }),
 
   // Authenticated user profile
   me: (token: string) => authedRequest<UserProfileResponse>("/users/me", token),
@@ -251,8 +270,10 @@ export const api = {
   searchUsers: (q: string) => request<UserSearchResult[]>(`/users/search?q=${encodeURIComponent(q)}`),
 
   // Admin (superadmin only)
-  adminStats: (token: string) => authedRequest<AdminStatsResponse>("/admin/stats", token),
-  adminUsers: (token: string) => authedRequest<AdminUserResponse[]>("/admin/users", token),
+  adminStats: (token: string) =>
+    cached("/admin/stats", 60_000, () => authedRequest<AdminStatsResponse>("/admin/stats", token)),
+  adminUsers: (token: string) =>
+    cached("/admin/users", 60_000, () => authedRequest<AdminUserResponse[]>("/admin/users", token)),
 };
 
 export const wsUrlForRun = (runId: string) => {

@@ -8,8 +8,8 @@ import { $session, clearSession, setSession } from "@/lib/stores";
 
 export function AuthClient() {
   const session = useStore($session);
-  const [email, setEmail] = useState("athena@gitsyntropy.dev");
-  const [password, setPassword] = useState("localdev123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [oauthState, setOauthState] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isOAuthStarting, setIsOAuthStarting] = useState(false);

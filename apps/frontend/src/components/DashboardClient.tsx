@@ -150,7 +150,8 @@ function DashboardInner() {
     setOrchProgress(0);
     orchCompatRef.current = null;
 
-    const teamId = selectedTeamId || teams[0]?.id || "team_alpha";
+    const teamId = selectedTeamId || teams[0]?.id;
+    if (!teamId) { setOrchError(true); setAnalysisLoading(false); return; }
 
     try {
       const run = await api.orchestratorRun(teamId, userId);
@@ -237,7 +238,9 @@ function DashboardInner() {
     setSyncStartError(false);
     setSyncStatusError(false);
     try {
-      const data = await api.githubSync(githubHandle.trim() || "night-architect");
+      const handle = githubHandle.trim();
+      if (!handle) { setSyncStartError(true); setSyncStarting(false); return; }
+      const data = await api.githubSync(handle);
       setSyncResult(data);
       pushSyncStore(data);
     } catch {
@@ -263,9 +266,10 @@ function DashboardInner() {
   }, [syncResult]);
 
   const runCompatibility = async () => {
-    // Use first two team members if available, else demo pair
-    const memberA = teams.find((t) => t.id === selectedTeamId)?.members[0]?.user_id ?? "alice";
-    const memberB = teams.find((t) => t.id === selectedTeamId)?.members[1]?.user_id ?? "bob";
+    const activeMembers = teams.find((t) => t.id === selectedTeamId)?.members ?? [];
+    const memberA = activeMembers[0]?.user_id;
+    const memberB = activeMembers[1]?.user_id;
+    if (!memberA || !memberB) return;
     try {
       const data = await api.compatibility(memberA, memberB);
       setCompatResult(data);

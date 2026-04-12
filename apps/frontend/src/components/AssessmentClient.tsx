@@ -31,6 +31,18 @@ const QUESTION_DIMENSION: Record<string, (typeof DIMENSION_CONFIG)[keyof typeof 
   q8: DIMENSION_CONFIG.nadi_chronotype_sync,
 };
 
+// Static questions — inlined to avoid a network round-trip on every load
+const STATIC_QUESTIONS: { id: string; prompt: string; left_label: string; right_label: string }[] = [
+  { id: "q1", prompt: "Decision style in uncertainty", left_label: "Intuitive", right_label: "Analytical" },
+  { id: "q2", prompt: "Preferred delivery rhythm", left_label: "Steady", right_label: "Bursty" },
+  { id: "q3", prompt: "Conflict handling pattern", left_label: "Direct", right_label: "Diplomatic" },
+  { id: "q4", prompt: "Team interaction mode", left_label: "Independent", right_label: "Collaborative" },
+  { id: "q5", prompt: "Context switching tolerance", left_label: "Low", right_label: "High" },
+  { id: "q6", prompt: "Communication density", left_label: "Concise", right_label: "Detailed" },
+  { id: "q7", prompt: "Experimentation appetite", left_label: "Conservative", right_label: "Exploratory" },
+  { id: "q8", prompt: "Working-hour preference", left_label: "Early", right_label: "Late" },
+];
+
 function ScoreScreen({ scores }: { scores: Record<string, number> }) {
   const dimensions = Object.entries(DIMENSION_CONFIG).sort((a, b) => b[1].weight - a[1].weight);
 
@@ -151,19 +163,12 @@ function AssessmentInner() {
   const [submitting, setSubmitting] = useState(false);
   const [scoreScreen, setScoreScreen] = useState(false);
   const [finalScores, setFinalScores] = useState<Record<string, number>>({});
-  const [questions, setQuestions] = useState<
-    { id: string; prompt: string; left_label: string; right_label: string }[]
-  >([]);
 
   const loadData = async () => {
     setLoading(true);
     setLoadError(false);
     try {
-      const [questionData, profileData] = await Promise.all([
-        api.assessmentQuestions(),
-        api.assessmentResponse(userId)
-      ]);
-      setQuestions(questionData);
+      const profileData = await api.assessmentResponse(userId);
       const restoredAnswers: Record<string, number> = {};
       const scoreDimensions = Object.keys(profileData.scores);
       scoreDimensions.forEach((dimension, idx) => {
@@ -212,10 +217,10 @@ function AssessmentInner() {
     }
   };
 
-  const totalCount = questions.length || 8;
+  const totalCount = STATIC_QUESTIONS.length;
   const answeredCount = Object.keys(answers).length;
   const progress = useMemo(() => Math.round((answeredCount / totalCount) * 100), [answeredCount, totalCount]);
-  const activeQuestion = questions[currentIndex];
+  const activeQuestion = STATIC_QUESTIONS[currentIndex];
   const hasAllAnswers = answeredCount === totalCount;
 
   const selectAnswer = (questionId: string, value: number) => {
@@ -394,7 +399,7 @@ function AssessmentInner() {
             </h3>
             {Object.entries(QUESTION_DIMENSION).map(([qId, dim], idx) => {
               const answered = answers[qId] !== undefined;
-              const active = questions[currentIndex]?.id === qId;
+              const active = STATIC_QUESTIONS[currentIndex]?.id === qId;
               return (
                 <button
                   key={qId}

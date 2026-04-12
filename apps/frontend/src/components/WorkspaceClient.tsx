@@ -27,6 +27,7 @@ function WorkspaceInner() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);
   const [teamsLoading, setTeamsLoading] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   // ── Create Team Wizard ──────────────────────────────────────────────────
   const [showWizard, setShowWizard] = useState(false);
@@ -315,11 +316,12 @@ function WorkspaceInner() {
   // ── Remove member ───────────────────────────────────────────────────────
   const handleRemoveMember = async (memberId: string) => {
     if (!activeTeam) return;
+    setRemoveError(null);
     try {
       await api.removeMember(activeTeam.id, memberId);
       await refreshTeam(activeTeam.id);
     } catch {
-      // silent
+      setRemoveError("Failed to remove member. Please try again.");
     }
   };
 
@@ -331,7 +333,8 @@ function WorkspaceInner() {
     setEvents([]);
     setCurrentRun(null);
     try {
-      const data = await api.orchestratorRun(activeTeam?.id ?? "team_alpha", userId, true);
+      if (!activeTeam) { setRunError("Select a team first."); setStartingRun(false); return; }
+      const data = await api.orchestratorRun(activeTeam.id, userId, true);
       setCurrentRun(data.run_id);
     } catch {
       setRunError("Could not start orchestrator run.");
@@ -871,11 +874,13 @@ function WorkspaceInner() {
               <button
                 className="w-full btn btn-primary py-3.5 shadow-neon rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={runOrchestrator}
-                disabled={startingRun || connection === "connecting" || connection === "streaming"}
+                disabled={!activeTeam || startingRun || connection === "connecting" || connection === "streaming"}
               >
                 <span className="material-symbols-outlined">play_arrow</span>
                 {startingRun ? "Starting..." : connection === "streaming" ? "Running..." : "Run Full Analysis"}
               </button>
+              {removeError && <p className="text-xs text-red-400 text-center mt-2">{removeError}</p>}
+              {runError && <p className="text-xs text-red-400 text-center mt-2">{runError}</p>}
             </div>
           </aside>
 
