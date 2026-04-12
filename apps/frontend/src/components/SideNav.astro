@@ -1,5 +1,6 @@
 ---
 import { NavUser } from "@/components/NavUser";
+import { GlobalTeamSelector } from "@/components/GlobalTeamSelector";
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -66,6 +67,9 @@ const path = Astro.url.pathname;
   <!-- User section (session-aware) -->
   <NavUser client:load />
 </nav>
+
+<!-- Floating global team selector (top-right, above all content) -->
+<GlobalTeamSelector client:load />
 
 <script>
   const nav = document.getElementById('side-nav');

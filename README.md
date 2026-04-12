@@ -125,7 +125,7 @@ WebSocket stream -> Frontend (Astro + React)
 
 ---
 
-## Concepts Covered
+## Concepts Utilized
 
 **ML and statistical modeling**
 - Variance-based weighted scoring model across 8 behavioral dimensions

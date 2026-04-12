@@ -1161,7 +1161,15 @@ async def create_team(name: str, description: str | None, created_by: str, db: A
         invite_token=uuid4().hex,
     )
     db.add(team)
-    creator = TeamMember(team_id=team_id, user_id=created_by, role="owner")
+    # Look up the creator's github_handle so it shows correctly in the team roster
+    profile_result = await db.execute(select(UserProfile).where(UserProfile.user_id == created_by))
+    creator_profile = profile_result.scalar_one_or_none()
+    creator = TeamMember(
+        team_id=team_id,
+        user_id=created_by,
+        role="owner",
+        github_handle=creator_profile.github_handle if creator_profile else None,
+    )
     db.add(creator)
     await db.commit()
     await db.refresh(team)

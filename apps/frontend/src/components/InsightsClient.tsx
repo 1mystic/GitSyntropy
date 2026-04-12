@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 import { api, wsUrlForRun, type InsightResponse, type OrchestratorStreamEvent } from "@/lib/api";
-import { $orchestrator, $session } from "@/lib/stores";
+import { $activeTeam, $orchestrator, $session } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -150,6 +150,7 @@ function NarrativeCard({ narrative }: { narrative: string }) {
 function InsightsInner() {
   const session = $session.get();
   const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
+  const activeTeam = $activeTeam.get();
 
   if (AUTH_REQUIRED && !session) {
     return (
@@ -201,8 +202,17 @@ function InsightsInner() {
     setReportId(null);
     setSteps(STEP_ORDER.map((name) => ({ name, status: "pending" })));
 
+    const teamId = activeTeam?.id ?? "";
+    const teamName = activeTeam?.name ?? "Unknown Team";
+
+    if (!teamId) {
+      setStreamError(true);
+      setStreaming(false);
+      return;
+    }
+
     try {
-      const run = await api.orchestratorRun("team_alpha", userId);
+      const run = await api.orchestratorRun(teamId, userId);
 
       $orchestrator.set({
         runId: run.run_id,
@@ -246,16 +256,19 @@ function InsightsInner() {
         if (event.status === "completed" && event.step === "synthesis" && event.data?.synthesis) {
           const synth = event.data.synthesis as unknown as InsightResponse;
           setData(synth);
-          // Save to localStorage for report page
+          // Save to localStorage for report page using real team and score from compatibility data
           const id = `${Date.now()}`;
           setReportId(id);
+          const compatData = event.data.compatibility as unknown as { total_score_36?: number } | undefined;
+          const score = compatData?.total_score_36 ?? 28;
+          const resilienceScore = Math.round((score / 36) * 100);
           const reports = JSON.parse(localStorage.getItem("gitsyntropy.reports") ?? "[]") as object[];
           reports.unshift({
             id,
-            teamId: "team_alpha",
-            teamName: "Team Alpha",
-            score: 28,
-            resilienceScore: 78,
+            teamId,
+            teamName,
+            score,
+            resilienceScore,
             summary: synth.narrative,
             createdAt: new Date().toISOString(),
           });
@@ -304,6 +317,16 @@ function InsightsInner() {
             and renders a structured team health report. Results are saved to{" "}
             <a href="/dashboard" className="text-primary underline-offset-2 hover:underline">Recent Reports</a>.
           </p>
+          {activeTeam ? (
+            <p className="text-xs text-gray-500 mt-2 font-mono">
+              Analysing team: <span className="text-primary">{activeTeam.name}</span>
+            </p>
+          ) : (
+            <p className="text-xs text-amber-400 mt-2 font-mono flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">warning</span>
+              No team selected — use the team selector (top right) first
+            </p>
+          )}
         </div>
         <div className="flex flex-col items-end gap-2">
           <button

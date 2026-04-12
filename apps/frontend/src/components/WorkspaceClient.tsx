@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 
 import { api, type OrchestratorStreamEvent, type Team, type UserSearchResult, wsUrlForRun } from "@/lib/api";
-import { $session, $teams } from "@/lib/stores";
+import { $activeTeam, $session, $teams, setActiveTeam as setGlobalActiveTeam } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -80,7 +80,12 @@ function WorkspaceInner() {
         const data = await api.listTeams(userId);
         setTeams(data);
         $teams.set(data);
-        if (data.length > 0) setActiveTeam((prev) => prev ?? data[0]);
+        if (data.length > 0) {
+          const persisted = $activeTeam.get();
+          const initialTeam = persisted ? (data.find((t) => t.id === persisted.id) ?? data[0]) : data[0];
+          setActiveTeam(initialTeam);     // local state
+          setGlobalActiveTeam(initialTeam); // global atom + localStorage
+        }
       } catch {
         // silent
       } finally {
@@ -142,6 +147,7 @@ function WorkspaceInner() {
       const team = await api.createTeam(wName.trim(), wDesc.trim() || null, userId);
       setWCreatedTeam(team);
       setActiveTeam(team);
+      setGlobalActiveTeam(team);
       setTeams((prev) => {
         const next = [...prev, team];
         $teams.set(next);
@@ -189,6 +195,7 @@ function WorkspaceInner() {
       const updated = await api.getTeam(wCreatedTeam.id);
       setWCreatedTeam(updated);
       setActiveTeam(updated);
+      setGlobalActiveTeam(updated);
       syncTeams(updated);
       setWInvUserId("");
       setWInvHandle("");
@@ -295,6 +302,7 @@ function WorkspaceInner() {
     try {
       const updated = await api.updateTeam(activeTeam.id, editName.trim(), editDesc.trim() || undefined);
       setActiveTeam(updated);
+      setGlobalActiveTeam(updated);
       syncTeams(updated);
       setShowEditTeam(false);
     } catch {
@@ -759,7 +767,7 @@ function WorkspaceInner() {
                       value={activeTeam?.id ?? ""}
                       onChange={(e) => {
                         const found = teams.find((t) => t.id === e.target.value);
-                        if (found) setActiveTeam(found);
+                        if (found) { setActiveTeam(found); setGlobalActiveTeam(found); }
                       }}
                       className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                     >

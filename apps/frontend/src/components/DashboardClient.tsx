@@ -3,7 +3,7 @@ import { useStore } from "@nanostores/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 import { api, wsUrlForRun, type CompatibilityResponse, type GithubSyncResponse, type OrchestratorStreamEvent } from "@/lib/api";
-import { $compatibility, $orchestrator, $session, $sync, $teams } from "@/lib/stores";
+import { $activeTeam, $compatibility, $orchestrator, $session, $sync, $teams, setActiveTeam } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 import { RadarChart } from "@/components/RadarChart";
 import { ChronotypeHeatmap } from "@/components/ChronotypeHeatmap";
@@ -48,20 +48,12 @@ function AssessmentSkeleton() {
 }
 
 function DashboardInner() {
-  const session = $session.get();
-  const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
-
-  if (AUTH_REQUIRED && !session) {
-    return (
-      <section className="card col-12 container mt-32">
-        <p className="pill">Protected</p>
-        <h3 className="mt-2 text-xl font-display">Authentication required</h3>
-        <p className="text-gray-400 mt-2">Sign in on the auth page to access dashboard data.</p>
-      </section>
-    );
-  }
-
+  const session = useStore($session);
   const teams = useStore($teams);
+  const activeTeamGlobal = useStore($activeTeam);
+
+  // Derived from session — needed by useEffect dependency arrays below
+  const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
 
   const [healthError, setHealthError] = useState(false);
 
@@ -78,8 +70,8 @@ function DashboardInner() {
   const [orchError, setOrchError] = useState(false);
   const orchCompatRef = useRef<CompatibilityResponse | null>(null);
 
-  // GitHub sync
-  const [githubHandle, setGithubHandle] = useState("night-architect");
+  // GitHub sync — default to the logged-in user's real handle
+  const [githubHandle, setGithubHandle] = useState(session?.githubHandle ?? "");
   const [syncStarting, setSyncStarting] = useState(false);
   const [syncStartError, setSyncStartError] = useState(false);
   const [syncStatusError, setSyncStatusError] = useState(false);
@@ -120,18 +112,20 @@ function DashboardInner() {
     void api.listTeams(userId)
       .then((data) => {
         $teams.set(data);
-        if (data.length > 0) setSelectedTeamId(data[0].id);
+        if (data.length > 0 && !$activeTeam.get()) setActiveTeam(data[0]);
       })
       .catch(() => {})
       .finally(() => setTeamsLoading(false));
   }, [userId]);
 
-  // Sync selectedTeamId when teams populate from store
+  // Sync local selectedTeamId from global $activeTeam
   useEffect(() => {
-    if (teams.length > 0 && !selectedTeamId) {
+    if (activeTeamGlobal) {
+      setSelectedTeamId(activeTeamGlobal.id);
+    } else if (teams.length > 0 && !selectedTeamId) {
       setSelectedTeamId(teams[0].id);
     }
-  }, [teams]);
+  }, [activeTeamGlobal, teams]);
 
   const loadAssessment = () => {
     setAssessmentLoading(true);
@@ -285,6 +279,16 @@ function DashboardInner() {
     }
   };
 
+  if (AUTH_REQUIRED && !session) {
+    return (
+      <section className="card col-12 container mt-32">
+        <p className="pill">Protected</p>
+        <h3 className="mt-2 text-xl font-display">Authentication required</h3>
+        <p className="text-gray-400 mt-2">Sign in on the auth page to access dashboard data.</p>
+      </section>
+    );
+  }
+
   const resilienceScore = analysisResult
     ? Math.round((analysisResult.score / 36) * 100)
     : null;
@@ -309,7 +313,7 @@ function DashboardInner() {
               <span className={`relative inline-flex rounded-full h-2 w-2 ${!healthError ? "bg-accent-neon" : "bg-red-500"}`} />
             </span>
             <span className="text-xs font-mono text-gray-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
-              {userId}
+              {session?.githubHandle ? `@${session.githubHandle}` : userId}
             </span>
           </div>
           {/* Team selector */}
@@ -326,7 +330,11 @@ function DashboardInner() {
               ) : (
                 <select
                   value={selectedTeamId}
-                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedTeamId(e.target.value);
+                    const picked = teams.find((t) => t.id === e.target.value);
+                    if (picked) setActiveTeam(picked);
+                  }}
                   className="bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-primary transition-all"
                 >
                   {teams.map((t) => (
@@ -734,15 +742,16 @@ function DashboardInner() {
         </motion.a>
       </motion.section>
 
-      {/* Recent Reports */}
-      {reports.length > 0 && (
+      {/* Recent Reports — filtered to the selected team */}
+      {reports.filter((r) => !selectedTeamId || r.teamId === selectedTeamId).length > 0 && (
         <motion.section variants={fadeInUp} initial="hidden" animate="visible" className="mt-10">
           <h2 className="text-lg font-semibold text-white font-display flex items-center gap-2 mb-4">
             <span className="material-symbols-outlined text-primary text-[20px]">history</span>
             Recent Reports
+            {activeTeam && <span className="text-sm font-normal text-gray-500 ml-1">· {activeTeam.name}</span>}
           </h2>
           <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {reports.map((report) => {
+            {reports.filter((r) => !selectedTeamId || r.teamId === selectedTeamId).map((report) => {
               const date = new Date(report.createdAt);
               const label = date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
               const time = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });

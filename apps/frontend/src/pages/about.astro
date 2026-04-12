@@ -1,0 +1,157 @@
+---
+import AppNav from "@/components/AppNav.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="About | GitSyntropy">
+  <!-- Ambient background -->
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px]"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent-teal/5 blur-[100px]"></div>
+    <div class="absolute inset-0 bg-grid-pattern opacity-20"></div>
+  </div>
+
+  <AppNav />
+
+  <main class="relative z-10 w-full max-w-[900px] mx-auto px-4 md:px-8 pt-36 pb-24 flex flex-col gap-20">
+
+    <!-- Hero -->
+    <section class="flex flex-col gap-6">
+      <span class="text-primary font-mono text-xs uppercase tracking-widest">About GitSyntropy</span>
+      <h1 class="text-5xl md:text-6xl font-bold font-display leading-[0.95] tracking-tighter">
+        Team alignment is a <span class="text-primary text-glow">science</span>, not a gut call.
+      </h1>
+      <p class="text-gray-400 text-lg max-w-2xl leading-relaxed">
+        GitSyntropy is a multi-agent AI system that combines GitHub behavioral telemetry with psychometric profiling to predict how well software developers will collaborate — before the first sprint begins.
+      </p>
+    </section>
+
+    <!-- Mission -->
+    <section class="glass-panel rounded-none p-10 border border-white/5">
+      <h2 class="text-2xl font-bold font-display mb-4">The Problem</h2>
+      <p class="text-gray-300 leading-relaxed mb-6">
+        Engineering team failures rarely come from individual skill gaps. They come from misaligned working styles, communication friction, and chronotype conflicts that are invisible to recruiters, managers, and even the engineers themselves until weeks into a project.
+      </p>
+      <h2 class="text-2xl font-bold font-display mb-4">Our Approach</h2>
+      <p class="text-gray-300 leading-relaxed">
+        We built a four-stage LangGraph pipeline: a GitHub Analyst agent extracts commit timing, PR velocity, and collaboration patterns; a Psychometric Profiler builds an 8-dimension behavioral model from an adaptive assessment; a Compatibility Engine scores pairwise and team-level alignment across those dimensions; and finally Claude Sonnet synthesizes everything into a structured, actionable report with concrete hiring recommendations and workflow adjustments.
+      </p>
+    </section>
+
+    <!-- Pipeline -->
+    <section>
+      <h2 class="text-2xl font-bold font-display mb-8">How It Works</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[
+          {
+            step: "01",
+            icon: "code",
+            color: "text-primary",
+            bg: "bg-primary/10 border-primary/20",
+            title: "GitHub Analyst Agent",
+            desc: "Ingests commit timestamps, PR open/close rhythms, issue labels, and collaboration graph edges. Derives chronotype (owl / lark / balanced), activity rhythm score, and collaboration index.",
+          },
+          {
+            step: "02",
+            icon: "psychology",
+            color: "text-accent-teal",
+            bg: "bg-accent-teal/10 border-accent-teal/20",
+            title: "Psychometric Profiler",
+            desc: "An adaptive 8-dimension assessment (Innovation Drive, Leadership Orientation, Risk Tolerance, Stress Response, and more) builds a behavioral fingerprint for each team member.",
+          },
+          {
+            step: "03",
+            icon: "hub",
+            color: "text-purple-400",
+            bg: "bg-purple-400/10 border-purple-400/20",
+            title: "Compatibility Engine",
+            desc: "Scores all N×(N-1)/2 member pairs across 8 weighted dimensions. Aggregates to team-level weak, strong, and at-risk signals. Falls back gracefully when data is incomplete.",
+          },
+          {
+            step: "04",
+            icon: "auto_awesome",
+            color: "text-accent-neon",
+            bg: "bg-accent-neon/10 border-accent-neon/20",
+            title: "Claude Synthesis",
+            desc: "Claude Sonnet streams a narrative report covering team alignment summary, friction risks, recommended meeting windows, hiring gap analysis, and async workflow adjustments.",
+          },
+        ].map((item) => (
+          <div class="glass-card rounded-none p-6 flex flex-col gap-4 border border-white/5">
+            <div class="flex items-center gap-3">
+              <span class={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold font-mono border ${item.bg}`} style={`color: inherit`}>{item.step}</span>
+              <span class={`material-symbols-outlined text-[18px] ${item.color}`}>{item.icon}</span>
+              <h3 class="text-sm font-bold text-white font-display">{item.title}</h3>
+            </div>
+            <p class="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Tech stack -->
+    <section>
+      <h2 class="text-2xl font-bold font-display mb-6">Built With</h2>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-400">
+        {[
+          ["LangGraph", "Multi-agent orchestration graph"],
+          ["Claude Sonnet 4.6", "Narrative synthesis + structured output"],
+          ["GitHub API", "Behavioral telemetry extraction"],
+          ["FastAPI + Python 3.12", "Async backend on Render"],
+          ["Astro 4 + React", "Hybrid SSR/CSR frontend on Vercel"],
+          ["Supabase (PostgreSQL)", "User profiles, assessments, scores"],
+        ].map(([name, desc]) => (
+          <div class="glass-panel rounded-none p-4 border border-white/5">
+            <p class="font-medium text-white text-sm font-display">{name}</p>
+            <p class="text-xs text-gray-600 mt-1">{desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Research -->
+    <section class="glass-panel rounded-none p-10 border border-primary/10 bg-primary/5">
+      <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-primary text-[28px] flex-shrink-0 mt-1">science</span>
+        <div>
+          <h2 class="text-2xl font-bold font-display mb-3">Research Foundation</h2>
+          <p class="text-gray-300 leading-relaxed mb-4">
+            GitSyntropy is grounded in a peer-reviewed research paper submitted to the IEEE WorldSUAS 2026 conference. The paper formalises the compatibility scoring model, defines the 8 behavioral dimensions and their weights, and validates the pipeline against real-world GitHub and psychometric datasets.
+          </p>
+          <a href="/docs#research" class="inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-white transition-colors">
+            <span class="material-symbols-outlined text-[18px]">description</span>
+            Read the research paper details →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="text-center flex flex-col items-center gap-6">
+      <h2 class="text-3xl font-bold font-display">Start analysing your team.</h2>
+      <div class="flex gap-4 flex-wrap justify-center">
+        <a href="/auth" class="btn btn-primary px-8 py-3">
+          <span class="material-symbols-outlined text-sm">hub</span>
+          Connect GitHub
+        </a>
+        <a href="/docs" class="btn btn-secondary px-8 py-3">
+          <span class="material-symbols-outlined text-sm">description</span>
+          Read the Docs
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/10 bg-[#050506] py-8 relative z-10">
+    <div class="max-w-[900px] mx-auto px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+      <p class="text-xs text-gray-700">© 2026 GitSyntropy. All rights reserved.</p>
+      <div class="flex gap-6">
+        <a href="/" class="text-xs text-gray-600 hover:text-white transition-colors">Home</a>
+        <a href="/docs" class="text-xs text-gray-600 hover:text-white transition-colors">Docs</a>
+        <a href="/guide" class="text-xs text-gray-600 hover:text-white transition-colors">Guide</a>
+        <a href="/auth" class="text-xs text-gray-600 hover:text-white transition-colors">Sign In</a>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

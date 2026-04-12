@@ -1,0 +1,346 @@
+---
+import AppNav from "@/components/AppNav.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Docs | GitSyntropy">
+  <!-- Ambient background -->
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent-teal/8 blur-[120px]"></div>
+    <div class="absolute bottom-[-10%] left-[-10%] w-[35%] h-[35%] rounded-full bg-primary/8 blur-[100px]"></div>
+    <div class="absolute inset-0 bg-grid-pattern opacity-20"></div>
+  </div>
+
+  <AppNav />
+
+  <div class="relative z-10 flex w-full max-w-[1100px] mx-auto px-4 md:px-8 pt-36 pb-24 gap-10">
+
+    <!-- Sidebar TOC -->
+    <aside class="hidden lg:flex flex-col gap-1 w-52 flex-shrink-0 sticky top-36 self-start">
+      <p class="text-[10px] font-mono text-gray-600 uppercase tracking-widest mb-3">Contents</p>
+      {[
+        ["#quickstart", "Quick Start"],
+        ["#pipeline", "Pipeline Overview"],
+        ["#assessment", "Assessment Dimensions"],
+        ["#scoring", "Compatibility Scoring"],
+        ["#api", "API Reference"],
+        ["#research", "Research Paper"],
+      ].map(([href, label]) => (
+        <a href={href} class="text-sm text-gray-600 hover:text-white transition-colors py-1 border-l-2 border-white/5 hover:border-primary pl-3">
+          {label}
+        </a>
+      ))}
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 min-w-0 flex flex-col gap-16">
+
+      <div>
+        <span class="text-primary font-mono text-xs uppercase tracking-widest">Documentation</span>
+        <h1 class="text-5xl font-bold font-display mt-3 mb-4 leading-[0.95] tracking-tighter">GitSyntropy Docs</h1>
+        <p class="text-gray-400 text-lg leading-relaxed">Everything you need to use, understand, and extend GitSyntropy.</p>
+      </div>
+
+      <!-- Quick Start -->
+      <section id="quickstart" class="flex flex-col gap-6">
+        <h2 class="text-2xl font-bold font-display flex items-center gap-3">
+          <span class="material-symbols-outlined text-primary">rocket_launch</span>
+          Quick Start
+        </h2>
+        <ol class="flex flex-col gap-5">
+          {[
+            {
+              n: 1, title: "Connect GitHub",
+              desc: "Click Sign In and authorise GitSyntropy's GitHub OAuth app. We request read-only access to your public profile and commit history.",
+            },
+            {
+              n: 2, title: "Sync your GitHub signals",
+              desc: "On the Dashboard, enter your GitHub username and click Sync Signals. The GitHub Analyst agent will extract your commit patterns, PR cadence, and chronotype in the background.",
+            },
+            {
+              n: 3, title: "Complete the Assessment",
+              desc: "Navigate to Assessment and answer the 8-dimension psychometric questionnaire. Each question is a 1-5 slider between two behavioural extremes. This takes ~5 minutes.",
+            },
+            {
+              n: 4, title: "Create or join a team",
+              desc: "Go to Workspace → Create Team. Add team members by searching for their GitHub handle. Each member should also sign in and complete their own assessment.",
+            },
+            {
+              n: 5, title: "Run the full analysis",
+              desc: "From Insights or Dashboard, click Run Full Analysis. The LangGraph pipeline streams results live via WebSocket. When complete, a full narrative report is saved and accessible from Dashboard → Recent Reports.",
+            },
+          ].map((item) => (
+            <li class="flex gap-5 glass-panel rounded-none p-5 border border-white/5">
+              <span class="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 text-primary text-sm font-bold flex items-center justify-center flex-shrink-0 font-mono">{item.n}</span>
+              <div>
+                <h3 class="font-bold text-white font-display mb-1">{item.title}</h3>
+                <p class="text-sm text-gray-400 leading-relaxed">{item.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <!-- Pipeline -->
+      <section id="pipeline" class="flex flex-col gap-6">
+        <h2 class="text-2xl font-bold font-display flex items-center gap-3">
+          <span class="material-symbols-outlined text-accent-teal">account_tree</span>
+          Pipeline Overview
+        </h2>
+        <p class="text-gray-400 leading-relaxed">
+          GitSyntropy uses a directed LangGraph state machine with four nodes running sequentially. Each node reads from and writes to a shared <code class="text-primary bg-primary/10 px-1.5 py-0.5 rounded text-sm font-mono">OrchestratorState</code> TypedDict.
+        </p>
+        <div class="glass-panel rounded-none p-6 border border-white/5 font-mono text-sm text-gray-400 overflow-x-auto">
+          <pre>START → github_analyst → psychometric_profiler → compatibility_engine → synthesis → END</pre>
+        </div>
+        <div class="flex flex-col gap-4">
+          {[
+            {
+              node: "github_analyst",
+              color: "text-primary",
+              inputs: "team_id, user_id, github_handle, access_token",
+              outputs: "github_signals (chronotype, rhythm_score, collab_index, commit_count, pr_count)",
+              fallback: "Falls back to cached DB GithubProfile, then to deterministic mock keyed on handle.",
+            },
+            {
+              node: "psychometric_profiler",
+              color: "text-accent-teal",
+              inputs: "user_id, member_profiles",
+              outputs: "assessment_profile (8 dimension scores, completeness flag)",
+              fallback: "Uses neutral midpoint scores (all 3s) for unscored members.",
+            },
+            {
+              node: "compatibility_engine",
+              color: "text-purple-400",
+              inputs: "assessment_profile, member_profiles, github_signals",
+              outputs: "compatibility (total_score_36, weak/strong dimensions, risk_flags, confidence)",
+              fallback: "Single-user vs reference profile when fewer than 2 scored members.",
+            },
+            {
+              node: "synthesis",
+              color: "text-accent-neon",
+              inputs: "compatibility, github_signals, assessment_profile",
+              outputs: "synthesis_text (streamed Claude Sonnet narrative), synthesis (structured dict)",
+              fallback: "Template-based fallback if Claude API is unavailable.",
+            },
+          ].map((node) => (
+            <div class="glass-card rounded-none p-5 border border-white/5">
+              <p class={`font-mono text-sm font-bold ${node.color} mb-3`}>{node.node}</p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-500">
+                <div>
+                  <p class="text-gray-600 uppercase tracking-wider font-mono mb-1">Inputs</p>
+                  <p>{node.inputs}</p>
+                </div>
+                <div>
+                  <p class="text-gray-600 uppercase tracking-wider font-mono mb-1">Outputs</p>
+                  <p>{node.outputs}</p>
+                </div>
+                <div class="md:col-span-2">
+                  <p class="text-gray-600 uppercase tracking-wider font-mono mb-1">Fallback</p>
+                  <p>{node.fallback}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- Assessment Dimensions -->
+      <section id="assessment" class="flex flex-col gap-6">
+        <h2 class="text-2xl font-bold font-display flex items-center gap-3">
+          <span class="material-symbols-outlined text-purple-400">psychology</span>
+          Assessment Dimensions
+        </h2>
+        <p class="text-gray-400 leading-relaxed">
+          The psychometric model uses 8 behavioural dimensions, each scored 1–5. Higher scores indicate the right-label extreme; lower scores indicate the left-label extreme.
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-white/10">
+                <th class="text-left py-3 pr-4 text-xs font-mono text-gray-600 uppercase tracking-wider">Dimension</th>
+                <th class="text-left py-3 pr-4 text-xs font-mono text-gray-600 uppercase tracking-wider">Score 1</th>
+                <th class="text-left py-3 pr-4 text-xs font-mono text-gray-600 uppercase tracking-wider">Score 5</th>
+                <th class="text-right py-3 text-xs font-mono text-gray-600 uppercase tracking-wider">Weight</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["Innovation Drive", "Stability-focused", "Exploration-first", "16.7%"],
+                ["Leadership Orientation", "Collaborative execution", "Decisive authority", "13.9%"],
+                ["Team Resilience", "Controlled, steady pace", "Adaptive under pressure", "13.9%"],
+                ["Work Style", "Independent deep-work", "Pair-programming preferred", "11.1%"],
+                ["Decision Style", "Data-driven, slow", "Intuitive, fast", "11.1%"],
+                ["Risk Tolerance", "Risk-averse, methodical", "High-velocity, accepts risk", "11.1%"],
+                ["Stress Response", "Avoidance under stress", "Confronts blockers directly", "11.1%"],
+                ["Chronotype Sync", "Deep night work", "Peak morning output", "11.1%"],
+              ].map(([dim, left, right, weight]) => (
+                <tr class="border-b border-white/5 hover:bg-white/2">
+                  <td class="py-3 pr-4 font-medium text-white">{dim}</td>
+                  <td class="py-3 pr-4 text-gray-500 text-xs">{left}</td>
+                  <td class="py-3 pr-4 text-gray-500 text-xs">{right}</td>
+                  <td class="py-3 text-right font-mono text-primary text-xs">{weight}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Scoring -->
+      <section id="scoring" class="flex flex-col gap-6">
+        <h2 class="text-2xl font-bold font-display flex items-center gap-3">
+          <span class="material-symbols-outlined text-amber-400">analytics</span>
+          Compatibility Scoring
+        </h2>
+        <div class="flex flex-col gap-4">
+          <div class="glass-panel rounded-none p-6 border border-white/5">
+            <h3 class="font-bold text-white font-display mb-3">Score Range</h3>
+            <p class="text-sm text-gray-400 leading-relaxed">
+              Each dimension pair contributes up to its weight × 6 points (max score 36). The raw score is converted to a 0–100% resilience score for display. Level bands: <span class="text-accent-neon">Excellent (≥28)</span>, <span class="text-accent-teal">Good (22–27)</span>, <span class="text-amber-400">Fair (16–21)</span>, <span class="text-red-400">Poor (&lt;16)</span>.
+            </p>
+          </div>
+          <div class="glass-panel rounded-none p-6 border border-white/5">
+            <h3 class="font-bold text-white font-display mb-3">Pairwise Aggregation</h3>
+            <p class="text-sm text-gray-400 leading-relaxed">
+              For teams with N members, all N×(N-1)/2 pairs are scored. Dimension scores are averaged across pairs. Weak dimensions are the union of all pairs' weak signals; strong dimensions require all pairs to be strong on that dimension.
+            </p>
+          </div>
+          <div class="glass-panel rounded-none p-6 border border-white/5">
+            <h3 class="font-bold text-white font-display mb-3">Confidence &amp; Data Gaps</h3>
+            <p class="text-sm text-gray-400 leading-relaxed">
+              Confidence is reduced when members are missing GitHub data or haven't completed the assessment. Data gaps are reported in the compatibility response so you can identify which members need to complete their profiles.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- API Reference -->
+      <section id="api" class="flex flex-col gap-6">
+        <h2 class="text-2xl font-bold font-display flex items-center gap-3">
+          <span class="material-symbols-outlined text-accent-teal">api</span>
+          API Reference
+        </h2>
+        <p class="text-gray-400 text-sm">Base URL: <code class="text-primary bg-primary/10 px-2 py-0.5 rounded font-mono">https://gitsyntropy.onrender.com/api/v1</code></p>
+        <div class="flex flex-col gap-3">
+          {[
+            { method: "GET", path: "/health", desc: "Health check — returns service status and version.", auth: false },
+            { method: "GET", path: "/auth/github/start", desc: "Returns GitHub OAuth authorization URL.", auth: false },
+            { method: "POST", path: "/auth/github/callback", desc: "Exchange GitHub code for JWT access token.", auth: false },
+            { method: "GET", path: "/users/me", desc: "Get authenticated user's profile.", auth: true },
+            { method: "PATCH", path: "/users/me/display-name", desc: "Update display name.", auth: true },
+            { method: "GET", path: "/users/search?q=", desc: "Search users by GitHub handle or display name.", auth: false },
+            { method: "POST", path: "/github/sync", desc: "Trigger GitHub behavioral data sync for a handle.", auth: false },
+            { method: "GET", path: "/github/sync/:sync_id", desc: "Poll sync status.", auth: false },
+            { method: "GET", path: "/assessment/questions", desc: "Fetch all psychometric questions.", auth: false },
+            { method: "POST", path: "/assessment/responses", desc: "Submit assessment answers.", auth: false },
+            { method: "POST", path: "/compatibility/run", desc: "Compute pairwise compatibility score.", auth: false },
+            { method: "POST", path: "/orchestrator/run", desc: "Start a full LangGraph analysis run.", auth: false },
+            { method: "WS", path: "/ws/analysis/:run_id", desc: "WebSocket stream for orchestrator progress events.", auth: false },
+            { method: "GET", path: "/insights/synthesis", desc: "Fetch latest synthesis report.", auth: false },
+            { method: "POST", path: "/teams", desc: "Create a new team.", auth: false },
+            { method: "GET", path: "/teams?user_id=", desc: "List all teams for a user.", auth: false },
+            { method: "POST", path: "/teams/:id/members", desc: "Add a member to a team.", auth: false },
+            { method: "DELETE", path: "/teams/:id/members/:uid", desc: "Remove a member from a team.", auth: false },
+          ].map((ep) => {
+            const methodColor: Record<string, string> = {
+              GET: "text-accent-teal bg-accent-teal/10",
+              POST: "text-primary bg-primary/10",
+              PATCH: "text-amber-400 bg-amber-400/10",
+              DELETE: "text-red-400 bg-red-400/10",
+              WS: "text-purple-400 bg-purple-400/10",
+            };
+            return (
+              <div class="flex items-start gap-4 glass-panel rounded-none p-4 border border-white/5">
+                <span class={`text-[10px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 mt-0.5 ${methodColor[ep.method] ?? "text-gray-400 bg-white/5"}`}>{ep.method}</span>
+                <div class="flex-1 min-w-0">
+                  <code class="text-sm font-mono text-white">{ep.path}</code>
+                  <p class="text-xs text-gray-500 mt-1">{ep.desc}</p>
+                </div>
+                {ep.auth && (
+                  <span class="text-[9px] font-mono text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded flex-shrink-0">AUTH</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <!-- Research Paper -->
+      <section id="research" class="flex flex-col gap-6">
+        <h2 class="text-2xl font-bold font-display flex items-center gap-3">
+          <span class="material-symbols-outlined text-primary">science</span>
+          Research Paper
+        </h2>
+        <div class="glass-panel rounded-none p-8 border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+          <div class="flex items-start gap-4 mb-6">
+            <span class="material-symbols-outlined text-primary text-[32px] flex-shrink-0">description</span>
+            <div>
+              <h3 class="text-xl font-bold text-white font-display mb-1">
+                GitSyntropy: A Multi-Agent AI Framework for Software Team Compatibility Prediction
+              </h3>
+              <p class="text-sm text-gray-500">Submitted to IEEE WorldSUAS 2026 · April 2026</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-5 text-sm text-gray-400 leading-relaxed">
+            <div>
+              <h4 class="font-bold text-white font-display mb-2">Abstract</h4>
+              <p>
+                Software engineering team failures are frequently attributed to interpersonal friction, communication misalignment, and incompatible working styles rather than individual technical deficiencies. This paper presents GitSyntropy, a multi-agent AI system that predicts team compatibility by combining GitHub behavioral telemetry with an 8-dimension psychometric profiling model. Our pipeline employs a directed LangGraph state machine comprising four specialised agents: a GitHub Analyst, a Psychometric Profiler, a Compatibility Engine, and a Claude Sonnet synthesis agent. We formalise a compatibility scoring model derived from behavioural pair-matching literature, define a weighted 8-dimension assessment framework, and validate the system's predictions against retrospective team performance indicators. Results indicate that teams flagged as high-compatibility by GitSyntropy exhibit measurably lower PR review latency and higher iteration velocity, suggesting that pre-team psychometric scoring is a viable complement to technical screening in software engineering hiring workflows.
+              </p>
+            </div>
+            <div>
+              <h4 class="font-bold text-white font-display mb-2">Key Contributions</h4>
+              <ul class="flex flex-col gap-2">
+                {[
+                  "Formalisation of an 8-dimension behavioural compatibility model for software engineers, with empirically derived dimension weights",
+                  "A novel multi-agent LangGraph pipeline combining static psychometric signals with dynamic GitHub telemetry",
+                  "A pairwise aggregation algorithm that computes team-level compatibility from N×(N-1)/2 member pairs, with graceful degradation when data is incomplete",
+                  "An open-source reference implementation with a production web application deployed on Vercel + Render + Supabase",
+                  "Empirical validation: retrospective analysis showing correlation between pre-assignment GitSyntropy scores and post-sprint velocity metrics",
+                ].map((point) => (
+                  <li class="flex gap-3">
+                    <span class="text-primary mt-0.5 flex-shrink-0">›</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 class="font-bold text-white font-display mb-2">Methodology</h4>
+              <p>
+                GitHub behavioral signals are extracted via the REST API and normalised into three primary metrics: chronotype (derived from commit timestamp distribution), activity rhythm score (regularity of commit cadence), and collaboration index (PR review participation ratio). These are combined with the psychometric assessment scores — captured through a 24-question adaptive instrument — to form a 16-dimensional feature vector per member. Pairwise compatibility is computed as a weighted Euclidean distance across the 8 shared dimensions, normalised to a 0–36 scale. The Compatibility Engine aggregates pairwise scores to the team level and identifies systematically weak dimensions (those where variance exceeds a threshold across all pairs).
+              </p>
+            </div>
+            <div>
+              <h4 class="font-bold text-white font-display mb-2">Citation</h4>
+              <div class="bg-black/30 border border-white/10 rounded-none p-4 font-mono text-xs text-gray-400 overflow-x-auto whitespace-pre-wrap">
+{`@inproceedings{gitsyntropy2026,
+  title     = {GitSyntropy: A Multi-Agent AI Framework for Software Team Compatibility Prediction},
+  booktitle = {Proceedings of IEEE WorldSUAS 2026},
+  year      = {2026},
+  note      = {Submitted},
+}`}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/10 bg-[#050506] py-8 relative z-10">
+    <div class="max-w-[1100px] mx-auto px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+      <p class="text-xs text-gray-700">© 2026 GitSyntropy. All rights reserved.</p>
+      <div class="flex gap-6">
+        <a href="/" class="text-xs text-gray-600 hover:text-white transition-colors">Home</a>
+        <a href="/about" class="text-xs text-gray-600 hover:text-white transition-colors">About</a>
+        <a href="/guide" class="text-xs text-gray-600 hover:text-white transition-colors">Guide</a>
+        <a href="/auth" class="text-xs text-gray-600 hover:text-white transition-colors">Sign In</a>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>
