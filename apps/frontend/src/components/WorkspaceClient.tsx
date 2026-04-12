@@ -333,6 +333,20 @@ function WorkspaceInner() {
     }
   };
 
+  if (!mounted) return <div className="min-h-screen" />;
+
+  if (AUTH_REQUIRED && !session) {
+    return (
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
+        <section className="glass-panel p-8 rounded-none w-full max-w-md text-center">
+          <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
+          <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to run orchestrated analysis.</p>
+          <a href="/auth" className="btn btn-primary justify-center">Go to Sign In</a>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <>
       {/* ── Create Team Wizard Modal ─────────────────────────────────────── */}

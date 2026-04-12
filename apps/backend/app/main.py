@@ -317,7 +317,10 @@ async def admin_users(claims: dict = Depends(_require_superadmin), db: AsyncSess
 @app.post(f"{settings.api_prefix}/github/sync", response_model=GithubSyncResponse)
 @limiter.limit("10/minute")
 async def github_sync(request: Request, payload: GithubSyncRequest, db: AsyncSession = Depends(get_db)) -> GithubSyncResponse:
-    data = await trigger_github_sync(payload.github_handle, user_id=payload.user_id, db=db)
+    # Use the OAuth token stored during login for real GitHub API calls
+    user_profile = await get_user_profile(payload.user_id, db)
+    access_token = user_profile.github_access_token if user_profile else None
+    data = await trigger_github_sync(payload.github_handle, user_id=payload.user_id, db=db, access_token=access_token)
     return GithubSyncResponse(**data)
 
 
@@ -503,6 +506,11 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
     else:
         team_id, user_id, include_candidates = "team_alpha", "user_local", False
 
+    # Fetch user profile to get stored OAuth token and github handle for real API calls
+    user_profile = await get_user_profile(user_id, db)
+    github_handle = user_profile.github_handle if user_profile else None
+    access_token = user_profile.github_access_token if user_profile else None
+
     steps = start_orchestrator_steps(include_candidates)
     try:
         completed_count = 0
@@ -520,6 +528,8 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
         async for step_update in stream_orchestrator_updates(
             team_id=team_id,
             user_id=user_id,
+            github_handle=github_handle,
+            access_token=access_token,
             include_candidates=include_candidates,
         ):
             step_name, step_data = next(iter(step_update.items()))

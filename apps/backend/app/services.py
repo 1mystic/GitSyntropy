@@ -917,12 +917,16 @@ async def stream_orchestrator_updates(
     *,
     team_id: str,
     user_id: str,
+    github_handle: str | None = None,
+    access_token: str | None = None,
     include_candidates: bool,
 ) -> AsyncIterator[dict[str, dict[str, Any]]]:
     graph = _compiled_orchestrator_graph()
     initial_state: OrchestratorState = {
         "team_id": team_id,
         "user_id": user_id,
+        "github_handle": github_handle or "",
+        "access_token": access_token or settings.github_access_token,
         "include_candidates": include_candidates,
     }
     async for update in graph.astream(initial_state, stream_mode="updates"):

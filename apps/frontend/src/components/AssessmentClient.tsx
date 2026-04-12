@@ -293,11 +293,39 @@ function AssessmentInner() {
                   {activeQuestion.prompt}
                 </h2>
                 {QUESTION_DIMENSION[activeQuestion.id] && (
-                  <p className="text-sm text-gray-500 mb-10 leading-relaxed">
+                  <p className="text-sm text-gray-500 mb-6 leading-relaxed">
                     <span className="font-semibold text-gray-400">{QUESTION_DIMENSION[activeQuestion.id].label}</span>
                     {" — "}{QUESTION_DIMENSION[activeQuestion.id].description}
                   </p>
                 )}
+
+                {/* Scale guide — fills space and helps users interpret the slider */}
+                <div className="flex-1 flex flex-col justify-center gap-4 mb-6">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="glass-panel rounded-xl p-4 border border-white/5 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[9px] font-bold text-primary font-mono">1</span>
+                        </div>
+                        <span className="text-xs font-semibold text-gray-300">{activeQuestion.left_label}</span>
+                      </div>
+                      <p className="text-[11px] text-gray-600 leading-snug pl-7">Strongly reflects how you naturally operate</p>
+                    </div>
+                    <div className="glass-panel rounded-xl p-4 border border-white/5 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 justify-end">
+                        <span className="text-xs font-semibold text-gray-300">{activeQuestion.right_label}</span>
+                        <div className="w-5 h-5 rounded-full bg-accent-teal/20 border border-accent-teal/40 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[9px] font-bold text-accent-teal font-mono">5</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-gray-600 leading-snug text-right pr-7">Strongly reflects how you naturally operate</p>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-gray-600 text-center font-mono">
+                    No right answer — drag to your honest default, not your ideal
+                  </p>
+                </div>
+
                 <div className="relative w-full px-2 mb-8 mt-auto">
                   <input
                     type="range"
