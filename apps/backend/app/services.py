@@ -84,33 +84,44 @@ async def exchange_github_code_for_identity(code: str, db: AsyncSession) -> dict
 
     if settings.github_client_secret and settings.github_client_id != "local-dev":
         # Real OAuth exchange
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://github.com/login/oauth/access_token",
-                json={
-                    "client_id": settings.github_client_id,
-                    "client_secret": settings.github_client_secret,
-                    "code": code,
-                },
-                headers={"Accept": "application/json"},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            token_data = resp.json()
-            access_token = token_data.get("access_token", "")
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    "https://github.com/login/oauth/access_token",
+                    json={
+                        "client_id": settings.github_client_id,
+                        "client_secret": settings.github_client_secret,
+                        "code": code,
+                        "redirect_uri": settings.github_redirect_url,
+                    },
+                    headers={"Accept": "application/json"},
+                    timeout=10,
+                )
+                resp.raise_for_status()
+                token_data = resp.json()
+        except httpx.HTTPStatusError as exc:
+            raise ValueError(f"GitHub token exchange failed: {exc.response.status_code}") from exc
+        except httpx.RequestError as exc:
+            raise ValueError(f"GitHub token exchange network error: {exc}") from exc
 
+        access_token = token_data.get("access_token", "")
         if not access_token or "error" in token_data:
             err_desc = token_data.get("error_description", token_data.get("error", "OAuth exchange failed"))
             raise ValueError(f"GitHub OAuth failed: {err_desc}")
 
-        async with httpx.AsyncClient() as client:
-            user_resp = await client.get(
-                "https://api.github.com/user",
-                headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
-                timeout=10,
-            )
-            user_resp.raise_for_status()
-            github_user = user_resp.json()
+        try:
+            async with httpx.AsyncClient() as client:
+                user_resp = await client.get(
+                    "https://api.github.com/user",
+                    headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+                    timeout=10,
+                )
+                user_resp.raise_for_status()
+                github_user = user_resp.json()
+        except httpx.HTTPStatusError as exc:
+            raise ValueError(f"GitHub user API failed: {exc.response.status_code}") from exc
+        except httpx.RequestError as exc:
+            raise ValueError(f"GitHub user API network error: {exc}") from exc
 
         user_id = f"gh_{github_user['id']}"
         identity = {
