@@ -72,11 +72,13 @@ from .services import (
     get_platform_stats,
     get_team,
     get_user_profile,
+    get_real_scores_for_user,
     is_superadmin,
     list_teams_for_user,
     mock_compatibility_scores,
     monte_carlo_candidate_simulation,
     remove_team_member,
+    save_team_score,
     start_orchestrator_steps,
     stream_orchestrator_updates,
     submit_assessment_response,
@@ -364,9 +366,9 @@ async def submit_assessment(payload: AssessmentSubmitRequest, db: AsyncSession =
 # ---------------------------------------------------------------------------
 
 @app.post(f"{settings.api_prefix}/compatibility/run", response_model=CompatibilityResponse)
-async def run_compatibility(payload: CompatibilityRequest) -> CompatibilityResponse:
-    sample_a = mock_compatibility_scores(payload.member_a, data_mode=payload.data_mode)
-    sample_b = mock_compatibility_scores(payload.member_b, data_mode=payload.data_mode)
+async def run_compatibility(payload: CompatibilityRequest, db: AsyncSession = Depends(get_db)) -> CompatibilityResponse:
+    sample_a = await get_real_scores_for_user(payload.member_a, payload.data_mode, db)
+    sample_b = await get_real_scores_for_user(payload.member_b, payload.data_mode, db)
     result = compatibility(sample_a, sample_b)
     return CompatibilityResponse(member_a=payload.member_a, member_b=payload.member_b, **result)
 

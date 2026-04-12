@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sa_func
 
 from .config import settings
-from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember, UserProfile
+from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember, TeamScore, UserProfile
 from .schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
 
 # Lazy imports to avoid startup errors when optional packages aren't configured
@@ -773,6 +773,94 @@ def monte_carlo_candidate_simulation(
 
 
 # ---------------------------------------------------------------------------
+# Orchestrator helpers — preload DB data before graph runs
+# ---------------------------------------------------------------------------
+
+async def _load_member_profiles(team_id: str, db: AsyncSession) -> list[dict[str, Any]]:
+    """Load all team members with their UserProfile, GithubProfile, and PsychometricProfile."""
+    members_result = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id))
+    members = members_result.scalars().all()
+
+    profiles = []
+    for member in members:
+        uid = member.user_id
+
+        up_result = await db.execute(select(UserProfile).where(UserProfile.user_id == uid))
+        up = up_result.scalar_one_or_none()
+
+        gp_result = await db.execute(
+            select(GithubProfile)
+            .where(GithubProfile.user_id == uid, GithubProfile.sync_status == "complete")
+            .order_by(GithubProfile.completed_at.desc())
+            .limit(1)
+        )
+        gp = gp_result.scalar_one_or_none()
+
+        pp_result = await db.execute(select(PsychometricProfile).where(PsychometricProfile.user_id == uid))
+        pp = pp_result.scalar_one_or_none()
+
+        profiles.append({
+            "user_id": uid,
+            "github_handle": member.github_handle or (up.github_handle if up else None),
+            "role": member.role,
+            "access_token": up.github_access_token if up else None,
+            "github_data": {
+                "chronotype": gp.chronotype,
+                "activity_rhythm_score": gp.activity_rhythm_score,
+                "collaboration_index": gp.collaboration_index,
+                "commits_last_30_days": gp.commits_last_30_days,
+                "prs_last_30_days": gp.prs_last_30_days,
+                "raw_data": gp.raw_data,
+            } if gp else None,
+            "psychometric_scores": pp.scores if (pp and pp.complete) else None,
+            "psychometric_answers": pp.answers if pp else None,
+        })
+
+    return profiles
+
+
+async def save_team_score(
+    team_id: str,
+    run_id: str,
+    compat: dict[str, Any],
+    narrative: str | None,
+    db: AsyncSession,
+) -> None:
+    """Persist compatibility results to TeamScore after an orchestrator run completes."""
+    ts = TeamScore(
+        id=str(uuid4()),
+        team_id=team_id,
+        agent_run_id=run_id,
+        resilience_score=compat.get("total_score_36", 0.0),
+        compatibility_pct=compat.get("score_pct_100", 0.0),
+        level=compat.get("level"),
+        confidence=compat.get("confidence"),
+        dimension_scores=compat.get("dimension_scores", {}),
+        weak_dimensions=compat.get("weak_dimensions", []),
+        strong_dimensions=compat.get("strong_dimensions", []),
+        risk_flags=compat.get("risk_flags", []),
+        narrative_report=narrative,
+        pairwise_scores=compat.get("pairwise_scores"),
+        calculated_at=datetime.now(tz=UTC),
+    )
+    db.add(ts)
+    await db.commit()
+
+
+async def get_real_scores_for_user(
+    user_id: str, data_mode: str, db: AsyncSession
+) -> dict[str, float | None]:
+    """Return real PsychometricProfile scores, falling back to deterministic mock."""
+    result = await db.execute(
+        select(PsychometricProfile).where(PsychometricProfile.user_id == user_id)
+    )
+    pp = result.scalar_one_or_none()
+    if pp and pp.complete:
+        return dict(pp.scores)
+    return mock_compatibility_scores(user_id, data_mode=data_mode)
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator — LangGraph + DB-persisted agent runs
 # ---------------------------------------------------------------------------
 
@@ -789,6 +877,7 @@ class OrchestratorState(TypedDict, total=False):
     github_handle: str          # explicit handle overrides user_id derivation
     access_token: str           # GitHub OAuth token for real API calls
     include_candidates: bool
+    member_profiles: list[dict[str, Any]]   # preloaded from DB before graph starts
     github_signals: dict[str, Any]
     assessment_profile: dict[str, Any]
     candidate_outlook: dict[str, Any]
@@ -801,6 +890,7 @@ async def _github_analyst_node(state: OrchestratorState) -> dict[str, Any]:
     handle = state.get("github_handle") or state["user_id"].replace("user_", "") or "team-member"
     access_token = state.get("access_token") or settings.github_access_token
 
+    # 1. Try real GitHub API
     if access_token:
         try:
             client = _get_github_client(access_token)
@@ -809,7 +899,24 @@ async def _github_analyst_node(state: OrchestratorState) -> dict[str, Any]:
         except Exception:  # noqa: BLE001
             pass
 
-    # Fallback to deterministic mock
+    # 2. Fallback: use preloaded DB data for the primary user
+    user_id = state.get("user_id", "")
+    for mp in state.get("member_profiles", []):
+        if mp["user_id"] == user_id and mp.get("github_data"):
+            gd = mp["github_data"]
+            signals = {
+                "github_handle": handle,
+                "chronotype": gd.get("chronotype") or "flexible",
+                "commits_last_30_days": gd.get("commits_last_30_days") or 0,
+                "collaboration_index": gd.get("collaboration_index") or 50.0,
+                "activity_rhythm_score": gd.get("activity_rhythm_score") or 50.0,
+                "prs_last_30_days": gd.get("prs_last_30_days") or 0,
+            }
+            if gd.get("raw_data"):
+                signals.update(gd["raw_data"])
+            return {"github_signals": signals}
+
+    # 3. Last resort: deterministic mock
     chronotype = _derive_chronotype(handle)
     commits = len(handle) * 7
     return {
@@ -824,10 +931,23 @@ async def _github_analyst_node(state: OrchestratorState) -> dict[str, Any]:
 
 
 async def _psychometric_profiler_node(state: OrchestratorState) -> dict[str, Any]:
-    # In Feature 8 this will load the real user profile from DB.
-    # For now use a representative synthetic profile.
-    answer_map = {f"q{idx + 1}": 3 + (idx % 3) for idx in range(len(ASHTAKOOT_DIMENSIONS))}
-    profile = build_assessment_profile(user_id=state["user_id"], answers=answer_map, submitted_at=datetime.now(tz=UTC))
+    user_id = state.get("user_id", "")
+    # Find primary user's profile from preloaded data
+    for mp in state.get("member_profiles", []):
+        if mp["user_id"] == user_id and mp.get("psychometric_scores"):
+            answers = mp.get("psychometric_answers") or {}
+            profile = {
+                "user_id": user_id,
+                "scores": mp["psychometric_scores"],
+                "answers": answers,
+                "complete": True,
+                "submitted_at": datetime.now(tz=UTC),
+            }
+            return {"assessment_profile": profile}
+
+    # No real assessment yet — use neutral midpoint so pipeline still runs
+    answer_map = {f"q{idx + 1}": 3 for idx in range(len(ASHTAKOOT_DIMENSIONS))}
+    profile = build_assessment_profile(user_id=user_id, answers=answer_map, submitted_at=datetime.now(tz=UTC))
     return {"assessment_profile": profile}
 
 
@@ -841,10 +961,78 @@ def _candidate_simulation_node(state: OrchestratorState) -> dict[str, Any]:
 
 
 def _compatibility_engine_node(state: OrchestratorState) -> dict[str, Any]:
-    source_scores = state["assessment_profile"]["scores"]
-    reference_scores = {
-        dimension: round(max(weight - 0.6, 0.4), 2) for dimension, weight in ASHTAKOOT_WEIGHTS.items()
+    # Collect all team members who have complete psychometric scores
+    scored = [
+        mp for mp in state.get("member_profiles", [])
+        if mp.get("psychometric_scores")
+    ]
+
+    if len(scored) >= 2:
+        # Pairwise compatibility across all team member combinations
+        pair_results: list[dict] = []
+        pairwise_scores: dict[str, Any] = {}
+        for i, ma in enumerate(scored):
+            for mb in scored[i + 1:]:
+                result = compatibility(ma["psychometric_scores"], mb["psychometric_scores"])
+                key = f"{ma['github_handle'] or ma['user_id']}_vs_{mb['github_handle'] or mb['user_id']}"
+                pairwise_scores[key] = {
+                    "total_score_36": result["total_score_36"],
+                    "score_pct_100": result["score_pct_100"],
+                    "level": result["level"],
+                }
+                pair_results.append(result)
+
+        n = len(pair_results)
+        avg_total = round(sum(r["total_score_36"] for r in pair_results) / n, 2)
+        avg_pct = round(sum(r["score_pct_100"] for r in pair_results) / n, 1)
+        avg_dim = {
+            d: round(sum(r["dimension_scores"].get(d, 0.0) for r in pair_results) / n, 2)
+            for d in ASHTAKOOT_DIMENSIONS
+        }
+        # Weak = any pair flagged weak; Strong = all pairs flagged strong
+        all_weak = sorted({d for r in pair_results for d in r.get("weak_dimensions", [])})
+        all_strong = sorted(
+            {d for d in ASHTAKOOT_DIMENSIONS
+             if all(d in r.get("strong_dimensions", []) for r in pair_results)}
+        )
+        all_risk = list(dict.fromkeys(f for r in pair_results for f in r.get("risk_flags", [])))
+        avg_conf = round(sum(r.get("confidence", 1.0) for r in pair_results) / n, 3)
+
+        if avg_total >= 28:
+            level = "excellent"
+        elif avg_total >= 20:
+            level = "good"
+        elif avg_total >= 12:
+            level = "fair"
+        else:
+            level = "poor"
+
+        return {"compatibility": {
+            "total_score_36": avg_total,
+            "score_pct_100": avg_pct,
+            "level": level,
+            "label": level,
+            "weak_dimensions": all_weak,
+            "strong_dimensions": all_strong,
+            "risk_flags": all_risk,
+            "confidence": avg_conf,
+            "data_gaps": [],
+            "dimension_scores": avg_dim,
+            "dimension_breakdown": [
+                {"dimension": d, "weight": ASHTAKOOT_WEIGHTS[d], "score": avg_dim[d],
+                 "pct_of_weight": round((avg_dim[d] / ASHTAKOOT_WEIGHTS[d]) * 100, 1),
+                 "status": "weak" if d in all_weak else ("strong" if d in all_strong else "balanced")}
+                for d in ASHTAKOOT_DIMENSIONS
+            ],
+            "pairwise_scores": pairwise_scores,
+            "member_count": len(scored),
+        }}
+
+    # Single or no scored members: compare primary user vs balanced reference
+    source_scores = state.get("assessment_profile", {}).get("scores") or {
+        d: round(ASHTAKOOT_WEIGHTS[d] * 0.5, 2) for d in ASHTAKOOT_DIMENSIONS
     }
+    reference_scores = {d: round(max(w - 0.6, 0.4), 2) for d, w in ASHTAKOOT_WEIGHTS.items()}
     return {"compatibility": compatibility(source_scores, reference_scores)}
 
 
@@ -920,7 +1108,11 @@ async def stream_orchestrator_updates(
     github_handle: str | None = None,
     access_token: str | None = None,
     include_candidates: bool,
+    db: AsyncSession,
 ) -> AsyncIterator[dict[str, dict[str, Any]]]:
+    # Preload all team member data from DB before graph starts
+    member_profiles = await _load_member_profiles(team_id, db)
+
     graph = _compiled_orchestrator_graph()
     initial_state: OrchestratorState = {
         "team_id": team_id,
@@ -928,6 +1120,7 @@ async def stream_orchestrator_updates(
         "github_handle": github_handle or "",
         "access_token": access_token or settings.github_access_token,
         "include_candidates": include_candidates,
+        "member_profiles": member_profiles,
     }
     async for update in graph.astream(initial_state, stream_mode="updates"):
         yield update
