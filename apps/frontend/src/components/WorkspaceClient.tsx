@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStore } from "@nanostores/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 
@@ -15,20 +16,12 @@ function memberInitials(userId: string) {
 }
 
 function WorkspaceInner() {
-  const session = $session.get();
-  const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
+  // mounted guard: server + first client render produce same output → no hydration mismatch
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  if (AUTH_REQUIRED && !session) {
-    return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
-        <section className="glass-panel p-8 rounded-none w-full max-w-md text-center">
-          <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
-          <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to run orchestrated analysis.</p>
-          <a href="/auth" className="btn btn-primary justify-center">Go to Sign In</a>
-        </section>
-      </main>
-    );
-  }
+  const session = useStore($session);
+  const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
 
   // ── Team state ──────────────────────────────────────────────────────────
   const [teams, setTeams] = useState<Team[]>([]);
