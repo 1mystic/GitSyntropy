@@ -56,7 +56,14 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
         
         <div class="glass-panel rounded-none p-3 border-white/40 relative overflow-hidden group">
           <div class="relative rounded-none overflow-hidden bg-[#0A0A0B] aspect-[1499/961]">
-            <img src="/demo.gif" alt="GitSyntropy dashboard demo" class="block w-full h-full object-contain object-center scale-[1.02]" />
+            <video
+              autoplay loop muted playsinline
+              poster="/demo-poster.jpg"
+              class="block w-full h-full object-contain object-center scale-[1.02]"
+            >
+              <source src="/demo.webm" type="video/webm" />
+              <source src="/demo.mp4" type="video/mp4" />
+            </video>
             <div class="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/50 via-transparent to-transparent pointer-events-none"></div>
           </div>
         </div>
@@ -125,7 +132,10 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
             </div>
             <div class="mt-auto pt-6 w-full rounded-none overflow-hidden border border-white/20 bg-[#0A0A0B]">
               <div class="w-full aspect-[1483/781]">
-                <img src="/insights.png" alt="Insights synthesis preview" class="block w-full h-full object-contain object-center" loading="lazy" />
+                <picture>
+                <source srcset="/insights.webp" type="image/webp" />
+                <img src="/insights.png" alt="Insights synthesis preview" class="block w-full h-full object-contain object-center" loading="lazy" decoding="async" />
+              </picture>
               </div>
             </div>
           </div>
@@ -141,7 +151,10 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
           <p class="text-gray-400 mb-6">Detect peak-hour overlap gaps. Flag teams where async-first is the safer working model.</p>
           <div class="mt-auto w-full rounded-none overflow-hidden border border-white/20 bg-[#0A0A0B]">
             <div class="w-full aspect-[1375/772]">
-              <img src="/sync.png" alt="GitHub sync panel" class="block w-full h-full object-contain object-center" loading="lazy" />
+              <picture>
+                <source srcset="/sync.webp" type="image/webp" />
+                <img src="/sync.png" alt="GitHub sync panel" class="block w-full h-full object-contain object-center" loading="lazy" decoding="async" />
+              </picture>
             </div>
           </div>
         </div>
