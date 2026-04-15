@@ -1,0 +1,70 @@
+════════════════════════════════════════════════════════════════════
+GOOGLE FORM SETUP — copy each section below into Google Forms
+════════════════════════════════════════════════════════════════════
+
+── FORM TITLE ─────────────────────────────────────────────────
+Developer Work Rhythm Study (Academic Research — 90 seconds)
+
+── FORM DESCRIPTION ────────────────────────────────────────────
+I'm a student researcher studying how GitHub commit patterns relate to developer work rhythms. This 5-question survey takes about 90 seconds. Your responses are used only for academic research and will never be shared publicly. A GitHub username is optional but helps match your responses to commit data.
+
+Reference: Adan & Almirall (1991). Personality and Individual Differences.
+
+── FIELD 1: GitHub Username (Short answer, optional) ───────────
+Question: Your GitHub username (optional)
+Help text: e.g. torvalds  — leave blank if you prefer anonymity
+Required: No
+
+── QUESTION 1 (Multiple choice, required) ──────────────────
+Question: Considering only your own 'feeling best' rhythm, at what time would you get up if you were entirely free to plan your day?
+Options (add these as choices — do NOT show the score values to participants):
+  • 5:00 AM – 6:30 AM   [internal score: 5]
+  • 6:30 AM – 7:45 AM   [internal score: 4]
+  • 7:45 AM – 9:45 AM   [internal score: 3]
+  • 9:45 AM – 11:00 AM   [internal score: 2]
+  • 11:00 AM – 12:00 PM   [internal score: 1]
+
+── QUESTION 2 (Multiple choice, required) ──────────────────
+Question: How alert do you feel during the first half hour after waking up in the morning?
+Options (add these as choices — do NOT show the score values to participants):
+  • Very tired   [internal score: 1]
+  • Fairly tired   [internal score: 2]
+  • Fairly refreshed   [internal score: 3]
+  • Very refreshed   [internal score: 4]
+
+── QUESTION 3 (Multiple choice, required) ──────────────────
+Question: At what time of day do you feel at your best?
+Options (add these as choices — do NOT show the score values to participants):
+  • 5:00 AM – 8:00 AM   [internal score: 5]
+  • 8:00 AM – 10:00 AM   [internal score: 4]
+  • 10:00 AM – 5:00 PM   [internal score: 3]
+  • 5:00 PM – 10:00 PM   [internal score: 2]
+  • 10:00 PM – 5:00 AM   [internal score: 1]
+
+── QUESTION 4 (Multiple choice, required) ──────────────────
+Question: If you went to bed at 11:00 PM, how tired would you be?
+Options (add these as choices — do NOT show the score values to participants):
+  • Not at all tired   [internal score: 0]
+  • A little tired   [internal score: 2]
+  • Fairly tired   [internal score: 3]
+  • Very tired   [internal score: 5]
+
+── QUESTION 5 (Multiple choice, required) ──────────────────
+Question: One hears about 'morning' and 'evening' types of people. Which one do you consider yourself to be?
+Options (add these as choices — do NOT show the score values to participants):
+  • Definitely a morning type   [internal score: 6]
+  • Rather more a morning than an evening type   [internal score: 4]
+  • Rather more an evening than a morning type   [internal score: 2]
+  • Definitely an evening type   [internal score: 0]
+
+── FINAL FIELD: Notes (Short answer, optional) ─────────────────
+Question: Anything else you'd like to share about your work schedule?
+Required: No
+
+════════════════════════════════════════════════════════════════════
+HOW TO RECORD RESPONSES IN THE CSV:
+Export Google Form responses as CSV, then for each row replace the
+option label with its score value (shown in brackets above).
+Then save as scripts/data/rmeq_responses.csv and run:
+  python scripts/02b_rmeq_survey.py process
+════════════════════════════════════════════════════════════════════

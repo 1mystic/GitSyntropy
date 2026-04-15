@@ -1,0 +1,16 @@
+# GitSyntropy Research Scripts — Python dependencies
+# Install with: pip install -r scripts/requirements.txt
+#
+# Python 3.10+ required
+
+# Script 01 — GitHub data collection
+requests>=2.32.0
+tqdm>=4.66.0
+
+# Script 03 — Analysis and figure generation
+numpy>=1.26.0
+scipy>=1.13.0
+scikit-learn>=1.5.0
+matplotlib>=3.9.0
+pandas>=2.2.0
+seaborn>=0.13.0
