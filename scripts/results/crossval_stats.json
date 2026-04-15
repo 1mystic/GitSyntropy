@@ -1,0 +1,227 @@
+{
+  "n_pairs": 20,
+  "exact_match_rate": 0.75,
+  "close_match_rate": 1.0,
+  "pairs": [
+    {
+      "github_username": "synthetic_00",
+      "so_user_id": 10000,
+      "so_display_name": "Dev 0",
+      "gh_chronotype": "lark",
+      "so_chronotype": "lark",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 293,
+      "n_so_posts": 37
+    },
+    {
+      "github_username": "synthetic_01",
+      "so_user_id": 10001,
+      "so_display_name": "Dev 1",
+      "gh_chronotype": "lark",
+      "so_chronotype": "daytime",
+      "exact_match": false,
+      "close_match": true,
+      "n_gh_commits": 250,
+      "n_so_posts": 41
+    },
+    {
+      "github_username": "synthetic_02",
+      "so_user_id": 10002,
+      "so_display_name": "Dev 2",
+      "gh_chronotype": "owl",
+      "so_chronotype": "owl",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 111,
+      "n_so_posts": 5
+    },
+    {
+      "github_username": "synthetic_03",
+      "so_user_id": 10003,
+      "so_display_name": "Dev 3",
+      "gh_chronotype": "lark",
+      "so_chronotype": "lark",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 259,
+      "n_so_posts": 11
+    },
+    {
+      "github_username": "synthetic_04",
+      "so_user_id": 10004,
+      "so_display_name": "Dev 4",
+      "gh_chronotype": "owl",
+      "so_chronotype": "owl",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 278,
+      "n_so_posts": 48
+    },
+    {
+      "github_username": "synthetic_05",
+      "so_user_id": 10005,
+      "so_display_name": "Dev 5",
+      "gh_chronotype": "owl",
+      "so_chronotype": "owl",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 103,
+      "n_so_posts": 30
+    },
+    {
+      "github_username": "synthetic_06",
+      "so_user_id": 10006,
+      "so_display_name": "Dev 6",
+      "gh_chronotype": "evening",
+      "so_chronotype": "evening",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 287,
+      "n_so_posts": 27
+    },
+    {
+      "github_username": "synthetic_07",
+      "so_user_id": 10007,
+      "so_display_name": "Dev 7",
+      "gh_chronotype": "owl",
+      "so_chronotype": "evening",
+      "exact_match": false,
+      "close_match": true,
+      "n_gh_commits": 213,
+      "n_so_posts": 9
+    },
+    {
+      "github_username": "synthetic_08",
+      "so_user_id": 10008,
+      "so_display_name": "Dev 8",
+      "gh_chronotype": "evening",
+      "so_chronotype": "evening",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 187,
+      "n_so_posts": 23
+    },
+    {
+      "github_username": "synthetic_09",
+      "so_user_id": 10009,
+      "so_display_name": "Dev 9",
+      "gh_chronotype": "evening",
+      "so_chronotype": "evening",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 274,
+      "n_so_posts": 46
+    },
+    {
+      "github_username": "synthetic_10",
+      "so_user_id": 10010,
+      "so_display_name": "Dev 10",
+      "gh_chronotype": "evening",
+      "so_chronotype": "evening",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 231,
+      "n_so_posts": 28
+    },
+    {
+      "github_username": "synthetic_11",
+      "so_user_id": 10011,
+      "so_display_name": "Dev 11",
+      "gh_chronotype": "evening",
+      "so_chronotype": "evening",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 73,
+      "n_so_posts": 30
+    },
+    {
+      "github_username": "synthetic_12",
+      "so_user_id": 10012,
+      "so_display_name": "Dev 12",
+      "gh_chronotype": "owl",
+      "so_chronotype": "owl",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 179,
+      "n_so_posts": 43
+    },
+    {
+      "github_username": "synthetic_13",
+      "so_user_id": 10013,
+      "so_display_name": "Dev 13",
+      "gh_chronotype": "owl",
+      "so_chronotype": "owl",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 184,
+      "n_so_posts": 21
+    },
+    {
+      "github_username": "synthetic_14",
+      "so_user_id": 10014,
+      "so_display_name": "Dev 14",
+      "gh_chronotype": "owl",
+      "so_chronotype": "owl",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 172,
+      "n_so_posts": 37
+    },
+    {
+      "github_username": "synthetic_15",
+      "so_user_id": 10015,
+      "so_display_name": "Dev 15",
+      "gh_chronotype": "lark",
+      "so_chronotype": "lark",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 246,
+      "n_so_posts": 13
+    },
+    {
+      "github_username": "synthetic_16",
+      "so_user_id": 10016,
+      "so_display_name": "Dev 16",
+      "gh_chronotype": "lark",
+      "so_chronotype": "owl",
+      "exact_match": false,
+      "close_match": true,
+      "n_gh_commits": 277,
+      "n_so_posts": 47
+    },
+    {
+      "github_username": "synthetic_17",
+      "so_user_id": 10017,
+      "so_display_name": "Dev 17",
+      "gh_chronotype": "lark",
+      "so_chronotype": "daytime",
+      "exact_match": false,
+      "close_match": true,
+      "n_gh_commits": 170,
+      "n_so_posts": 14
+    },
+    {
+      "github_username": "synthetic_18",
+      "so_user_id": 10018,
+      "so_display_name": "Dev 18",
+      "gh_chronotype": "owl",
+      "so_chronotype": "evening",
+      "exact_match": false,
+      "close_match": true,
+      "n_gh_commits": 210,
+      "n_so_posts": 49
+    },
+    {
+      "github_username": "synthetic_19",
+      "so_user_id": 10019,
+      "so_display_name": "Dev 19",
+      "gh_chronotype": "owl",
+      "so_chronotype": "owl",
+      "exact_match": true,
+      "close_match": true,
+      "n_gh_commits": 232,
+      "n_so_posts": 39
+    }
+  ]
+}

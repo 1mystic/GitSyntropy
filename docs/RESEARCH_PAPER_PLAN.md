@@ -19,25 +19,29 @@ Filing a process patent in India (Indian Patent Act, Section 3(k) excludes pure 
 
 **The provisional claim** protects: (a) the circular-coordinate K-Means chronotype method applied to VCS commit timestamps, (b) the weighted 8-dimensional compatibility engine combining behavioral telemetry with adaptive psychometric data, and (c) the Monte Carlo candidate simulation method for hire-impact prediction.
 
-### Target Venue (Primary)
+### Target Venue (Primary — Immediate)
 
-**MSR — IEEE/ACM International Conference on Mining Software Repositories**  
-- MSR is the premier venue for empirical studies of GitHub/version-control data.  
-- Acceptance rate: ~25%. Full papers are 10 pages + references.  
-- Typical submission window: January, notification March, camera-ready April, conference May.
-- Your paper fits MSR because it mines GitHub behavioral traces for team analytics.
+**WorldSUAS 2026 — IEEE World Skill Conference on Universal Data Analytics and Sciences**  
+- Scope: data analytics, data science, machine learning, knowledge discovery, intelligent systems.  
+- Format: IEEE double-column, typically 6–8 pages for regular papers (verify exact limit from CFP).  
+- Use **IEEEtran** LaTeX template (`\documentclass[conference]{IEEEtran}`).  
+- Figures and tables count toward page limit; plan for 4–5 compact figures.  
+- Submission checklist: PDF + source archive, IEEE copyright form, author bios (~100 words each).  
+- **This paper fits WorldSUAS because:** it presents novel data analytics methodology (circular K-Means feature engineering from VCS data), a weighted multi-dimensional scoring model, Monte Carlo simulation, and an adaptive assessment algorithm — all within a unified data science pipeline.
 
-**Backup venues:**  
-- **CSCW** (ACM Computer-Supported Cooperative Work) — if emphasis shifts to the team collaboration framing.  
-- **PAKDD** (Pacific-Asia Knowledge Discovery and Data Mining) — strong India/Asia participation, good for the ML-heavy framing.  
-- **COMAD/IKDD** (India-specific) — if you want a domestic publication first.  
-- **EMSE journal** (Empirical Software Engineering, Springer) — for the long-form with full evaluation data.
+**Secondary Venue (longer-form, after WorldSUAS):**  
+- **MSR** (Mining Software Repositories, IEEE/ACM) — expand with full empirical evaluation once MEQ user-study data is collected. 10-page format.  
+- **PAKDD** (Pacific-Asia Knowledge Discovery and Data Mining) — strong India/Asia participation.  
+- **EMSE journal** (Empirical Software Engineering, Springer) — for the full journal version with complete validation data.
 
-### Paper Length and Format
+### Paper Length and Format (WorldSUAS 2026)
 
-- MSR: 10-page double-column IEEE format + unlimited references.  
-- Use IEEEtran LaTeX template.  
-- Figures count toward the page limit; plan for ~5 key figures.
+- Target: **6 pages** of content + 1 page references (7 pages total).  
+- Use IEEEtran double-column, 10pt font.  
+- Figures count toward the page limit; plan for exactly **4 key figures** (tight space).  
+- Drop Section 5.2 (peer collaboration pairs) from the main paper — move to future work. Keep Fig 2 (confusion matrix), Fig 4 (CAT), Fig 5 (Monte Carlo), and one system overview.  
+- Abstract: 150 words max (IEEE conference standard).  
+- Keywords: 4–6 keywords from IEEE taxonomy (suggested: behavioral analytics, chronotype detection, team compatibility, adaptive assessment, Monte Carlo simulation, software engineering).
 
 ---
 

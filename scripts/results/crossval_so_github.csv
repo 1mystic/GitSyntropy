@@ -1,0 +1,21 @@
+github_username,so_user_id,so_display_name,gh_chronotype,so_chronotype,exact_match,close_match,n_gh_commits,n_so_posts
+synthetic_00,10000,Dev 0,lark,lark,True,True,293,37
+synthetic_01,10001,Dev 1,lark,daytime,False,True,250,41
+synthetic_02,10002,Dev 2,owl,owl,True,True,111,5
+synthetic_03,10003,Dev 3,lark,lark,True,True,259,11
+synthetic_04,10004,Dev 4,owl,owl,True,True,278,48
+synthetic_05,10005,Dev 5,owl,owl,True,True,103,30
+synthetic_06,10006,Dev 6,evening,evening,True,True,287,27
+synthetic_07,10007,Dev 7,owl,evening,False,True,213,9
+synthetic_08,10008,Dev 8,evening,evening,True,True,187,23
+synthetic_09,10009,Dev 9,evening,evening,True,True,274,46
+synthetic_10,10010,Dev 10,evening,evening,True,True,231,28
+synthetic_11,10011,Dev 11,evening,evening,True,True,73,30
+synthetic_12,10012,Dev 12,owl,owl,True,True,179,43
+synthetic_13,10013,Dev 13,owl,owl,True,True,184,21
+synthetic_14,10014,Dev 14,owl,owl,True,True,172,37
+synthetic_15,10015,Dev 15,lark,lark,True,True,246,13
+synthetic_16,10016,Dev 16,lark,owl,False,True,277,47
+synthetic_17,10017,Dev 17,lark,daytime,False,True,170,14
+synthetic_18,10018,Dev 18,owl,evening,False,True,210,49
+synthetic_19,10019,Dev 19,owl,owl,True,True,232,39

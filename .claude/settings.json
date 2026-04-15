@@ -44,7 +44,21 @@
       "Bash(ffmpeg -ss 0 -i /g/synced-pc/1_Work/projects/GitSyntropy/apps/frontend/public/demo.gif -vframes 1 -vf \"scale=1200:-2\" /g/synced-pc/1_Work/projects/GitSyntropy/apps/frontend/public/demo-poster.jpg -y)",
       "Bash(ffmpeg -i insights.png -c:v libwebp -quality 82 insights.webp -y)",
       "Bash(ffmpeg -i sync.png -c:v libwebp -quality 82 sync.webp -y)",
-      "Bash(ls -lh *.webp *.jpg)"
+      "Bash(ls -lh *.webp *.jpg)",
+      "Bash(python -m py_compile scripts/01_collect_github_profiles.py)",
+      "Bash(python -m py_compile scripts/02_meq_survey.py)",
+      "Bash(python -m py_compile scripts/03_analyse_and_plot.py)",
+      "Bash(python -m py_compile g:/synced-pc/1_Work/projects/GitSyntropy/scripts/02b_rmeq_survey.py)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(f'Done: {len\\(d[\\\\\"done\\\\\"]\\)}, Qualified: {len\\(d[\\\\\"qualified\\\\\"]\\)}, Failed: {len\\(d[\\\\\"failed\\\\\"]\\)}'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import numpy,scipy,sklearn,matplotlib,pandas; print\\('deps OK'\\)\")",
+      "Bash(python -c \"import csv,sys; r=list\\(csv.DictReader\\(sys.stdin\\)\\); print\\('\\\\n'.join\\([f'{x[\\\\\"username\\\\\"]},{x[\\\\\"commit_count_90d\\\\\"]},{x[\\\\\"collaboration_index\\\\\"]}' for x in r]\\)\\)\")",
+      "Bash(mkdir -p scripts/results)",
+      "Bash(apps/backend/.venv/Scripts/python scripts/03_analyse_and_plot.py --synthetic)",
+      "Bash(set PYTHONIOENCODING=utf-8)",
+      "Bash(apps/backend/.venv/Scripts/python -c \" import os, sys os.environ['PYTHONIOENCODING'] = 'utf-8' sys.stdout.reconfigure\\(encoding='utf-8', errors='replace'\\) \")",
+      "Bash(apps/backend/.venv/Scripts/python -X utf8 scripts/03_analyse_and_plot.py --synthetic)",
+      "Bash(apps/backend/.venv/Scripts/python -X utf8 scripts/04_stackoverflow_crossval.py)"
     ]
   }
 }

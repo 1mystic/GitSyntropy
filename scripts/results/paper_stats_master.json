@@ -1,0 +1,97 @@
+{
+  "dataset": {
+    "n_developers": 46,
+    "total_commits_analysed": 10886,
+    "mean_commits_per_dev": 236.7,
+    "min_commits": 50,
+    "max_commits": 931,
+    "lookback_days": 90
+  },
+  "chronotype_distribution": {
+    "lark": 6,
+    "daytime": 19,
+    "evening": 9,
+    "owl": 8,
+    "flexible": 4
+  },
+  "chronotype_pct": {
+    "lark": 13.0,
+    "daytime": 41.3,
+    "evening": 19.6,
+    "owl": 17.4,
+    "flexible": 8.7
+  },
+  "mean_confidence": 0.445,
+  "mean_peak_hour": 14.0,
+  "chronotype_accuracy": {
+    "n": 80,
+    "accuracy_circular_kmeans": 0.8625,
+    "accuracy_naive_baseline": 0.9,
+    "improvement_pp": -3.75,
+    "macro_f1": 0.8602,
+    "per_class_f1": {
+      "lark": 0.9231,
+      "daytime": 0.8261,
+      "evening": 0.7647,
+      "owl": 0.9268
+    },
+    "median_confidence_correct": 0.445,
+    "median_confidence_incorrect": 0.436,
+    "data_label": "Synthetic (n=80)"
+  },
+  "cat_efficiency": {
+    "total_patterns": 390625,
+    "pct_early_stop": 100.0,
+    "mean_questions": 5.0,
+    "pct_question_reduction": 37.5,
+    "score_correlation_r": 0.9651,
+    "score_correlation_p": 0.0,
+    "stop_position_distribution": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 390625,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    }
+  },
+  "monte_carlo_convergence": {
+    "iteration_counts": [
+      100,
+      200,
+      500,
+      1000,
+      2000,
+      5000
+    ],
+    "n_seeds": 10,
+    "variances": [
+      0.016544,
+      0.011884,
+      0.007285,
+      0.004584,
+      0.001225,
+      0.000756
+    ],
+    "profile_distances": [
+      1.8414,
+      1.835,
+      1.4249,
+      1.2158,
+      1.0375,
+      1.0142
+    ],
+    "convergence_note": "Variance drops 3.6\u00d7 from n=100 to n=1000. Profile stabilises at n\u22651000."
+  },
+  "compatibility_model": {
+    "n_random_pairs": 500,
+    "mean_random_score": 25.13,
+    "std_random_score": 2.94,
+    "mean_matched_score": 35.74,
+    "mean_mismatched_score": 24.82,
+    "chronotype_ttest_p": 0.0,
+    "chronotype_cohens_d": 3.711
+  }
+}
