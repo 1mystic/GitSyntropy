@@ -248,4 +248,4 @@ Backend environment variables (set in Railway dashboard, not GitHub secrets):
 
 Core pipeline functional: GitHub sync, adaptive assessment, compatibility scoring, Monte Carlo simulation, Claude synthesis, WebSocket streaming.
 
-In progress: production OAuth callback URL configuration, hire simulation UI on the compatibility page.
+In progress: Hire simulation UI on the compatibility page.
