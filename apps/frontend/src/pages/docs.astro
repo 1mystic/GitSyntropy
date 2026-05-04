@@ -32,7 +32,6 @@ const methodColor: Record<string, string> = {
         ["#assessment", "Assessment Dimensions"],
         ["#scoring", "Compatibility Scoring"],
         ["#api", "API Reference"],
-        ["#research", "Research Paper"],
       ].map(([href, label]) => (
         <a href={href} class="text-sm text-gray-600 hover:text-white transition-colors py-1 border-l-2 border-white/5 hover:border-primary pl-3">
           {label}
@@ -265,67 +264,6 @@ const methodColor: Record<string, string> = {
         </div>
       </section>
 
-      <!-- Research Paper -->
-      <section id="research" class="flex flex-col gap-6">
-        <h2 class="text-2xl font-bold font-display flex items-center gap-3">
-          <span class="material-symbols-outlined text-primary">science</span>
-          Research Paper
-        </h2>
-        <div class="glass-panel rounded-none p-8 border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-          <div class="flex items-start gap-4 mb-6">
-            <span class="material-symbols-outlined text-primary text-[32px] flex-shrink-0">description</span>
-            <div>
-              <h3 class="text-xl font-bold text-white font-display mb-1">
-                GitSyntropy: A Multi-Agent AI Framework for Software Team Compatibility Prediction
-              </h3>
-              <p class="text-sm text-gray-500">Submitted to IEEE WorldSUAS 2026 · April 2026</p>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-5 text-sm text-gray-400 leading-relaxed">
-            <div>
-              <h4 class="font-bold text-white font-display mb-2">Abstract</h4>
-              <p>
-                Software engineering team failures are frequently attributed to interpersonal friction, communication misalignment, and incompatible working styles rather than individual technical deficiencies. This paper presents GitSyntropy, a multi-agent AI system that predicts team compatibility by combining GitHub behavioral telemetry with an 8-dimension psychometric profiling model. Our pipeline employs a directed LangGraph state machine comprising four specialised agents: a GitHub Analyst, a Psychometric Profiler, a Compatibility Engine, and a Claude Sonnet synthesis agent. We formalise a compatibility scoring model derived from behavioural pair-matching literature, define a weighted 8-dimension assessment framework, and validate the system's predictions against retrospective team performance indicators. Results indicate that teams flagged as high-compatibility by GitSyntropy exhibit measurably lower PR review latency and higher iteration velocity, suggesting that pre-team psychometric scoring is a viable complement to technical screening in software engineering hiring workflows.
-              </p>
-            </div>
-            <div>
-              <h4 class="font-bold text-white font-display mb-2">Key Contributions</h4>
-              <ul class="flex flex-col gap-2">
-                {[
-                  "Formalisation of an 8-dimension behavioural compatibility model for software engineers, with empirically derived dimension weights",
-                  "A novel multi-agent LangGraph pipeline combining static psychometric signals with dynamic GitHub telemetry",
-                  "A pairwise aggregation algorithm that computes team-level compatibility from N×(N-1)/2 member pairs, with graceful degradation when data is incomplete",
-                  "An open-source reference implementation with a production web application deployed on Vercel + Render + Supabase",
-                  "Empirical validation: retrospective analysis showing correlation between pre-assignment GitSyntropy scores and post-sprint velocity metrics",
-                ].map((point) => (
-                  <li class="flex gap-3">
-                    <span class="text-primary mt-0.5 flex-shrink-0">›</span>
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 class="font-bold text-white font-display mb-2">Methodology</h4>
-              <p>
-                GitHub behavioral signals are extracted via the REST API and normalised into three primary metrics: chronotype (derived from commit timestamp distribution), activity rhythm score (regularity of commit cadence), and collaboration index (PR review participation ratio). These are combined with the psychometric assessment scores — captured through a 24-question adaptive instrument — to form a 16-dimensional feature vector per member. Pairwise compatibility is computed as a weighted Euclidean distance across the 8 shared dimensions, normalised to a 0–36 scale. The Compatibility Engine aggregates pairwise scores to the team level and identifies systematically weak dimensions (those where variance exceeds a threshold across all pairs).
-              </p>
-            </div>
-            <div>
-              <h4 class="font-bold text-white font-display mb-2">Citation</h4>
-              <div class="bg-black/30 border border-white/10 rounded-none p-4 font-mono text-xs text-gray-400 overflow-x-auto whitespace-pre-wrap">
-{`@inproceedings{gitsyntropy2026,
-  title     = {GitSyntropy: A Multi-Agent AI Framework for Software Team Compatibility Prediction},
-  booktitle = {Proceedings of IEEE WorldSUAS 2026},
-  year      = {2026},
-  note      = {Submitted},
-}`}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
     </main>
   </div>
