@@ -69,7 +69,11 @@
       "Bash(grep -c \"^\\\\\\\\\\\\\\\\section\" paper/gitsyntropy_worldsuas2026.tex)",
       "Bash(grep \"^\\\\\\\\\\\\\\\\section\" paper/gitsyntropy_worldsuas2026.tex)",
       "Bash(grep -n \"\\\\\\\\\\\\\\\\section\" \"/g/synced-pc/1_Work/projects/GitSyntropy/paper/gitsyntropy_worldsuas2026.tex\")",
-      "Bash(./apps/backend/.venv/Scripts/python.exe -c \"import matplotlib; print\\('matplotlib ok'\\)\")"
+      "Bash(./apps/backend/.venv/Scripts/python.exe -c \"import matplotlib; print\\('matplotlib ok'\\)\")",
+      "Bash(./apps/backend/.venv/Scripts/python.exe -X utf8 scripts/generate_figures.py)",
+      "Bash(ls paper/*.pdf)",
+      "Bash(ls paper/figures/*.pdf)",
+      "Bash(xargs -I{} basename {})"
     ]
   }
 }
