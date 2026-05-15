@@ -1,8 +1,10 @@
 README.md
 pyproject.toml
 app/__init__.py
+app/claude_client.py
 app/config.py
 app/database.py
+app/github_client.py
 app/main.py
 app/models.py
 app/schemas.py
@@ -13,5 +15,10 @@ gitsyntropy_backend.egg-info/dependency_links.txt
 gitsyntropy_backend.egg-info/requires.txt
 gitsyntropy_backend.egg-info/top_level.txt
 tests/test_auth.py
+tests/test_cat_assessment.py
 tests/test_compatibility.py
+tests/test_coverage_gaps.py
+tests/test_github_client.py
 tests/test_health.py
+tests/test_monte_carlo.py
+tests/test_teams.py
