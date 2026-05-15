@@ -52,6 +52,7 @@ from .schemas import (
     TeamResponse,
     UserProfileResponse,
 )
+from .crypto import decrypt_token
 from .services import (
     AuthTokenError,
     add_team_member,
@@ -344,7 +345,7 @@ async def admin_users(claims: dict = Depends(_require_superadmin), db: AsyncSess
 async def github_sync(request: Request, payload: GithubSyncRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> GithubSyncResponse:
     user_id = str(claims["sub"])
     user_profile = await get_user_profile(user_id, db)
-    access_token = user_profile.github_access_token if user_profile else None
+    access_token = decrypt_token(user_profile.github_access_token, settings.jwt_secret) if user_profile else None
     data = await trigger_github_sync(payload.github_handle, user_id=user_id, db=db, access_token=access_token)
     return GithubSyncResponse(**data)
 
@@ -379,13 +380,6 @@ async def submit_assessment_response_api(payload: AssessmentSubmitRequest, claim
     return AssessmentSubmitResponse(**profile)
 
 
-@app.post(f"{settings.api_prefix}/assessment/submit", response_model=AssessmentSubmitResponse)
-async def submit_assessment(payload: AssessmentSubmitRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> AssessmentSubmitResponse:
-    user_id = str(claims["sub"])
-    profile = await submit_assessment_response(user_id=user_id, answers=payload.answers, db=db)
-    return AssessmentSubmitResponse(**profile)
-
-
 # ---------------------------------------------------------------------------
 # Compatibility
 # ---------------------------------------------------------------------------
@@ -404,10 +398,11 @@ async def run_compatibility(payload: CompatibilityRequest, db: AsyncSession = De
 
 @app.post(f"{settings.api_prefix}/orchestrator/run", response_model=OrchestratorRunResponse)
 @limiter.limit("10/minute")
-async def orchestrator_run(request: Request, payload: OrchestratorRunRequest, db: AsyncSession = Depends(get_db)) -> OrchestratorRunResponse:
+async def orchestrator_run(request: Request, payload: OrchestratorRunRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> OrchestratorRunResponse:
+    user_id = str(claims["sub"])
     run_id = await create_agent_run(
         team_id=payload.team_id,
-        user_id=payload.user_id,
+        user_id=user_id,
         include_candidates=payload.include_candidates,
         db=db,
     )
@@ -423,8 +418,8 @@ async def orchestrator_run(request: Request, payload: OrchestratorRunRequest, db
 # ---------------------------------------------------------------------------
 
 @app.post(f"{settings.api_prefix}/teams", response_model=TeamResponse, status_code=201)
-async def create_team_route(payload: TeamCreateRequest, db: AsyncSession = Depends(get_db)) -> TeamResponse:
-    data = await create_team(payload.name, payload.description, payload.created_by, db)
+async def create_team_route(payload: TeamCreateRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> TeamResponse:
+    data = await create_team(payload.name, payload.description, str(claims["sub"]), db)
     return TeamResponse(**data)
 
 
@@ -443,7 +438,7 @@ async def get_team_route(team_id: str, db: AsyncSession = Depends(get_db)) -> Te
 
 
 @app.patch(f"{settings.api_prefix}/teams/{{team_id}}", response_model=TeamResponse)
-async def update_team_route(team_id: str, payload: TeamUpdateRequest, db: AsyncSession = Depends(get_db)) -> TeamResponse:
+async def update_team_route(team_id: str, payload: TeamUpdateRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> TeamResponse:
     data = await update_team(team_id, payload.name, payload.description, db)
     if data is None:
         raise HTTPException(status_code=404, detail="Team not found")
@@ -451,7 +446,7 @@ async def update_team_route(team_id: str, payload: TeamUpdateRequest, db: AsyncS
 
 
 @app.post(f"{settings.api_prefix}/teams/{{team_id}}/members", response_model=TeamMemberResponse, status_code=201)
-async def add_member_route(team_id: str, payload: AddMemberRequest, db: AsyncSession = Depends(get_db)) -> TeamMemberResponse:
+async def add_member_route(team_id: str, payload: AddMemberRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> TeamMemberResponse:
     try:
         data = await add_team_member(team_id, payload.user_id, payload.github_handle, payload.role, db)
     except ValueError as exc:
@@ -461,7 +456,7 @@ async def add_member_route(team_id: str, payload: AddMemberRequest, db: AsyncSes
 
 
 @app.delete(f"{settings.api_prefix}/teams/{{team_id}}/members/{{user_id}}", status_code=204)
-async def remove_member_route(team_id: str, user_id: str, db: AsyncSession = Depends(get_db)) -> None:
+async def remove_member_route(team_id: str, user_id: str, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> None:
     found = await remove_team_member(team_id, user_id, db)
     if not found:
         raise HTTPException(status_code=404, detail="Member not found")
@@ -558,7 +553,7 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
     # Fetch user profile to get stored OAuth token and github handle for real API calls
     user_profile = await get_user_profile(user_id, db)
     github_handle = user_profile.github_handle if user_profile else None
-    access_token = user_profile.github_access_token if user_profile else None
+    access_token = decrypt_token(user_profile.github_access_token, settings.jwt_secret) if user_profile else None
 
     steps = start_orchestrator_steps(include_candidates)
     latest_compat: dict | None = None

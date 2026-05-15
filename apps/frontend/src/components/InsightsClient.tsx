@@ -193,6 +193,7 @@ function InsightsInner() {
   const [data, setData] = useState<InsightResponse | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
   const [lastCompatScore, setLastCompatScore] = useState<number | null>(null);
+  const [streamingText, setStreamingText] = useState("");
 
   const startStream = async () => {
     setStreaming(true);
@@ -202,6 +203,7 @@ function InsightsInner() {
     setData(null);
     setReportId(null);
     setLastCompatScore(null);
+    setStreamingText("");
     setSteps(STEP_ORDER.map((name) => ({ name, status: "pending" })));
 
     const teamId = activeTeam?.id ?? "";
@@ -227,7 +229,12 @@ function InsightsInner() {
       const ws = new WebSocket(wsUrlForRun(run.run_id));
 
       ws.onmessage = (evt) => {
-        const event = JSON.parse(evt.data as string) as OrchestratorStreamEvent;
+        const raw = JSON.parse(evt.data as string) as OrchestratorStreamEvent & { type?: string; token?: string };
+        if (raw.type === "synthesis_token") {
+          setStreamingText((prev) => prev + (raw.token ?? ""));
+          return;
+        }
+        const event = raw;
 
         setProgress(event.progress_pct);
 
@@ -263,6 +270,7 @@ function InsightsInner() {
 
         if (event.status === "completed" && event.step === "synthesis" && event.data?.synthesis) {
           const synth = event.data.synthesis as unknown as InsightResponse;
+          setStreamingText("");
           setData(synth);
           // Save to localStorage for report page using real team and score from compatibility data
           const id = `${Date.now()}`;
@@ -292,6 +300,7 @@ function InsightsInner() {
       ws.onerror = () => {
         setStreamError(true);
         setStreaming(false);
+        setStreamingText("");
         setSteps((prev) =>
           prev.map((s) => (s.status === "running" ? { ...s, status: "error" } : s))
         );
@@ -299,6 +308,7 @@ function InsightsInner() {
 
       ws.onclose = () => {
         setStreaming(false);
+        setStreamingText("");
         if (!streamDone) setStreamDone(true);
       };
     } catch {
@@ -483,6 +493,26 @@ function InsightsInner() {
             <span className="material-symbols-outlined text-sm">refresh</span>
             Retry
           </button>
+        </div>
+      )}
+
+      {/* Streaming narrative (synthesis in progress) */}
+      {streamingText && !data && (
+        <div className="mb-10 glass-card rounded-none p-8 md:p-10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-accent-info/5 to-transparent rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
+          <div className="flex items-start justify-between mb-6 relative z-10">
+            <h2 className="text-2xl font-bold font-display text-white flex items-center gap-3">
+              <span className="w-8 h-8 rounded-full bg-accent-info/20 flex items-center justify-center text-accent-info">
+                <span className="material-symbols-outlined text-[18px]">psychiatry</span>
+              </span>
+              Team Dynamics Report
+            </h2>
+            <span className="text-xs font-mono text-accent-info animate-pulse">Streaming...</span>
+          </div>
+          <div className="relative z-10 text-sm text-gray-300 leading-relaxed">
+            {streamingText}
+            <span className="inline-block animate-pulse text-primary ml-0.5">|</span>
+          </div>
         </div>
       )}
 

@@ -11,6 +11,20 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const REPORTS_STORAGE_KEY = "gitsyntropy.reports";
 
+const DIMENSION_LABELS: Record<string, string> = {
+  varna_alignment: "Innovation Drive",
+  vashya_influence: "Leadership Orientation",
+  tara_resilience: "Team Resilience",
+  yoni_workstyle: "Work Style",
+  graha_maitri_cognition: "Decision Style",
+  gana_temperament: "Risk Tolerance",
+  bhakoot_strategy: "Stress Response",
+  nadi_chronotype_sync: "Chronotype Sync",
+};
+function getDimensionLabel(key: string) {
+  return DIMENSION_LABELS[key] ?? key.replace(/_/g, " ");
+}
+
 export type ReportEntry = {
   id: string;
   teamId: string;
@@ -69,6 +83,7 @@ function DashboardInner() {
   const [orchProgress, setOrchProgress] = useState(0);
   const [orchError, setOrchError] = useState(false);
   const orchCompatRef = useRef<CompatibilityResponse | null>(null);
+  const [streamingText, setStreamingText] = useState("");
 
   // GitHub sync — default to the logged-in user's real handle
   const [githubHandle, setGithubHandle] = useState(session?.githubHandle ?? "");
@@ -148,6 +163,7 @@ function DashboardInner() {
     setOrchError(false);
     setOrchStep(null);
     setOrchProgress(0);
+    setStreamingText("");
     orchCompatRef.current = null;
 
     const teamId = selectedTeamId || teams[0]?.id;
@@ -167,7 +183,12 @@ function DashboardInner() {
       const ws = new WebSocket(wsUrlForRun(run.run_id));
 
       ws.onmessage = (evt) => {
-        const event = JSON.parse(evt.data as string) as OrchestratorStreamEvent;
+        const raw = JSON.parse(evt.data as string) as OrchestratorStreamEvent & { type?: string; token?: string };
+        if (raw.type === "synthesis_token") {
+          setStreamingText((prev) => prev + (raw.token ?? ""));
+          return;
+        }
+        const event = raw;
         setOrchStep(event.step);
         setOrchProgress(event.progress_pct);
 
@@ -200,6 +221,7 @@ function DashboardInner() {
           const resilience = Math.round((score / 36) * 100);
           const activeTeamForReport = teams.find((t) => t.id === (selectedTeamId || teams[0]?.id));
           const newResult = { score, summary: synth.narrative };
+          setStreamingText("");
           setAnalysisResult(newResult);
           const entry: ReportEntry = {
             id: `${Date.now()}`,
@@ -221,10 +243,12 @@ function DashboardInner() {
 
       ws.onerror = () => {
         setOrchError(true);
+        setStreamingText("");
         setAnalysisLoading(false);
       };
 
       ws.onclose = () => {
+        setStreamingText("");
         setAnalysisLoading(false);
       };
     } catch {
@@ -454,9 +478,11 @@ function DashboardInner() {
 
             <div className="mt-6">
               <p className="text-sm text-gray-400 max-w-sm line-clamp-3">
-                {analysisResult
-                  ? analysisResult.summary.replace(/#{1,6}\s[^\n]*/g, "").replace(/\*\*/g, "").replace(/^- /gm, "").replace(/\n+/g, " ")
-                  : "Click 'Run Analysis' to start the multi-agent pipeline."}
+                {streamingText && analysisLoading
+                  ? <>{streamingText}<span className="inline-block animate-pulse text-primary ml-0.5">|</span></>
+                  : analysisResult
+                    ? analysisResult.summary.replace(/#{1,6}\s[^\n]*/g, "").replace(/\*\*/g, "").replace(/^- /gm, "").replace(/\n+/g, " ")
+                    : "Click 'Run Analysis' to start the multi-agent pipeline."}
               </p>
               {analysisResult && (
                 <a
@@ -528,7 +554,14 @@ function DashboardInner() {
               <div className="flex justify-between items-end mb-4">
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wider font-display">Handle</p>
-                  <p className="font-bold text-white">{syncResult.github_handle}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-white">{syncResult.github_handle}</p>
+                    {syncResult.is_mock && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold whitespace-nowrap">
+                        ⚠ Estimated
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-400 uppercase tracking-wider font-display">Status</p>
@@ -681,12 +714,12 @@ function DashboardInner() {
               <div className="flex gap-2">
                 {compatResult.strong_dimensions.slice(0, 2).map((d) => (
                   <span key={d} className="text-[10px] px-2 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20 font-mono">
-                    ↑ {d.replace(/_/g, " ")}
+                    ↑ {getDimensionLabel(d)}
                   </span>
                 ))}
                 {compatResult.weak_dimensions.slice(0, 2).map((d) => (
                   <span key={d} className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-mono">
-                    ↓ {d.replace(/_/g, " ")}
+                    ↓ {getDimensionLabel(d)}
                   </span>
                 ))}
               </div>

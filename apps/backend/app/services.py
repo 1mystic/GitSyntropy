@@ -1,4 +1,7 @@
 from datetime import UTC, datetime, timedelta
+import hashlib
+import json
+import math
 import random
 from functools import lru_cache
 from typing import Any, AsyncIterator, TypedDict
@@ -12,9 +15,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import func as sa_func
 
+from .calibration import CalibrationModel
 from .config import settings
+from .crypto import decrypt_token, encrypt_token
 from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember, TeamScore, UserProfile
 from .schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
+
+
+@lru_cache(maxsize=1)
+def _get_calibration_model() -> CalibrationModel:
+    return CalibrationModel.from_synthetic_data()
 
 # Lazy imports to avoid startup errors when optional packages aren't configured
 def _get_github_client(access_token: str):
@@ -177,6 +187,7 @@ async def upsert_user_profile(
     result = await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
     profile = result.scalar_one_or_none()
     now = datetime.now(tz=UTC)
+    encrypted = encrypt_token(github_access_token, settings.jwt_secret)
     if profile is None:
         profile = UserProfile(
             user_id=user_id,
@@ -184,7 +195,7 @@ async def upsert_user_profile(
             github_name=github_name,
             github_email=github_email,
             github_avatar_url=github_avatar_url,
-            github_access_token=github_access_token,
+            github_access_token=encrypted,
             last_seen_at=now,
         )
         db.add(profile)
@@ -197,8 +208,8 @@ async def upsert_user_profile(
             profile.github_email = github_email
         if github_avatar_url is not None:
             profile.github_avatar_url = github_avatar_url
-        if github_access_token is not None:
-            profile.github_access_token = github_access_token
+        if encrypted is not None:
+            profile.github_access_token = encrypted
         profile.last_seen_at = now
     await db.commit()
     await db.refresh(profile)
@@ -348,7 +359,7 @@ def _compute_sync_status(started_at: datetime) -> str:
     return "complete"
 
 
-def _profile_to_sync_dict(profile: GithubProfile) -> dict[str, Any]:
+def _profile_to_sync_dict(profile: GithubProfile, is_mock: bool = False) -> dict[str, Any]:
     now = datetime.now(tz=UTC)
     status = _compute_sync_status(profile.started_at)
     completed_at = profile.completed_at
@@ -367,6 +378,7 @@ def _profile_to_sync_dict(profile: GithubProfile) -> dict[str, Any]:
         "started_at": profile.started_at,
         "updated_at": now,
         "completed_at": completed_at,
+        "is_mock": is_mock,
     }
 
 
@@ -374,6 +386,7 @@ async def trigger_github_sync(github_handle: str, user_id: str, db: AsyncSession
     sync_id = str(uuid4())
 
     # Use real GitHub API if a token is available
+    used_mock = False
     if access_token or settings.github_access_token:
         token = access_token or settings.github_access_token
         try:
@@ -396,13 +409,15 @@ async def trigger_github_sync(github_handle: str, user_id: str, db: AsyncSession
             )
         except Exception:  # noqa: BLE001 — fall back to mock on any API failure
             profile = _mock_github_profile(sync_id, user_id, github_handle)
+            used_mock = True
     else:
         profile = _mock_github_profile(sync_id, user_id, github_handle)
+        used_mock = True
 
     db.add(profile)
     await db.commit()
     await db.refresh(profile)
-    return _profile_to_sync_dict(profile)
+    return _profile_to_sync_dict(profile, is_mock=used_mock)
 
 
 def _mock_github_profile(sync_id: str, user_id: str, github_handle: str) -> GithubProfile:
@@ -430,7 +445,7 @@ async def get_github_sync(sync_id: str, db: AsyncSession) -> dict[str, Any] | No
     profile = result.scalar_one_or_none()
     if profile is None:
         return None
-    return _profile_to_sync_dict(profile)
+    return _profile_to_sync_dict(profile, is_mock=profile.raw_data is None)
 
 
 # ---------------------------------------------------------------------------
@@ -615,7 +630,17 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
     else:
         level, label = "poor", "high_friction"
 
-    confidence = round(observed_signal_count / total_signal_count, 2)
+    signal_coverage = observed_signal_count / total_signal_count
+    score_vector = [
+        dim_scores[d] / ASHTAKOOT_WEIGHTS[d] for d in ASHTAKOOT_DIMENSIONS
+    ]
+    try:
+        import numpy as np
+        confidence = round(_get_calibration_model().predict_confidence(
+            np.array(score_vector, dtype=float), signal_coverage
+        ), 2)
+    except Exception:  # noqa: BLE001
+        confidence = round(signal_coverage, 2)
     if confidence < 0.75:
         risk_flags.append("Low confidence: one or more dimensions have sparse data.")
 
@@ -638,61 +663,97 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
 
 
 # ---------------------------------------------------------------------------
-# CAT — Computerized Adaptive Testing (branching question selection)
+# CAT — Computerized Adaptive Testing (IRT 3-Parameter Logistic model)
 # ---------------------------------------------------------------------------
 
-# Question order by dimension index: q1=varna(1pt) … q8=nadi(8pt)
-_QUESTION_WEIGHTS: dict[str, float] = {
-    f"q{idx + 1}": weight
-    for idx, weight in enumerate(ASHTAKOOT_WEIGHTS.values())
-}  # q1→1.0, q2→2.0, … q8→8.0
+# a=discrimination, b=difficulty, c=pseudo-guessing
+_IRT_PARAMS: dict[str, dict[str, float]] = {
+    "q1": {"a": 0.65, "b": -2.0, "c": 0.01},
+    "q2": {"a": 0.80, "b": -1.4, "c": 0.01},
+    "q3": {"a": 0.95, "b": -0.8, "c": 0.01},
+    "q4": {"a": 1.10, "b": -0.2, "c": 0.01},
+    "q5": {"a": 1.25, "b":  0.5, "c": 0.01},
+    "q6": {"a": 1.45, "b":  1.0, "c": 0.01},
+    "q7": {"a": 1.70, "b":  1.6, "c": 0.01},
+    "q8": {"a": 2.00, "b":  2.2, "c": 0.01},
+}
+
+_THETA_GRID: list[float] = [x / 10 for x in range(-40, 41)]
+_PRIOR_SD = 1.0
+_STOP_SE = 0.35
+
+
+def _irt_3pl(theta: float, a: float, b: float, c: float) -> float:
+    return c + (1.0 - c) / (1.0 + math.exp(-a * (theta - b)))
+
+
+def _eap_theta(current_answers: dict[str, int]) -> tuple[float, float]:
+    """Expected A Posteriori theta estimate and standard error."""
+    posterior = []
+    for theta in _THETA_GRID:
+        likelihood = 1.0
+        for qid, answer in current_answers.items():
+            p_params = _IRT_PARAMS[qid]
+            p = _irt_3pl(theta, p_params["a"], p_params["b"], p_params["c"])
+            p = min(max(p, 1e-9), 1 - 1e-9)
+            r = (answer - 1) / 4.0  # Likert 1-5 → [0, 1]
+            likelihood *= (p ** r) * ((1 - p) ** (1 - r))
+        prior = (1.0 / (_PRIOR_SD * math.sqrt(2 * math.pi))) * math.exp(-0.5 * (theta / _PRIOR_SD) ** 2)
+        posterior.append(likelihood * prior)
+    total = sum(posterior)
+    if total == 0:
+        return 0.0, float("inf")
+    posterior = [v / total for v in posterior]
+    theta_hat = sum(t * p for t, p in zip(_THETA_GRID, posterior))
+    variance = sum(((t - theta_hat) ** 2) * p for t, p in zip(_THETA_GRID, posterior))
+    return theta_hat, math.sqrt(max(variance, 1e-9))
+
+
+def _fisher_info(theta: float, a: float, b: float, c: float) -> float:
+    p = _irt_3pl(theta, a, b, c)
+    p = min(max(p, 1e-9), 1 - 1e-9)
+    return (a ** 2) * ((p - c) ** 2) / (((1 - c) ** 2) * p * (1 - p))
 
 
 def cat_select_next_question(current_answers: dict[str, int]) -> str | None:
-    """Return the next question ID for a CAT session, or None when complete.
-
-    Strategy:
-    - Always start with the highest-weight question (q8 = nadi_chronotype_sync).
-    - Pick the next highest-weight unanswered question.
-    - Early-stop: if answered questions cover ≥70 % of total weight AND no
-      high-weight (≥4 pts) questions remain, the profile is complete enough.
-    """
-    remaining = {q: w for q, w in _QUESTION_WEIGHTS.items() if q not in current_answers}
-    if not remaining:
+    """Select next question via maximum Fisher Information; returns None when SE < threshold."""
+    unanswered = [qid for qid in _IRT_PARAMS if qid not in current_answers]
+    if not unanswered:
         return None
+    theta, se = _eap_theta(current_answers)
+    if se < _STOP_SE:
+        return None
+    return max(unanswered, key=lambda qid: _fisher_info(theta, **_IRT_PARAMS[qid]))
 
-    # Early-stop check once we have at least half the questions answered
-    if len(current_answers) >= 4:
-        answered_weight = sum(_QUESTION_WEIGHTS[q] for q in current_answers)
-        total_weight = sum(_QUESTION_WEIGHTS.values())  # 36
-        high_weight_left = {q for q, w in remaining.items() if w >= 4.0}
-        if not high_weight_left and answered_weight / total_weight >= 0.70:
-            return None  # Signal: profile is confident enough to stop early
 
-    # Pick highest-weight unanswered question
-    return max(remaining, key=lambda q: remaining[q])
+def cat_estimated_theta(current_answers: dict[str, int]) -> dict[str, Any]:
+    """EAP theta estimate with SE and human-readable rationale."""
+    theta, se = _eap_theta(current_answers)
+    answered = len(current_answers)
+    remaining = len(_IRT_PARAMS) - answered
+    return {
+        "theta": round(theta, 4),
+        "se": round(se, 4),
+        "rationale": (
+            f"EAP theta estimated from {answered} item(s). "
+            f"theta={theta:.3f}, SE={se:.3f}, {remaining} item(s) remaining."
+        ),
+    }
 
 
 def cat_rationale(next_qid: str | None, current_answers: dict[str, int]) -> str:
-    """Human-readable explanation for why the next question was chosen."""
+    """Backward-compat wrapper returning the rationale string from EAP estimation."""
+    data = cat_estimated_theta(current_answers)
     if next_qid is None:
-        return "Assessment complete — sufficient confidence for scoring."
-    weight = _QUESTION_WEIGHTS.get(next_qid, 1.0)
-    answered_count = len(current_answers)
-    if answered_count == 0:
-        return f"{next_qid} opens with the highest-signal dimension ({weight:.0f} pts)."
-    return (
-        f"After {answered_count} answer(s), {next_qid} ({weight:.0f} pts) maximises "
-        "remaining information gain."
-    )
+        return f"Assessment complete — theta={data['theta']:.3f}, SE={data['se']:.3f}."
+    return data["rationale"]
 
 
 def cat_estimated_remaining(next_qid: str | None, current_answers: dict[str, int]) -> int:
-    """How many more questions are expected before early-stop or completion."""
+    """Backward-compat wrapper returning the expected remaining question count."""
     if next_qid is None:
         return 0
-    unanswered = [q for q in _QUESTION_WEIGHTS if q not in current_answers]
-    return len(unanswered)
+    return len(_IRT_PARAMS) - len(current_answers)
 
 
 # ---------------------------------------------------------------------------
@@ -711,7 +772,9 @@ def monte_carlo_candidate_simulation(
     2. Compute pairwise compatibility with each team member.
     3. Track score improvement vs current team-internal mean.
     """
-    rng = random.Random(42)  # deterministic seed for reproducibility
+    team_key = json.dumps(team_scores, sort_keys=True)
+    seed = int(hashlib.md5(team_key.encode()).hexdigest(), 16) % (2 ** 32)
+    rng = random.Random(seed)
 
     if not team_scores:
         team_scores = [{dim: round(w * 0.5, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
@@ -803,7 +866,7 @@ async def _load_member_profiles(team_id: str, db: AsyncSession) -> list[dict[str
             "user_id": uid,
             "github_handle": member.github_handle or (up.github_handle if up else None),
             "role": member.role,
-            "access_token": up.github_access_token if up else None,
+            "access_token": decrypt_token(up.github_access_token, settings.jwt_secret) if up else None,
             "github_data": {
                 "chronotype": gp.chronotype,
                 "activity_rhythm_score": gp.activity_rhythm_score,

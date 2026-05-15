@@ -100,6 +100,7 @@ class GithubSyncResponse(BaseModel):
     started_at: datetime
     updated_at: datetime
     completed_at: datetime | None = None
+    is_mock: bool = False
 
 
 class AssessmentQuestion(BaseModel):

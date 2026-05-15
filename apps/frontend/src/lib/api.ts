@@ -82,6 +82,7 @@ export type GithubSyncResponse = {
   started_at: string;
   updated_at: string;
   completed_at: string | null;
+  is_mock?: boolean;
 };
 export type AssessmentQuestion = {
   id: string;

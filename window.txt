@@ -28,4 +28,4 @@ Window 1: Reviews the diff, confirms, moves to next task
 Keep each window's session to one phase or 2–3 tasks max before closing and opening a fresh one. Fresh windows + CONTEXT.md is cheaper than a bloated context.
 
 
-
+.
