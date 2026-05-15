@@ -114,13 +114,13 @@ const methodColor: Record<string, string> = {
               color: "text-accent-teal",
               inputs: "user_id, member_profiles",
               outputs: "assessment_profile (8 dimension scores, completeness flag)",
-              fallback: "Uses neutral midpoint scores (all 3s) for unscored members.",
+              fallback: "Preserves missingness for unscored members and propagates low-confidence uncertainty.",
             },
             {
               node: "compatibility_engine",
               color: "text-purple-400",
               inputs: "assessment_profile, member_profiles, github_signals",
-              outputs: "compatibility (total_score_36, weak/strong dimensions, risk_flags, confidence)",
+              outputs: "compatibility (total_score_36, weak/strong dimensions, risk_flags, confidence, uncertainty_band)",
               fallback: "Single-user vs reference profile when fewer than 2 scored members.",
             },
             {

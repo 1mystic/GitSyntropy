@@ -100,7 +100,7 @@ export function CompatibilityClient() {
             Pairwise Score Breakdown
           </h1>
           <p className="text-gray-400 max-w-xl">
-            Weighted Ashtakoot score across 8 dimensions with weak-signal flags.
+            OSS collaboration risk signal across 8 behavioral dimensions, with explicit uncertainty handling.
           </p>
         </div>
       </motion.div>
@@ -174,7 +174,7 @@ export function CompatibilityClient() {
         </div>
         {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
         <p className="text-xs text-gray-600 mt-4">
-          Enter user IDs or GitHub handles of any two team members. Use "Full Data" for real assessment scores, or "Incomplete (Mock)" to test with simulated data.
+          Research-use signal only. Not for hiring decisions. Use "Full Data" when both members have complete profiles to reduce uncertainty.
         </p>
       </motion.div>
 
@@ -229,6 +229,9 @@ export function CompatibilityClient() {
             
             <div className={`mt-8 px-6 py-2 rounded-full border text-sm font-bold uppercase tracking-widest ${scoreTone}`}>
               {data.label}
+            </div>
+            <div className="mt-3 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[11px] font-mono uppercase tracking-wider text-gray-300">
+              uncertainty: {data.uncertainty_band} · confidence: {Math.round(data.confidence * 100)}%
             </div>
             
             {data.risk_flags && data.risk_flags.length > 0 && (

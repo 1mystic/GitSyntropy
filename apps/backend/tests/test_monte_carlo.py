@@ -1,6 +1,5 @@
 """Tests for Feature 8: Monte Carlo candidate simulation (1 000 iterations)."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -31,8 +30,10 @@ def test_simulation_returns_required_keys() -> None:
     result = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=200)
     required = {
         "n_iterations", "optimal_profile", "mean_improvement",
-        "best_improvement", "p25_improvement", "p75_improvement",
-        "weak_dimensions_targeted", "confidence", "status",
+        "best_improvement", "std_improvement", "p05_improvement",
+        "p25_improvement", "p75_improvement", "p95_improvement",
+        "weak_dimensions_targeted", "confidence", "random_seed",
+        "sensitivity_spread", "status",
     }
     assert required <= result.keys()
 
@@ -54,9 +55,9 @@ def test_simulation_optimal_scores_in_valid_range() -> None:
         assert 0 <= score <= max_w, f"{dim} score {score} out of range 0–{max_w}"
 
 
-def test_simulation_confidence_is_one_at_1000() -> None:
+def test_simulation_confidence_is_bounded_at_1000() -> None:
     result = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=1000)
-    assert result["confidence"] == 1.0
+    assert 0.35 <= result["confidence"] <= 0.99
 
 
 def test_simulation_targets_weak_dimensions() -> None:
@@ -80,9 +81,9 @@ def test_simulation_percentile_ordering() -> None:
 
 
 def test_simulation_deterministic() -> None:
-    """Same inputs → same optimal profile (seed=42)."""
-    r1 = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=300)
-    r2 = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=300)
+    """Same inputs + same random_seed => same optimal profile."""
+    r1 = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=300, random_seed=42)
+    r2 = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=300, random_seed=42)
     assert r1["optimal_profile"] == r2["optimal_profile"]
 
 
@@ -99,7 +100,7 @@ def test_simulate_endpoint_default_iterations() -> None:
     assert resp.status_code == 200
     payload = resp.json()
     assert payload["n_iterations"] == 1000
-    assert payload["confidence"] == 1.0
+    assert payload["confidence"] <= 0.99
     assert payload["status"] == "complete"
     assert set(payload["optimal_profile"].keys()) == set(ASHTAKOOT_DIMENSIONS)
 

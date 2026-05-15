@@ -157,12 +157,15 @@ class CompatibilityResponse(BaseModel):
     member_b: str
     total_score_36: float
     score_pct_100: float
-    level: Literal["excellent", "good", "fair", "poor"]
+    level: Literal["excellent", "good", "fair", "poor", "insufficient"]
     label: str
     weak_dimensions: list[str]
     strong_dimensions: list[str]
     risk_flags: list[str]
     confidence: float
+    confidence_label: Literal["high", "medium", "low"]
+    insufficient_confidence: bool
+    uncertainty_band: Literal["low", "moderate", "high"]
     data_gaps: list[str]
     dimension_scores: dict[str, float]
     dimension_breakdown: list[CompatibilityDimensionBreakdown]
@@ -252,17 +255,24 @@ class CandidateSimulateRequest(BaseModel):
         description="List of dimension-score dicts for each existing team member.",
     )
     n_iterations: int = Field(default=1000, ge=100, le=5000)
+    random_seed: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    bootstrap_runs: int = Field(default=5, ge=1, le=25)
 
 
 class CandidateSimulateResponse(BaseModel):
     n_iterations: int
     optimal_profile: dict[str, float]
     mean_improvement: float
+    std_improvement: float
     best_improvement: float
+    p05_improvement: float
     p25_improvement: float
     p75_improvement: float
+    p95_improvement: float
     weak_dimensions_targeted: list[str]
     confidence: float
+    random_seed: int
+    sensitivity_spread: float
     status: str
 
 

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,6 +66,7 @@ from .services import (
     create_agent_run,
     create_jwt,
     create_oauth_state,
+    consume_oauth_state,
     create_team,
     update_team,
     decode_jwt,
@@ -80,9 +81,10 @@ from .services import (
     get_real_scores_for_user,
     is_superadmin,
     list_teams_for_user,
-    mock_compatibility_scores,
     monte_carlo_candidate_simulation,
+    orchestrator_step_contracts,
     remove_team_member,
+    register_oauth_state,
     save_team_score,
     start_orchestrator_steps,
     stream_orchestrator_updates,
@@ -123,6 +125,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; connect-src 'self' https: ws: wss:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline';"
+    return response
 
 
 @app.exception_handler(Exception)
@@ -185,6 +197,7 @@ async def mock_analysis(payload: AnalysisRequest) -> AnalysisResponse:
 @limiter.limit("30/minute")
 async def auth_github_start(request: Request) -> GithubAuthStartResponse:
     state = create_oauth_state()
+    register_oauth_state(state)
     return {
         "provider": "github",
         "authorization_url": build_github_authorization_url(state),
@@ -197,6 +210,8 @@ async def auth_github_start(request: Request) -> GithubAuthStartResponse:
 @app.post(f"{settings.api_prefix}/auth/github/callback", response_model=AuthTokenResponse)
 @limiter.limit("20/minute")
 async def auth_github_callback(request: Request, payload: GithubAuthCallbackRequest, db: AsyncSession = Depends(get_db)) -> AuthTokenResponse:
+    if not consume_oauth_state(payload.state):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired OAuth state")
     try:
         identity = await exchange_github_code_for_identity(payload.code, db)
     except ValueError as exc:
@@ -415,6 +430,11 @@ async def orchestrator_run(request: Request, payload: OrchestratorRunRequest, db
     )
 
 
+@app.get(f"{settings.api_prefix}/orchestrator/contracts")
+async def orchestrator_contracts() -> dict[str, dict]:
+    return orchestrator_step_contracts()
+
+
 # ---------------------------------------------------------------------------
 # Teams
 # ---------------------------------------------------------------------------
@@ -501,6 +521,8 @@ async def simulate_candidates(request: Request, payload: CandidateSimulateReques
     result = monte_carlo_candidate_simulation(
         team_scores=payload.team_scores,
         n_iterations=payload.n_iterations,
+        random_seed=payload.random_seed,
+        bootstrap_runs=payload.bootstrap_runs,
     )
     return CandidateSimulateResponse(**result)
 

@@ -104,12 +104,15 @@ export type CompatibilityResponse = {
   member_b: string;
   total_score_36: number;
   score_pct_100: number;
-  level: "excellent" | "good" | "fair" | "poor";
+  level: "excellent" | "good" | "fair" | "poor" | "insufficient";
   label: string;
   weak_dimensions: string[];
   strong_dimensions: string[];
   risk_flags: string[];
   confidence: number;
+  confidence_label: "high" | "medium" | "low";
+  insufficient_confidence: boolean;
+  uncertainty_band: "low" | "moderate" | "high";
   data_gaps: string[];
   dimension_scores: Record<string, number>;
   dimension_breakdown: Array<{

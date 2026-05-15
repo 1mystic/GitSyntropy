@@ -9,9 +9,9 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
 ![Deploy](https://img.shields.io/badge/deploy-Railway%20%2B%20Vercel-black?style=flat-square)
 
-> ## **Predict how well developers will work together, before they do.**
+> ## **Estimate OSS collaboration risk from public behavioral signals.**
 
-GitSyntropy is a multi-agent system that scores team compatibility and simulates hiring impact using GitHub behavioral data and psychometric profiling. It surfaces concrete risks and recommendations, not just raw metrics and numbers.
+GitSyntropy is a multi-agent orchestration system for OSS team collaboration risk prediction using publicly available behavioral signals and psychometric profiling. It surfaces concrete risks, uncertainty bands, and evidence-linked recommendations.
 
 ---
 
@@ -48,8 +48,8 @@ GitSyntropy derives compatibility signals from what engineers actually do: commi
 **Team health check**
 Input GitHub usernames. Get a compatibility score, dimension-level breakdown, and flagged risks.
 
-**Hiring decision support**
-Simulate adding a candidate to the current team. See whether the score improves and which friction points get resolved.
+**Candidate fit simulation (research use)**
+Simulate adding a candidate profile to the current team. See how uncertainty-aware compatibility distributions change and which friction points may be reduced.
 
 **Async optimization**
 Detect chronotype gaps between team members. Recommend working models based on peak-hour overlap and collaboration index.
@@ -112,7 +112,7 @@ Compatibility Engine        -- variance-based weighted scoring across 8 dimensio
 Monte Carlo Simulator       -- candidate hire impact simulation (N iterations)
     |
     v
-Synthesis Agent (Claude)    -- narrative report: risks, recommendations, hiring gaps
+Synthesis Agent (Claude)    -- narrative report: risks, recommendations, uncertainty notes
     |
     v
 WebSocket stream -> Frontend (Astro + React)
@@ -248,4 +248,37 @@ Backend environment variables (set in Railway dashboard, not GitHub secrets):
 
 Core pipeline functional: GitHub sync, adaptive assessment, compatibility scoring, Monte Carlo simulation, Claude synthesis, WebSocket streaming.
 
-In progress: Hire simulation UI on the compatibility page.
+In progress: Candidate simulation UI polish on the compatibility page.
+## Scope and Responsible-Use Guardrail
+
+- This project is for **OSS collaboration research and workflow planning**, not hiring decisions.
+- Outputs are probabilistic and uncertainty-aware; low-confidence outcomes should be treated as inconclusive.
+- Public behavioral signals can be sparse and biased; always validate with direct human context.
+
+---
+
+## Public Data Policy
+
+GitSyntropy currently targets only legally reusable public sources (for model development and benchmarking):
+
+- GitHub public metadata (including GH Archive-style event streams)
+- Public issue/PR datasets and derived OSS collaboration datasets
+- Stack Overflow public data/API for complementary technical behavior signals
+
+See `docs/DATASET_REGISTRY.md` and `docs/ETHICS_POLICY.md` for source-level licenses, known biases, and consent constraints.
+
+---
+
+## Measurable Targets
+
+The near-production roadmap tracks:
+
+- Predictive validity
+- Calibration error
+- Robustness to missing/noisy signals
+- API/WebSocket latency
+- Reliability and failure recovery
+
+See `docs/PRODUCTION_TARGETS.md` for target thresholds and gates.
+
+---

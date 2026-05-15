@@ -1,5 +1,7 @@
 from datetime import UTC, datetime, timedelta
+import math
 import random
+import secrets
 from functools import lru_cache
 from typing import Any, AsyncIterator, TypedDict
 from urllib.parse import urlencode
@@ -7,14 +9,19 @@ from uuid import uuid4
 
 from jose import JWTError, jwt
 from langgraph.graph import END, START, StateGraph
+import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import func as sa_func
 
 from .config import settings
+from .memory import MemoryManager
 from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember, TeamScore, UserProfile
 from .schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
+
+_oauth_state_store: dict[str, datetime] = {}
+memory_manager = MemoryManager()
 
 # Lazy imports to avoid startup errors when optional packages aren't configured
 def _get_github_client(access_token: str):
@@ -61,6 +68,19 @@ def decode_jwt(token: str) -> dict[str, Any]:
 
 def create_oauth_state() -> str:
     return uuid4().hex
+
+
+def register_oauth_state(state: str) -> None:
+    _oauth_state_store[state] = datetime.now(tz=UTC)
+
+
+def consume_oauth_state(state: str | None, max_age_seconds: int = 600) -> bool:
+    if not state:
+        return False
+    created_at = _oauth_state_store.pop(state, None)
+    if created_at is None:
+        return False
+    return (datetime.now(tz=UTC) - created_at).total_seconds() <= max_age_seconds
 
 
 def build_github_authorization_url(state: str) -> str:
@@ -555,6 +575,26 @@ def mock_compatibility_scores(member_id: str, data_mode: str = "full") -> dict[s
     return scores
 
 
+DIMENSION_PRIOR_RATIOS: dict[str, float] = {
+    "varna_alignment": 0.52,
+    "vashya_influence": 0.48,
+    "tara_resilience": 0.55,
+    "yoni_workstyle": 0.51,
+    "graha_maitri_cognition": 0.50,
+    "gana_temperament": 0.46,
+    "bhakoot_strategy": 0.54,
+    "nadi_chronotype_sync": 0.49,
+}
+
+
+def _confidence_band(confidence: float) -> tuple[str, str]:
+    if confidence >= 0.8:
+        return "high", "low"
+    if confidence >= 0.6:
+        return "medium", "moderate"
+    return "low", "high"
+
+
 def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float | None]) -> dict:
     dim_scores: dict[str, float] = {}
     dim_breakdown: list[dict] = []
@@ -578,8 +618,27 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
         if raw_a is None or raw_b is None:
             data_gaps.add(dimension)
 
-        a = raw_a if raw_a is not None else max_dim * 0.5
-        b = raw_b if raw_b is not None else max_dim * 0.5
+        if raw_a is None and raw_b is None:
+            dim_score = 0.0
+            dim_scores[dimension] = dim_score
+            weak.append(dimension)
+            risk_flags.append(
+                f"Insufficient signal in {dimension.replace('_', ' ')}; cannot score reliably."
+            )
+            dim_breakdown.append(
+                {
+                    "dimension": dimension,
+                    "weight": max_dim,
+                    "score": dim_score,
+                    "pct_of_weight": 0.0,
+                    "status": "weak",
+                }
+            )
+            continue
+
+        prior = DIMENSION_PRIOR_RATIOS.get(dimension, 0.5)
+        a = raw_a if raw_a is not None else max_dim * prior
+        b = raw_b if raw_b is not None else max_dim * prior
         similarity = max(0.0, 1.0 - (abs(a - b) / max_dim))
         dim_score = round(similarity * max_dim, 2)
         dim_scores[dimension] = dim_score
@@ -616,8 +675,13 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
         level, label = "poor", "high_friction"
 
     confidence = round(observed_signal_count / total_signal_count, 2)
-    if confidence < 0.75:
+    confidence_label, uncertainty_band = _confidence_band(confidence)
+    insufficient_confidence = confidence < 0.6 or len(data_gaps) >= 4
+    if insufficient_confidence:
         risk_flags.append("Low confidence: one or more dimensions have sparse data.")
+
+    if insufficient_confidence:
+        level, label = "insufficient", "insufficient_data"
 
     if dim_scores["nadi_chronotype_sync"] < ASHTAKOOT_WEIGHTS["nadi_chronotype_sync"] * 0.45:
         risk_flags.append("Chronotype sync is weak; consider async-first collaboration rituals.")
@@ -631,6 +695,9 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
         "strong_dimensions": strong,
         "risk_flags": risk_flags,
         "confidence": confidence,
+        "confidence_label": confidence_label,
+        "insufficient_confidence": insufficient_confidence,
+        "uncertainty_band": uncertainty_band,
         "data_gaps": sorted(data_gaps),
         "dimension_scores": dim_scores,
         "dimension_breakdown": dim_breakdown,
@@ -641,49 +708,74 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
 # CAT — Computerized Adaptive Testing (branching question selection)
 # ---------------------------------------------------------------------------
 
-# Question order by dimension index: q1=varna(1pt) … q8=nadi(8pt)
+# IRT item setup by dimension index: q1=varna … q8=nadi
 _QUESTION_WEIGHTS: dict[str, float] = {
     f"q{idx + 1}": weight
     for idx, weight in enumerate(ASHTAKOOT_WEIGHTS.values())
-}  # q1→1.0, q2→2.0, … q8→8.0
+}
+_QUESTION_IRT_PARAMS: dict[str, tuple[float, float]] = {
+    qid: (1.0 + (weight / 8.0), (4.5 - weight) / 2.0)
+    for qid, weight in _QUESTION_WEIGHTS.items()
+}
+
+
+def _estimate_theta(current_answers: dict[str, int]) -> float:
+    if not current_answers:
+        return 0.0
+    transformed: list[float] = []
+    for qid, answer in current_answers.items():
+        a, b = _QUESTION_IRT_PARAMS.get(qid, (1.0, 0.0))
+        p = min(0.95, max(0.05, (answer - 1) / 4))
+        transformed.append((math.log(p / (1 - p)) / a) + b)
+    return float(sum(transformed) / max(1, len(transformed)))
+
+
+def _question_information(qid: str, theta: float) -> float:
+    a, b = _QUESTION_IRT_PARAMS[qid]
+    p = 1 / (1 + math.exp(-a * (theta - b)))
+    return a * a * p * (1 - p)
+
+
+def _test_information(current_answers: dict[str, int]) -> float:
+    theta = _estimate_theta(current_answers)
+    return sum(_question_information(qid, theta) for qid in current_answers if qid in _QUESTION_IRT_PARAMS)
 
 
 def cat_select_next_question(current_answers: dict[str, int]) -> str | None:
     """Return the next question ID for a CAT session, or None when complete.
 
     Strategy:
-    - Always start with the highest-weight question (q8 = nadi_chronotype_sync).
-    - Pick the next highest-weight unanswered question.
-    - Early-stop: if answered questions cover ≥70 % of total weight AND no
-      high-weight (≥4 pts) questions remain, the profile is complete enough.
+    - Cold start with q8 for strongest initial signal.
+    - Estimate latent trait (theta) from current responses.
+    - Select next unanswered question with highest Fisher information.
+    - Early-stop when accumulated test information passes threshold.
     """
     remaining = {q: w for q, w in _QUESTION_WEIGHTS.items() if q not in current_answers}
     if not remaining:
         return None
 
-    # Early-stop check once we have at least half the questions answered
-    if len(current_answers) >= 4:
-        answered_weight = sum(_QUESTION_WEIGHTS[q] for q in current_answers)
-        total_weight = sum(_QUESTION_WEIGHTS.values())  # 36
-        high_weight_left = {q for q, w in remaining.items() if w >= 4.0}
-        if not high_weight_left and answered_weight / total_weight >= 0.70:
-            return None  # Signal: profile is confident enough to stop early
+    if not current_answers:
+        return "q8"
 
-    # Pick highest-weight unanswered question
-    return max(remaining, key=lambda q: remaining[q])
+    if len(current_answers) >= 5 and _test_information(current_answers) >= 3.2:
+        return None
+
+    theta = _estimate_theta(current_answers)
+    return max(remaining, key=lambda qid: _question_information(qid, theta))
 
 
 def cat_rationale(next_qid: str | None, current_answers: dict[str, int]) -> str:
     """Human-readable explanation for why the next question was chosen."""
     if next_qid is None:
-        return "Assessment complete — sufficient confidence for scoring."
+        return "Assessment complete — IRT information threshold reached."
     weight = _QUESTION_WEIGHTS.get(next_qid, 1.0)
+    info = _question_information(next_qid, _estimate_theta(current_answers))
     answered_count = len(current_answers)
     if answered_count == 0:
         return f"{next_qid} opens with the highest-signal dimension ({weight:.0f} pts)."
     return (
         f"After {answered_count} answer(s), {next_qid} ({weight:.0f} pts) maximises "
-        "remaining information gain."
+        f"remaining information gain (I={info:.2f})."
     )
 
 
@@ -703,6 +795,8 @@ def cat_estimated_remaining(next_qid: str | None, current_answers: dict[str, int
 def monte_carlo_candidate_simulation(
     team_scores: list[dict[str, float]],
     n_iterations: int = 1000,
+    random_seed: int | None = None,
+    bootstrap_runs: int = 5,
 ) -> dict[str, Any]:
     """Simulate *n_iterations* random candidate profiles; return the optimal complement.
 
@@ -711,7 +805,7 @@ def monte_carlo_candidate_simulation(
     2. Compute pairwise compatibility with each team member.
     3. Track score improvement vs current team-internal mean.
     """
-    rng = random.Random(42)  # deterministic seed for reproducibility
+    seed = random_seed if random_seed is not None else secrets.randbelow(2_147_483_647)
 
     if not team_scores:
         team_scores = [{dim: round(w * 0.5, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
@@ -735,39 +829,58 @@ def monte_carlo_candidate_simulation(
     best_improvement = -float("inf")
     optimal_profile: dict[str, float] = {}
     improvements: list[float] = []
+    bootstrap_means: list[float] = []
 
-    for _ in range(n_iterations):
-        candidate: dict[str, float] = {}
-        for dim in ASHTAKOOT_DIMENSIONS:
-            max_w = ASHTAKOOT_WEIGHTS[dim]
-            lo, hi = (0.5, 1.0) if dim in weak_dims else (0.15, 0.95)
-            candidate[dim] = round(max_w * rng.uniform(lo, hi), 2)
+    for run_idx in range(bootstrap_runs):
+        run_rng = random.Random(seed + run_idx)
+        run_improvements: list[float] = []
+        for _ in range(n_iterations):
+            candidate: dict[str, float] = {}
+            for dim in ASHTAKOOT_DIMENSIONS:
+                max_w = ASHTAKOOT_WEIGHTS[dim]
+                lo, hi = (0.5, 1.0) if dim in weak_dims else (0.15, 0.95)
+                candidate[dim] = round(max_w * run_rng.uniform(lo, hi), 2)
 
-        candidate_compat_scores = [
-            compatibility(candidate, member)["total_score_36"] for member in team_scores
-        ]
-        mean_with_candidate = sum(candidate_compat_scores) / len(candidate_compat_scores)
-        improvement = mean_with_candidate - current_mean_compat
-        improvements.append(improvement)
+            candidate_compat_scores = [
+                compatibility(candidate, member)["total_score_36"] for member in team_scores
+            ]
+            mean_with_candidate = sum(candidate_compat_scores) / len(candidate_compat_scores)
+            improvement = mean_with_candidate - current_mean_compat
+            run_improvements.append(improvement)
+            improvements.append(improvement)
 
-        if improvement > best_improvement:
-            best_improvement = improvement
-            optimal_profile = candidate.copy()
+            if improvement > best_improvement:
+                best_improvement = improvement
+                optimal_profile = candidate.copy()
+
+        bootstrap_means.append(float(np.mean(run_improvements)))
 
     improvements_sorted = sorted(improvements)
-    p25 = improvements_sorted[n_iterations // 4]
-    p75 = improvements_sorted[(3 * n_iterations) // 4]
-    mean_improvement = sum(improvements) / n_iterations
+    total_samples = len(improvements_sorted)
+    p05 = improvements_sorted[int(total_samples * 0.05)]
+    p25 = improvements_sorted[int(total_samples * 0.25)]
+    p75 = improvements_sorted[int(total_samples * 0.75)]
+    p95 = improvements_sorted[int(total_samples * 0.95)]
+    mean_improvement = float(np.mean(improvements))
+    std_improvement = float(np.std(improvements))
+    sem = std_improvement / math.sqrt(max(1, total_samples))
+    confidence = max(0.35, min(0.99, 1.0 - min(0.65, sem / (abs(mean_improvement) + 1.0))))
+    sensitivity_spread = max(bootstrap_means) - min(bootstrap_means) if bootstrap_means else 0.0
 
     return {
         "n_iterations": n_iterations,
         "optimal_profile": optimal_profile,
         "mean_improvement": round(mean_improvement, 2),
+        "std_improvement": round(std_improvement, 3),
         "best_improvement": round(best_improvement, 2),
+        "p05_improvement": round(p05, 2),
         "p25_improvement": round(p25, 2),
         "p75_improvement": round(p75, 2),
+        "p95_improvement": round(p95, 2),
         "weak_dimensions_targeted": sorted(weak_dims),
-        "confidence": 1.0,  # always high at 1000 iterations
+        "confidence": round(confidence, 3),
+        "random_seed": seed,
+        "sensitivity_spread": round(sensitivity_spread, 3),
         "status": "complete",
     }
 
@@ -871,6 +984,41 @@ def start_orchestrator_steps(include_candidates: bool) -> list[str]:
     return steps
 
 
+def orchestrator_step_contracts() -> dict[str, dict[str, Any]]:
+    return {
+        "github_analyst": {
+            "role": "Data Retriever",
+            "allowed_tools": ["github_api", "cached_db_profile"],
+            "max_retries": 2,
+            "output_contract": ["github_handle", "chronotype", "collaboration_index"],
+        },
+        "psychometric_profiler": {
+            "role": "Model Runner",
+            "allowed_tools": ["assessment_store"],
+            "max_retries": 1,
+            "output_contract": ["scores", "complete", "submitted_at"],
+        },
+        "candidate_simulation": {
+            "role": "Risk Auditor",
+            "allowed_tools": ["simulation_engine"],
+            "max_retries": 1,
+            "output_contract": ["optimal_profile", "mean_improvement", "confidence"],
+        },
+        "compatibility_engine": {
+            "role": "Risk Auditor",
+            "allowed_tools": ["compatibility_engine"],
+            "max_retries": 1,
+            "output_contract": ["total_score_36", "risk_flags", "uncertainty_band"],
+        },
+        "synthesis": {
+            "role": "Report Writer",
+            "allowed_tools": ["claude_synthesis", "template_fallback"],
+            "max_retries": 1,
+            "output_contract": ["narrative", "recommendations", "uncertainty_note"],
+        },
+    }
+
+
 class OrchestratorState(TypedDict, total=False):
     team_id: str
     user_id: str
@@ -945,9 +1093,14 @@ async def _psychometric_profiler_node(state: OrchestratorState) -> dict[str, Any
             }
             return {"assessment_profile": profile}
 
-    # No real assessment yet — use neutral midpoint so pipeline still runs
-    answer_map = {f"q{idx + 1}": 3 for idx in range(len(ASHTAKOOT_DIMENSIONS))}
-    profile = build_assessment_profile(user_id=user_id, answers=answer_map, submitted_at=datetime.now(tz=UTC))
+    # No assessment found: preserve missingness so downstream uncertainty is explicit
+    profile = {
+        "user_id": user_id,
+        "scores": {dim: None for dim in ASHTAKOOT_DIMENSIONS},
+        "answers": {},
+        "complete": False,
+        "submitted_at": None,
+    }
     return {"assessment_profile": profile}
 
 
@@ -1114,6 +1267,7 @@ async def stream_orchestrator_updates(
     member_profiles = await _load_member_profiles(team_id, db)
 
     graph = _compiled_orchestrator_graph()
+    contracts = orchestrator_step_contracts()
     initial_state: OrchestratorState = {
         "team_id": team_id,
         "user_id": user_id,
@@ -1123,6 +1277,25 @@ async def stream_orchestrator_updates(
         "member_profiles": member_profiles,
     }
     async for update in graph.astream(initial_state, stream_mode="updates"):
+        step_name, step_payload = next(iter(update.items()))
+        contract = contracts.get(step_name, {})
+        if isinstance(step_payload, dict):
+            step_payload["agent_contract"] = contract
+        memory_manager.put(
+            tier="short",
+            key=team_id,
+            value={"run_id": str(uuid4()), "step": step_name, "payload": step_payload or {}},
+            provenance=f"orchestrator:{step_name}",
+            ttl_seconds=60 * 30,
+        )
+        if step_name == "synthesis":
+            memory_manager.put(
+                tier="session",
+                key=team_id,
+                value={"step": "synthesis", "narrative": str(step_payload.get("synthesis_text", ""))[:4000]},
+                provenance="orchestrator:synthesis",
+                ttl_seconds=60 * 60 * 24,
+            )
         yield update
 
 
@@ -1271,7 +1444,7 @@ def synthesis_from_compat(total_score: float, weak_dimensions: list[str]) -> dic
 
     strengths = "The team profile suggests stable collaboration patterns."
     uncertainty = (
-        f"Weak dimensions detected in {', '.join(weak_dimensions[:3])}; collect more behavioral data before final staffing decisions."
+        f"Weak dimensions detected in {', '.join(weak_dimensions[:3])}; collect more behavioral data before making high-impact team changes."
         if weak_dimensions
         else "No high-risk weak dimensions detected in this run."
     )

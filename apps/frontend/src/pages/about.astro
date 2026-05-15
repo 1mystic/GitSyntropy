@@ -22,7 +22,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
         Team alignment is a <span class="text-primary text-glow">science</span>, not a gut call.
       </h1>
       <p class="text-gray-400 text-lg max-w-2xl leading-relaxed">
-        GitSyntropy is a multi-agent AI system that combines GitHub behavioral telemetry with psychometric profiling to predict how well software developers will collaborate — before the first sprint begins.
+        GitSyntropy is a multi-agent orchestration system that combines public OSS behavioral telemetry with psychometric profiling to estimate collaboration risk and uncertainty before team changes.
       </p>
     </section>
 
@@ -34,7 +34,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       </p>
       <h2 class="text-2xl font-bold font-display mb-4">Our Approach</h2>
       <p class="text-gray-300 leading-relaxed">
-        We built a four-stage LangGraph pipeline: a GitHub Analyst agent extracts commit timing, PR velocity, and collaboration patterns; a Psychometric Profiler builds an 8-dimension behavioral model from an adaptive assessment; a Compatibility Engine scores pairwise and team-level alignment across those dimensions; and finally Claude Sonnet synthesizes everything into a structured, actionable report with concrete hiring recommendations and workflow adjustments.
+        We built a four-stage LangGraph pipeline: a GitHub Analyst agent extracts commit timing, PR velocity, and collaboration patterns; a Psychometric Profiler builds an 8-dimension behavioral model from an adaptive assessment; a Compatibility Engine scores pairwise and team-level alignment with explicit uncertainty handling; and finally Claude Sonnet synthesizes everything into a structured report with workflow recommendations.
       </p>
     </section>
 
@@ -73,7 +73,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
             color: "text-accent-neon",
             bg: "bg-accent-neon/10 border-accent-neon/20",
             title: "Claude Synthesis",
-            desc: "Claude Sonnet streams a narrative report covering team alignment summary, friction risks, recommended meeting windows, hiring gap analysis, and async workflow adjustments.",
+            desc: "Claude Sonnet streams a narrative report covering team alignment summary, friction risks, recommended meeting windows, and async workflow adjustments with confidence notes.",
           },
         ].map((item) => (
           <div class="glass-card rounded-none p-6 flex flex-col gap-4 border border-white/5">
