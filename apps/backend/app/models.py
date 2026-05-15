@@ -6,9 +6,17 @@ GitHub OAuth produces stable UUID-keyed users.
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+import os
+
+from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
+
+# Use JSONB on PostgreSQL (binary, indexable); fall back to JSON on SQLite (tests)
+_db_url = os.environ.get("GS_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+if "postgresql" in _db_url:
+    from sqlalchemy.dialects.postgresql import JSONB
+else:
+    JSONB = JSON  # type: ignore[assignment,misc]
 
 from .database import Base
 

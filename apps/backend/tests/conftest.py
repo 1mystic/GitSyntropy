@@ -13,6 +13,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
+from app.services import create_jwt
 
 # Single shared in-memory SQLite engine for the entire test session.
 # StaticPool + check_same_thread=False ensures the same in-memory DB is reused
@@ -49,3 +50,9 @@ def override_db_dependency():
     app.dependency_overrides[get_db] = _get_test_db
     yield
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="session")
+def auth_headers():
+    token, _ = create_jwt(user_id="test_user", github_handle="test_handle")
+    return {"Authorization": f"Bearer {token}"}

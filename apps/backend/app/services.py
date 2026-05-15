@@ -351,6 +351,8 @@ def _derive_chronotype(github_handle: str) -> str:
 
 
 def _compute_sync_status(started_at: datetime) -> str:
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=UTC)
     elapsed = (datetime.now(tz=UTC) - started_at).total_seconds()
     if elapsed < 0.75:
         return "queued"
@@ -641,7 +643,7 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
         ), 2)
     except Exception:  # noqa: BLE001
         confidence = round(signal_coverage, 2)
-    if confidence < 0.75:
+    if confidence < 0.75 or signal_coverage < 0.80:
         risk_flags.append("Low confidence: one or more dimensions have sparse data.")
 
     if dim_scores["nadi_chronotype_sync"] < ASHTAKOOT_WEIGHTS["nadi_chronotype_sync"] * 0.45:

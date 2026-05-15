@@ -22,8 +22,12 @@ def test_mock_analysis() -> None:
     assert "score" in payload
 
 
-def test_github_sync_lifecycle() -> None:
-    start = client.post("/api/v1/github/sync", json={"github_handle": "night-architect", "user_id": "user_1"})
+def test_github_sync_lifecycle(auth_headers) -> None:
+    start = client.post(
+        "/api/v1/github/sync",
+        json={"github_handle": "night-architect", "user_id": "user_1"},
+        headers=auth_headers,
+    )
     assert start.status_code == 200
     started_payload = start.json()
     assert started_payload["status"] in {"queued", "syncing"}
@@ -51,11 +55,11 @@ def test_assessment_questions_cover_required_dimensions() -> None:
     assert payload[-1]["id"] == "q8"
 
 
-def test_assessment_submit_and_profile_roundtrip() -> None:
+def test_assessment_submit_and_profile_roundtrip(auth_headers) -> None:
     submit = client.post(
         "/api/v1/assessment/responses",
         json={
-            "user_id": "user_iter4",
+            "user_id": "ignored_by_server",
             "answers": {
                 "q1": 1,
                 "q2": 2,
@@ -67,6 +71,7 @@ def test_assessment_submit_and_profile_roundtrip() -> None:
                 "q8": 5,
             },
         },
+        headers=auth_headers,
     )
     assert submit.status_code == 200
     submit_payload = submit.json()
@@ -77,29 +82,32 @@ def test_assessment_submit_and_profile_roundtrip() -> None:
     assert submit_payload["scores"]["nadi_chronotype_sync"] > 0
     assert submit_payload["submitted_at"] is not None
 
-    profile = client.get("/api/v1/assessment/responses/user_iter4")
+    # JWT sub is "test_user" — server ignores payload user_id
+    profile = client.get("/api/v1/assessment/responses/test_user")
     assert profile.status_code == 200
     profile_payload = profile.json()
-    assert profile_payload["user_id"] == "user_iter4"
+    assert profile_payload["user_id"] == "test_user"
     assert profile_payload["complete"] is True
     assert profile_payload["scores"] == submit_payload["scores"]
 
 
-def test_assessment_submit_requires_answer_range() -> None:
+def test_assessment_submit_requires_answer_range(auth_headers) -> None:
     response = client.post(
         "/api/v1/assessment/responses",
         json={
             "user_id": "user_iter4_invalid",
             "answers": {"q1": 0},
         },
+        headers=auth_headers,
     )
     assert response.status_code == 422
 
 
-def test_orchestrator_run_stores_candidate_step() -> None:
+def test_orchestrator_run_stores_candidate_step(auth_headers) -> None:
     response = client.post(
         "/api/v1/orchestrator/run",
         json={"team_id": "team_iter6", "user_id": "user_iter6", "include_candidates": True},
+        headers=auth_headers,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -114,10 +122,11 @@ def test_orchestrator_run_stores_candidate_step() -> None:
     assert payload["run_id"]
 
 
-def test_analysis_websocket_streams_orchestrator_events() -> None:
+def test_analysis_websocket_streams_orchestrator_events(auth_headers) -> None:
     run = client.post(
         "/api/v1/orchestrator/run",
         json={"team_id": "team_iter6_stream", "user_id": "user_stream", "include_candidates": True},
+        headers=auth_headers,
     )
     assert run.status_code == 200
     run_id = run.json()["run_id"]

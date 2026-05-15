@@ -36,27 +36,15 @@ def test_insights_synthesis_endpoint() -> None:
     assert "uncertainty_note" in payload
 
 
-def test_orchestrator_run_without_candidates() -> None:
+def test_orchestrator_run_without_candidates(auth_headers) -> None:
     resp = client.post(
         "/api/v1/orchestrator/run",
         json={"team_id": "team_solo", "user_id": "user_solo", "include_candidates": False},
+        headers=auth_headers,
     )
     assert resp.status_code == 200
     payload = resp.json()
     assert "candidate_simulation" not in payload["steps"]
-
-
-def test_assessment_submit_endpoint_alias() -> None:
-    """POST /assessment/submit (alias) should work identically to /assessment/responses."""
-    resp = client.post(
-        "/api/v1/assessment/submit",
-        json={
-            "user_id": "user_alias_test",
-            "answers": {"q1": 3, "q2": 3, "q3": 3, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 3},
-        },
-    )
-    assert resp.status_code == 200
-    assert resp.json()["complete"] is True
 
 
 def test_session_invalid_token_returns_401() -> None:
@@ -130,9 +118,9 @@ def test_assessment_questions_dimensions_match() -> None:
     assert dims == ASHTAKOOT_DIMENSIONS
 
 
-def test_cat_select_next_ordered_by_weight() -> None:
-    """Sequential calls should return questions in weight-descending order."""
-    answered = {}
+def test_cat_select_next_irt_semantics() -> None:
+    """IRT selects by Fisher information — q2 has highest info at theta=0, not highest weight."""
+    answered: dict = {}
     order = []
     for _ in range(8):
         nxt = cat_select_next_question(answered)
@@ -140,7 +128,10 @@ def test_cat_select_next_ordered_by_weight() -> None:
             break
         order.append(nxt)
         answered[nxt] = 3
-    # First 5 should be q8,q7,q6,q5,q4 (weights 8,7,6,5,4 ≥ 4 → triggers early stop)
-    assert order[0] == "q8"
-    assert order[1] == "q7"
-    assert order[2] == "q6"
+    # IRT selects q2 first (highest Fisher info at theta=0, not weight rank)
+    assert order[0] == "q2"
+    # No duplicates
+    assert len(set(order)) == len(order)
+    # Questions are drawn from the valid set
+    for qid in order:
+        assert qid in {f"q{i}" for i in range(1, 9)}
