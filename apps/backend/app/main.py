@@ -52,6 +52,7 @@ from .schemas import (
     TeamResponse,
     UserProfileResponse,
 )
+from .claude_client import stream_synthesis
 from .crypto import decrypt_token
 from .services import (
     AuthTokenError,
@@ -557,6 +558,8 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
 
     steps = start_orchestrator_steps(include_candidates)
     latest_compat: dict | None = None
+    latest_github_signals: dict | None = None
+    latest_assessment_profile: dict | None = None
     try:
         completed_count = 0
         await websocket.send_json(
@@ -582,23 +585,43 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
             completed_count += 1
             progress_pct = int((completed_count / len(steps)) * 100)
 
-            # Track compatibility result so we can persist it after synthesis
+            # Track intermediate pipeline state for synthesis streaming
+            if step_name == "github_analyst":
+                latest_github_signals = step_data.get("github_signals")
+            if step_name == "psychometric_profiler":
+                latest_assessment_profile = step_data.get("assessment_profile")
             if step_name == "compatibility_engine":
                 latest_compat = step_data.get("compatibility")
 
-            # Persist TeamScore to DB after synthesis completes
-            if step_name == "synthesis" and isinstance(step_data.get("synthesis_text"), str):
+            # Synthesis: stream tokens in real-time then patch step_data with the narrative
+            if step_name == "synthesis" and latest_compat:
+                narrative_parts: list[str] = []
+                try:
+                    async for token in stream_synthesis(
+                        compatibility=latest_compat,
+                        github_signals=latest_github_signals,
+                        assessment_profile=latest_assessment_profile,
+                    ):
+                        narrative_parts.append(token)
+                        await websocket.send_json({"type": "synthesis_token", "token": token})
+                except Exception:  # noqa: BLE001
+                    pass  # synthesis streaming failure is non-fatal; frontend shows what it got
+                narrative = "".join(narrative_parts)
+                if isinstance(step_data.get("synthesis"), dict):
+                    step_data["synthesis"]["narrative"] = narrative
+                step_data["synthesis_text"] = narrative
+                # Persist to DB
                 if latest_compat:
                     try:
                         await save_team_score(
                             team_id=team_id,
                             run_id=run_id,
                             compat=latest_compat,
-                            narrative=step_data.get("synthesis_text"),
+                            narrative=narrative,
                             db=db,
                         )
                     except Exception:  # noqa: BLE001
-                        pass  # don't let a save failure break the stream
+                        pass
 
             await websocket.send_json(
                 jsonable_encoder({

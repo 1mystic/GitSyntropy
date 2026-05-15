@@ -142,28 +142,27 @@ POST /api/v1/auth/github/callback
 POST /api/v1/auth/login           (dev fallback — not secure for prod)
 GET  /api/v1/auth/session
 GET  /api/v1/users/me             (requires Bearer token)
-GET  /api/v1/users/search         (NO AUTH — needs fix)
+GET  /api/v1/users/search         (requires Bearer token, 30/min rate limit)
 PATCH /api/v1/users/me/display-name
 GET  /api/v1/admin/stats          (superadmin only)
 GET  /api/v1/admin/users          (superadmin only)
-POST /api/v1/github/sync          (NO OWNERSHIP CHECK — needs fix)
+POST /api/v1/github/sync          (requires Bearer token, user_id from JWT)
 GET  /api/v1/github/sync/{id}
 GET  /api/v1/assessment/questions
 GET  /api/v1/assessment/responses/{user_id}
-POST /api/v1/assessment/responses
-POST /api/v1/assessment/submit    (duplicate of above — remove)
+POST /api/v1/assessment/responses (requires Bearer token, user_id from JWT)
 POST /api/v1/assessment/cat/next
 POST /api/v1/compatibility/run
-POST /api/v1/orchestrator/run
-POST /api/v1/teams                (NO AUTH — needs fix)
+POST /api/v1/orchestrator/run     (requires Bearer token, user_id from JWT)
+POST /api/v1/teams                (requires Bearer token, created_by from JWT)
 GET  /api/v1/teams
 GET  /api/v1/teams/{id}
-PATCH /api/v1/teams/{id}          (NO AUTH — needs fix)
-POST /api/v1/teams/{id}/members   (NO AUTH — needs fix)
-DELETE /api/v1/teams/{id}/members/{user_id} (NO AUTH — needs fix)
+PATCH /api/v1/teams/{id}          (requires Bearer token)
+POST /api/v1/teams/{id}/members   (requires Bearer token)
+DELETE /api/v1/teams/{id}/members/{user_id} (requires Bearer token)
 POST /api/v1/candidates/simulate
 GET  /api/v1/insights/synthesis
-WS   /ws/analysis/{run_id}
+WS   /ws/analysis/{run_id}        (streams synthesis_token events in real-time)
 ```
 
 ---
@@ -341,3 +340,27 @@ All nodes fall back gracefully: real data → DB cached data → deterministic m
 **Remaining plan items not started:** P1-4 (CI type-check), P2-2/2-3/2-6, P3-4, P4-1/4-2, P5-1 through P5-4, P6-1 through P6-4, P7-2/7-4/7-5.
 
 **Next session should start with:** P4-1/P4-2 (backend synthesis streaming — frontend is ready, backend never sends synthesis_token events) OR P7-2 (research preview disclaimer).
+
+### 2026-05-15 — Session 7: Streaming synthesis + remaining completions
+**Author:** Claude (claude-sonnet-4-6)
+**Changes made:**
+
+- **P4-1 + P4-2: Real token-by-token synthesis streaming (end-to-end)**
+  - `services.py` `_synthesis_node`: Removed `generate_synthesis()` (Anthropic API) call. Node now only calls `synthesis_from_compat()` to build non-narrative fields, returns `synthesis_text: ""`. This makes the LangGraph step fast.
+  - `main.py`: Added `from .claude_client import stream_synthesis`. WebSocket handler now tracks `latest_github_signals` (from github_analyst step) and `latest_assessment_profile` (from psychometric_profiler step). When `step_name == "synthesis"`, calls `stream_synthesis(compat, github_signals, assessment_profile)` and sends each yielded token as `{"type": "synthesis_token", "token": token}`. Collects full narrative, patches `step_data["synthesis"]["narrative"]` and `step_data["synthesis_text"]` before sending the synthesis completed event. DB persistence uses the streamed narrative.
+  - Result: Frontend `streamingText` state now actually populates. Synthesis appears character-by-character with blinking cursor. Final completed event contains the full narrative. P4-3 (frontend) was already built — now activates.
+
+- **P7-2: Research preview disclaimer**
+  - `CompatibilityClient.tsx`: Added `<p>` disclaimer below the score label — "Research preview — scores are probabilistic estimates derived from behavioral signals, not validated psychometric assessments." Styled in `text-[11px] text-gray-600 font-mono`, unobtrusive.
+
+- **P1-4: Frontend type-check in CI**
+  - `ci.yml`: Added `npm run check` step (runs `astro check`) before `npm run build`. Catches TypeScript and component type errors in CI. `@astrojs/check` was already in devDependencies.
+
+**Remaining open PLAN items (not started):**
+- P2-2 (collaboration index), P2-3 (rate limit backoff), P2-6 (data versioning)
+- P3-4 (model registry)
+- P5-1 through P5-4 (persistence/sharing)
+- P6-1 through P6-4 (observability: logging, Sentry, latency, CSP)
+- P7-4 (hire simulation UI), P7-5 (demo mode)
+
+**All originally-scoped P0 + most of P1-P4 high-priority items are now done. Project is in a deployable state.**

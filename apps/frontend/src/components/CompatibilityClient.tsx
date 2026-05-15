@@ -230,7 +230,11 @@ export function CompatibilityClient() {
             <div className={`mt-8 px-6 py-2 rounded-full border text-sm font-bold uppercase tracking-widest ${scoreTone}`}>
               {data.label}
             </div>
-            
+
+            <p className="mt-4 text-[11px] text-gray-600 font-mono text-center max-w-xs">
+              Research preview — scores are probabilistic estimates derived from behavioral signals, not validated psychometric assessments.
+            </p>
+
             {data.risk_flags && data.risk_flags.length > 0 && (
               <div className="mt-8 w-full p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-none text-left">
                 <p className="text-yellow-400 text-xs font-bold uppercase mb-2 flex items-center gap-1">

@@ -65,6 +65,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type check
+        run: npm run check
+        env:
+          PUBLIC_API_BASE: http://localhost:8000/api/v1
+          PUBLIC_WS_BASE: ws://localhost:8000
+          PUBLIC_AUTH_REQUIRED: "false"
+          PUBLIC_GUEST_TRIAL: "true"
+
       - name: Build
         run: npm run build
         env:

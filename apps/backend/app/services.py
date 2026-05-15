@@ -1100,19 +1100,14 @@ def _compatibility_engine_node(state: OrchestratorState) -> dict[str, Any]:
 
 
 async def _synthesis_node(state: OrchestratorState) -> dict[str, Any]:
-    from .claude_client import generate_synthesis
+    # Claude is called by the WebSocket handler via stream_synthesis() so tokens
+    # can be forwarded in real-time. This node only builds the non-narrative fields.
     compat = state["compatibility"]
-    narrative = await generate_synthesis(
-        compatibility=compat,
-        github_signals=state.get("github_signals"),
-        assessment_profile=state.get("assessment_profile"),
-    )
     synth_dict = synthesis_from_compat(
         total_score=compat["total_score_36"],
         weak_dimensions=compat["weak_dimensions"],
     )
-    synth_dict["narrative"] = narrative
-    return {"synthesis": synth_dict, "synthesis_text": narrative}
+    return {"synthesis": synth_dict, "synthesis_text": ""}
 
 
 def _route_after_psychometric(state: OrchestratorState) -> str:
