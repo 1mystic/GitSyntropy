@@ -274,7 +274,8 @@ async def get_me(authorization: str | None = Header(default=None), db: AsyncSess
 
 
 @app.get(f"{settings.api_prefix}/users/search", response_model=list[UserSearchResult])
-async def search_users_route(q: str = "", db: AsyncSession = Depends(get_db)) -> list[UserSearchResult]:
+@limiter.limit("30/minute")
+async def search_users_route(request: Request, q: str = "", claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> list[UserSearchResult]:
     if len(q) < 2:
         return []
     results = await search_users(q, db)
@@ -340,11 +341,11 @@ async def admin_users(claims: dict = Depends(_require_superadmin), db: AsyncSess
 
 @app.post(f"{settings.api_prefix}/github/sync", response_model=GithubSyncResponse)
 @limiter.limit("10/minute")
-async def github_sync(request: Request, payload: GithubSyncRequest, db: AsyncSession = Depends(get_db)) -> GithubSyncResponse:
-    # Use the OAuth token stored during login for real GitHub API calls
-    user_profile = await get_user_profile(payload.user_id, db)
+async def github_sync(request: Request, payload: GithubSyncRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> GithubSyncResponse:
+    user_id = str(claims["sub"])
+    user_profile = await get_user_profile(user_id, db)
     access_token = user_profile.github_access_token if user_profile else None
-    data = await trigger_github_sync(payload.github_handle, user_id=payload.user_id, db=db, access_token=access_token)
+    data = await trigger_github_sync(payload.github_handle, user_id=user_id, db=db, access_token=access_token)
     return GithubSyncResponse(**data)
 
 
@@ -372,14 +373,16 @@ async def get_assessment(user_id: str, db: AsyncSession = Depends(get_db)) -> As
 
 
 @app.post(f"{settings.api_prefix}/assessment/responses", response_model=AssessmentSubmitResponse)
-async def submit_assessment_response_api(payload: AssessmentSubmitRequest, db: AsyncSession = Depends(get_db)) -> AssessmentSubmitResponse:
-    profile = await submit_assessment_response(user_id=payload.user_id, answers=payload.answers, db=db)
+async def submit_assessment_response_api(payload: AssessmentSubmitRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> AssessmentSubmitResponse:
+    user_id = str(claims["sub"])
+    profile = await submit_assessment_response(user_id=user_id, answers=payload.answers, db=db)
     return AssessmentSubmitResponse(**profile)
 
 
 @app.post(f"{settings.api_prefix}/assessment/submit", response_model=AssessmentSubmitResponse)
-async def submit_assessment(payload: AssessmentSubmitRequest, db: AsyncSession = Depends(get_db)) -> AssessmentSubmitResponse:
-    profile = await submit_assessment_response(user_id=payload.user_id, answers=payload.answers, db=db)
+async def submit_assessment(payload: AssessmentSubmitRequest, claims: dict = Depends(_decode_token_claims), db: AsyncSession = Depends(get_db)) -> AssessmentSubmitResponse:
+    user_id = str(claims["sub"])
+    profile = await submit_assessment_response(user_id=user_id, answers=payload.answers, db=db)
     return AssessmentSubmitResponse(**profile)
 
 
@@ -531,7 +534,7 @@ async def synthesis(
                 data["narrative"] = ts.narrative_report
             return InsightResponse(**data)
     # No stored result yet — return template synthesis
-    data = synthesis_from_compat(total_score=28.7, weak_dimensions=["vashya_influence"])
+    data = synthesis_from_compat(total_score=28.7, weak_dimensions=["leadership_orientation"])
     return InsightResponse(**data)
 
 
@@ -588,18 +591,8 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
             if step_name == "compatibility_engine":
                 latest_compat = step_data.get("compatibility")
 
-            # Stream Claude synthesis tokens token-by-token as they arrive
+            # Persist TeamScore to DB after synthesis completes
             if step_name == "synthesis" and isinstance(step_data.get("synthesis_text"), str):
-                await websocket.send_json(jsonable_encoder({
-                    "run_id": run_id, "step": "synthesis",
-                    "status": "streaming", "progress_pct": progress_pct,
-                    "message": "Claude synthesis streaming",
-                    "timestamp": datetime.now(tz=UTC).isoformat(),
-                }))
-                for token in step_data.get("synthesis_text", ""):
-                    await websocket.send_json({"run_id": run_id, "type": "synthesis_token", "token": token})
-
-                # Persist TeamScore to DB after synthesis completes
                 if latest_compat:
                     try:
                         await save_team_score(

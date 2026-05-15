@@ -1,0 +1,31 @@
+Window Layout
+
+Window 1 (you're here) — Architect / Coordinator
+  Purpose: Planning, reviewing diffs, integrating outputs from external LLMs
+  Context load: LOW — stays alive for the whole project
+  Do: Review changes, answer questions, update CONTEXT.md
+
+Window 2 — Backend agent
+  Purpose: One backend phase at a time (P0 security → P1 tests → P2 pipeline)
+  Start each session with: "Read CONTEXT.md and PLAN.md, do task P0-1"
+  Context load: MEDIUM — close and reopen between phases
+
+Window 3 — Frontend agent
+  Purpose: Frontend fixes in parallel (InsightsClient streaming, report persistence, UX)
+  Start each session with: "Read CONTEXT.md, do task P4-3 (streaming tokens in UI)"
+  Context load: MEDIUM — independent of backend
+Why Not More?
+Each window starts cold and re-reads CONTEXT.md — that costs context budget upfront
+More than 3 means you spend more time coordinating than building
+Parallel work only helps when tasks are truly independent — backend security and frontend streaming are, but P0 security (auth) and P2 data pipeline are sequential
+Why Not 1?
+A single long session fills the context window with file reads, diffs, and output — eventually things get summarized and earlier decisions are forgotten
+Splitting by concern (backend vs frontend) keeps each window tightly focused
+The Protocol
+Window 1 (you): Tell Window 2 or 3 what task to do
+Window 2/3: Does the work, updates CONTEXT.md changelog at the end
+Window 1: Reviews the diff, confirms, moves to next task
+Keep each window's session to one phase or 2–3 tasks max before closing and opening a fresh one. Fresh windows + CONTEXT.md is cheaper than a bloated context.
+
+
+

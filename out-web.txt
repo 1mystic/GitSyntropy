@@ -1,0 +1,956 @@
+# p3 - 1 
+
+```python
+from __future__ import annotations
+
+import math
+from typing import Dict, Optional
+
+# ============================================================
+# Default 3PL IRT Parameters
+# ============================================================
+# a = discrimination
+# b = difficulty
+# c = pseudo-guessing (near 0 for Likert scale)
+#
+# Higher weight -> harder + more discriminating
+# q8 hardest and strongest discriminator
+# q1 easiest and weakest discriminator
+# ============================================================
+
+IRT_PARAMS = {
+    "q1": {"a": 0.65, "b": -2.0, "c": 0.01},  # Innovation Drive
+    "q2": {"a": 0.80, "b": -1.4, "c": 0.01},
+    "q3": {"a": 0.95, "b": -0.8, "c": 0.01},
+    "q4": {"a": 1.10, "b": -0.2, "c": 0.01},
+    "q5": {"a": 1.25, "b": 0.5, "c": 0.01},
+    "q6": {"a": 1.45, "b": 1.0, "c": 0.01},
+    "q7": {"a": 1.70, "b": 1.6, "c": 0.01},
+    "q8": {"a": 2.00, "b": 2.2, "c": 0.01},  # Chronotype Sync
+}
+
+THETA_GRID = [x / 10 for x in range(-40, 41)]  # -4.0 to +4.0
+PRIOR_SD = 1.0
+STOP_SE = 0.35
+
+
+# ============================================================
+# Utility Functions
+# ============================================================
+
+def sigmoid(x: float) -> float:
+    return 1.0 / (1.0 + math.exp(-x))
+
+
+def irt_3pl_probability(theta: float, a: float, b: float, c: float) -> float:
+    return c + (1.0 - c) * sigmoid(a * (theta - b))
+
+
+def normalize_likert_response(answer: int) -> float:
+    """
+    Maps Likert 1-5 to probability-like signal in [0,1].
+    """
+    if answer < 1 or answer > 5:
+        raise ValueError("Answers must be integers from 1 to 5.")
+    return (answer - 1) / 4.0
+
+
+def response_likelihood(
+    theta: float,
+    answer: int,
+    a: float,
+    b: float,
+    c: float,
+) -> float:
+    """
+    Treat normalized Likert response as soft correctness signal.
+    """
+    p = irt_3pl_probability(theta, a, b, c)
+    r = normalize_likert_response(answer)
+
+    p = min(max(p, 1e-9), 1 - 1e-9)
+
+    return (p ** r) * ((1 - p) ** (1 - r))
+
+
+def normal_prior(theta: float, mean: float = 0.0, sd: float = PRIOR_SD) -> float:
+    coef = 1.0 / (sd * math.sqrt(2 * math.pi))
+    exp_term = math.exp(-0.5 * ((theta - mean) / sd) ** 2)
+    return coef * exp_term
+
+
+# ============================================================
+# EAP Theta Estimation
+# ============================================================
+
+def eap_theta_estimation(current_answers: Dict[str, int]) -> tuple[float, float]:
+    """
+    Returns:
+        theta_hat, se_theta
+    """
+
+    posterior = []
+
+    for theta in THETA_GRID:
+        likelihood = 1.0
+
+        for qid, answer in current_answers.items():
+            params = IRT_PARAMS[qid]
+
+            likelihood *= response_likelihood(
+                theta=theta,
+                answer=answer,
+                a=params["a"],
+                b=params["b"],
+                c=params["c"],
+            )
+
+        posterior_value = likelihood * normal_prior(theta)
+        posterior.append(posterior_value)
+
+    total = sum(posterior)
+
+    if total == 0:
+        return 0.0, float("inf")
+
+    posterior = [p / total for p in posterior]
+
+    theta_hat = sum(t * p for t, p in zip(THETA_GRID, posterior))
+
+    variance = sum(
+        ((t - theta_hat) ** 2) * p
+        for t, p in zip(THETA_GRID, posterior)
+    )
+
+    se_theta = math.sqrt(max(variance, 1e-9))
+
+    return theta_hat, se_theta
+
+
+# ============================================================
+# Fisher Information
+# ============================================================
+
+def fisher_information(theta: float, a: float, b: float, c: float) -> float:
+    p = irt_3pl_probability(theta, a, b, c)
+
+    p = min(max(p, 1e-9), 1 - 1e-9)
+
+    numerator = (a ** 2) * ((p - c) ** 2)
+    denominator = ((1 - c) ** 2) * p * (1 - p)
+
+    return numerator / denominator
+
+
+# ============================================================
+# Public API
+# ============================================================
+
+def cat_estimated_theta(current_answers: Dict[str, int]) -> dict:
+    theta, se = eap_theta_estimation(current_answers)
+
+    answered = len(current_answers)
+    remaining = len(IRT_PARAMS) - answered
+
+    rationale = (
+        f"EAP theta estimated using {answered} answered items. "
+        f"Current theta={theta:.3f}, SE={se:.3f}, "
+        f"{remaining} items remaining."
+    )
+
+    return {
+        "theta": round(theta, 4),
+        "se": round(se, 4),
+        "rationale": rationale,
+    }
+
+
+def cat_select_next_question(
+    current_answers: Dict[str, int]
+) -> Optional[str]:
+    """
+    Select next question using maximum Fisher Information rule.
+    Stops when:
+    - SE(theta) < STOP_SE
+    - all questions answered
+    """
+
+    unanswered = [
+        qid for qid in IRT_PARAMS
+        if qid not in current_answers
+    ]
+
+    if not unanswered:
+        return None
+
+    theta, se = eap_theta_estimation(current_answers)
+
+    if se < STOP_SE:
+        return None
+
+    best_question = None
+    best_information = -1.0
+
+    for qid in unanswered:
+        params = IRT_PARAMS[qid]
+
+        info = fisher_information(
+            theta=theta,
+            a=params["a"],
+            b=params["b"],
+            c=params["c"],
+        )
+
+        if info > best_information:
+            best_information = info
+            best_question = qid
+
+    return best_question
+
+
+# ============================================================
+# Optional Full Response Helper
+# ============================================================
+
+def cat_step(current_answers: Dict[str, int]) -> dict:
+    theta_data = cat_estimated_theta(current_answers)
+
+    next_question = cat_select_next_question(current_answers)
+
+    return {
+        "next_question_id": next_question,
+        "estimated_theta": theta_data["theta"],
+        "se_theta": theta_data["se"],
+        "rationale": theta_data["rationale"],
+    }
+
+
+# ============================================================
+# Example
+# ============================================================
+
+if __name__ == "__main__":
+    answers = {
+        "q1": 5,
+        "q2": 4,
+        "q3": 3,
+    }
+
+    result = cat_step(answers)
+
+    print(result)
+```
+
+
+P 0 - 3
+
+```python
+from __future__ import annotations
+
+import base64
+from typing import Optional
+
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+
+_SALT = b"gitsyntropy-token-encryption"
+_ITERATIONS = 390_000
+_KEY_LENGTH = 32
+
+
+def _derive_key(secret: str) -> bytes:
+    if not isinstance(secret, str):
+        raise TypeError("secret must be a string")
+
+    secret_bytes = secret.encode("utf-8")
+
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=_KEY_LENGTH,
+        salt=_SALT,
+        iterations=_ITERATIONS,
+    )
+
+    derived_key = kdf.derive(secret_bytes)
+
+    return base64.urlsafe_b64encode(derived_key)
+
+
+def encrypt_token(token: Optional[str], secret: str) -> Optional[str]:
+    """
+    Encrypt a GitHub OAuth token using Fernet symmetric encryption.
+
+    Args:
+        token: Plaintext token string
+        secret: GS_JWT_SECRET value
+
+    Returns:
+        URL-safe encrypted string suitable for PostgreSQL TEXT storage
+    """
+
+    if token is None:
+        return None
+
+    if not isinstance(token, str):
+        raise TypeError("token must be a string or None")
+
+    key = _derive_key(secret)
+    fernet = Fernet(key)
+
+    encrypted = fernet.encrypt(token.encode("utf-8"))
+
+    return encrypted.decode("utf-8")
+
+
+def decrypt_token(encrypted: Optional[str], secret: str) -> Optional[str]:
+    """
+    Decrypt a Fernet-encrypted GitHub OAuth token.
+
+    Args:
+        encrypted: Encrypted token string from PostgreSQL
+        secret: GS_JWT_SECRET value
+
+    Returns:
+        Plaintext token
+    """
+
+    if encrypted is None:
+        return None
+
+    if not isinstance(encrypted, str):
+        raise TypeError("encrypted must be a string or None")
+
+    key = _derive_key(secret)
+    fernet = Fernet(key)
+
+    decrypted = fernet.decrypt(encrypted.encode("utf-8"))
+
+    return decrypted.decode("utf-8")
+```
+
+P-3 2 
+
+```python id="6wpq9o"
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
+
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+
+
+@dataclass
+class CalibrationConfig:
+    n_dimensions: int = 8
+    synthetic_samples: int = 10000
+    random_seed: int = 42
+
+
+class CalibrationModel:
+    """
+    Platt-scaled calibration model for compatibility confidence estimation.
+
+    Inputs:
+        - score_vector: ndarray shape (8,)
+        - signal_coverage: float in [0, 1]
+
+    Output:
+        - calibrated_confidence: float in [0, 1]
+    """
+
+    def __init__(
+        self,
+        model: LogisticRegression | None = None,
+        n_dimensions: int = 8,
+    ) -> None:
+        self.n_dimensions = n_dimensions
+        self.model = model or LogisticRegression()
+
+    # ============================================================
+    # Feature Engineering
+    # ============================================================
+
+    def _feature_vector(
+        self,
+        score_vector: np.ndarray,
+        signal_coverage: float,
+    ) -> np.ndarray:
+        """
+        Feature construction for calibration.
+
+        Features:
+            - mean score
+            - std deviation
+            - min score
+            - max score
+            - pairwise consistency
+            - coverage
+            - coverage^2
+            - interaction(mean * coverage)
+        """
+
+        scores = np.asarray(score_vector, dtype=np.float64)
+
+        if scores.shape[0] != self.n_dimensions:
+            raise ValueError(
+                f"Expected {self.n_dimensions} dimensions, "
+                f"got {scores.shape[0]}"
+            )
+
+        mean_score = np.mean(scores)
+        std_score = np.std(scores)
+        min_score = np.min(scores)
+        max_score = np.max(scores)
+
+        consistency = 1.0 / (1.0 + std_score)
+
+        coverage = float(np.clip(signal_coverage, 0.0, 1.0))
+
+        features = np.array(
+            [
+                mean_score,
+                std_score,
+                min_score,
+                max_score,
+                consistency,
+                coverage,
+                coverage**2,
+                mean_score * coverage,
+            ],
+            dtype=np.float64,
+        )
+
+        return features
+
+    # ============================================================
+    # Synthetic Data Generation
+    # ============================================================
+
+    @classmethod
+    def from_synthetic_data(
+        cls,
+        config: CalibrationConfig | None = None,
+    ) -> "CalibrationModel":
+        """
+        Generate synthetic calibration data and fit the model.
+
+        Assumptions:
+            - Higher signal coverage => higher reliability
+            - Higher consistency between dimensions => higher reliability
+            - Extreme compatibility scores with low coverage are unreliable
+            - Fully observed teams are substantially more reliable
+        """
+
+        config = config or CalibrationConfig()
+
+        rng = np.random.default_rng(config.random_seed)
+
+        X = []
+        y = []
+
+        for _ in range(config.synthetic_samples):
+            coverage = rng.uniform(0.1, 1.0)
+
+            observed_mask = (
+                rng.uniform(0, 1, config.n_dimensions) < coverage
+            )
+
+            latent_team_quality = rng.normal(0.0, 1.0)
+
+            score_noise = rng.normal(
+                loc=0.0,
+                scale=max(0.15, 1.0 - coverage),
+                size=config.n_dimensions,
+            )
+
+            scores = latent_team_quality + score_noise
+
+            scores = 1 / (1 + np.exp(-scores))
+
+            scores = np.clip(scores, 0.0, 1.0)
+
+            scores[~observed_mask] = 0.5
+
+            score_std = np.std(scores)
+            score_mean = np.mean(scores)
+
+            consistency = 1.0 / (1.0 + score_std)
+
+            certainty_signal = (
+                2.4 * coverage
+                + 1.6 * consistency
+                + 0.5 * abs(score_mean - 0.5)
+                - 1.8 * (1.0 - coverage) * abs(score_mean - 0.5)
+                + rng.normal(0.0, 0.35)
+            )
+
+            true_probability = 1 / (1 + np.exp(-certainty_signal))
+
+            success = rng.binomial(1, true_probability)
+
+            model = cls(n_dimensions=config.n_dimensions)
+
+            features = model._feature_vector(scores, coverage)
+
+            X.append(features)
+            y.append(success)
+
+        X = np.asarray(X, dtype=np.float64)
+        y = np.asarray(y, dtype=np.int32)
+
+        calibrated_model = cls(
+            model=LogisticRegression(max_iter=1000),
+            n_dimensions=config.n_dimensions,
+        )
+
+        calibrated_model.fit(X, y)
+
+        return calibrated_model
+
+    # ============================================================
+    # Fit
+    # ============================================================
+
+    def fit(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+    ) -> "CalibrationModel":
+        """
+        Fit Platt scaling logistic regression.
+
+        Parameters:
+            X: feature matrix
+            y: binary outcomes
+        """
+
+        self.model.fit(X, y)
+        return self
+
+    # ============================================================
+    # Prediction
+    # ============================================================
+
+    def predict_confidence(
+        self,
+        score_vector: np.ndarray,
+        signal_coverage: float,
+    ) -> float:
+        """
+        Returns calibrated probability that the compatibility
+        prediction is reliable.
+        """
+
+        features = self._feature_vector(
+            score_vector,
+            signal_coverage,
+        ).reshape(1, -1)
+
+        probability = self.model.predict_proba(features)[0, 1]
+
+        return float(np.clip(probability, 0.0, 1.0))
+
+    # ============================================================
+    # Reliability Diagram Data
+    # ============================================================
+
+    def calibration_plot_data(
+        self,
+        predicted_probs: np.ndarray,
+        true_labels: np.ndarray,
+        bins: int = 10,
+    ) -> Dict[str, List[float]]:
+        """
+        Returns calibration curve data.
+
+        Output:
+            {
+                "bin_centers": [...],
+                "predicted": [...],
+                "observed": [...],
+                "counts": [...]
+            }
+        """
+
+        predicted_probs = np.asarray(predicted_probs)
+        true_labels = np.asarray(true_labels)
+
+        bin_edges = np.linspace(0.0, 1.0, bins + 1)
+
+        predicted_means = []
+        observed_freqs = []
+        bin_centers = []
+        counts = []
+
+        for i in range(bins):
+            lower = bin_edges[i]
+            upper = bin_edges[i + 1]
+
+            if i == bins - 1:
+                mask = (
+                    (predicted_probs >= lower)
+                    & (predicted_probs <= upper)
+                )
+            else:
+                mask = (
+                    (predicted_probs >= lower)
+                    & (predicted_probs < upper)
+                )
+
+            if np.sum(mask) == 0:
+                continue
+
+            probs_bin = predicted_probs[mask]
+            labels_bin = true_labels[mask]
+
+            predicted_means.append(float(np.mean(probs_bin)))
+            observed_freqs.append(float(np.mean(labels_bin)))
+            bin_centers.append(float((lower + upper) / 2.0))
+            counts.append(int(np.sum(mask)))
+
+        return {
+            "bin_centers": bin_centers,
+            "predicted": predicted_means,
+            "observed": observed_freqs,
+            "counts": counts,
+        }
+
+    # ============================================================
+    # Serialization
+    # ============================================================
+
+    def to_json(self) -> str:
+        """
+        Serialize model to JSON.
+        """
+
+        payload = {
+            "n_dimensions": self.n_dimensions,
+            "coef": self.model.coef_.tolist(),
+            "intercept": self.model.intercept_.tolist(),
+            "classes": self.model.classes_.tolist(),
+        }
+
+        return json.dumps(payload)
+
+    @classmethod
+    def from_json(cls, data: str) -> "CalibrationModel":
+        """
+        Deserialize model from JSON.
+        """
+
+        payload = json.loads(data)
+
+        model = LogisticRegression()
+
+        model.classes_ = np.asarray(payload["classes"])
+        model.coef_ = np.asarray(payload["coef"])
+        model.intercept_ = np.asarray(payload["intercept"])
+
+        calibration_model = cls(
+            model=model,
+            n_dimensions=payload["n_dimensions"],
+        )
+
+        return calibration_model
+
+
+# ============================================================
+# Example Usage
+# ============================================================
+
+if __name__ == "__main__":
+    calibration_model = CalibrationModel.from_synthetic_data()
+
+    team_scores = np.array([
+        0.82,
+        0.77,
+        0.71,
+        0.69,
+        0.88,
+        0.73,
+        0.79,
+        0.91,
+    ])
+
+    coverage = 0.75
+
+    calibrated_confidence = calibration_model.predict_confidence(
+        score_vector=team_scores,
+        signal_coverage=coverage,
+    )
+
+    print("Calibrated Confidence:", calibrated_confidence)
+
+    serialized = calibration_model.to_json()
+
+    restored_model = CalibrationModel.from_json(serialized)
+
+    restored_confidence = restored_model.predict_confidence(
+        score_vector=team_scores,
+        signal_coverage=coverage,
+    )
+
+    print("Restored Confidence:", restored_confidence)
+```
+
+
+P- 3 - 3 
+
+# GitSyntropy: Engineering Team Compatibility Scoring System Evaluation Report
+
+## 1. Executive Summary
+
+This report provides a comprehensive evaluation of the GitSyntropy system, a machine learning model designed to score the compatibility of engineering teams. The system analyzes GitHub behavioral data and self-reported psychometric profiles to generate a compatibility score, aiming to predict team cohesion and performance.
+
+The primary purpose of GitSyntropy is to offer a data-driven approach to team formation and to identify potential areas of friction within existing teams. The system scores teams across eight behavioral dimensions, each weighted from 1 to 8, culminating in a total compatibility score ranging from 0 to 36. This score is categorized as "poor" (<12), "fair" (12-20), "good" (20-28), or "excellent" (>28).
+
+This evaluation covers the system's data sources, known biases and limitations, calibration, sensitivity to data sparsity, fairness considerations, and a comparison against baseline methods. The report concludes with recommendations for the responsible and effective production use of GitSyntropy. The intended audience for this document includes machine learning engineers, engineering managers, and Chief Technology Officers involved in the review and deployment of the system.
+
+## 2. Dataset Description
+
+The GitSyntropy model is trained and evaluated on data from two primary sources: publicly available GitHub repositories and self-reported psychometric assessments.
+
+### 2.1. GitHub Behavioral Data
+
+This data stream provides insights into the work habits and collaboration patterns of engineers. The following specific signals are extracted:
+
+*   **Commit Timestamps:** Used to infer developer chronotypes (e.g., "early bird," "night owl") through K-Means clustering. This helps in assessing temporal alignment within a team.
+*   **Pull Request (PR) Activity:** This includes metrics such as PR creation and review frequency, time to merge, and discussion length. These signals are proxies for coding velocity, review quality, and communication patterns.
+
+### 2.2. Psychometric Profiling
+
+This dataset consists of self-reported assessments from engineers on a 1-5 Likert scale. These assessments cover personality traits and work style preferences relevant to team dynamics.
+
+### 2.3. Data Preprocessing and Imputation
+
+Missing data is a common challenge. For any behavioral dimension where data is unavailable for a team member, the system imputes the value at the dimension's midpoint (50th percentile). This approach is a conservative measure to avoid unduly penalizing or rewarding teams for a lack of data.
+
+### 2.4. Confidence Score
+
+To provide transparency about the robustness of the compatibility score, a "confidence score" is calculated for each evaluation. This is determined by the ratio of observed signals to the total possible signals for a given team. A lower confidence score indicates that the compatibility score is based on a more limited dataset and should be interpreted with greater caution.
+
+### 2.5. Known Biases in Public GitHub Data
+
+Public GitHub data is not a perfect representation of all software development activity. Several known biases can influence the model's predictions:
+
+*   **Open-Source vs. Corporate Skew:** Public data is dominated by open-source projects, which may have different collaboration norms and developer motivations compared to private, corporate projects.
+*   **"Celebrity" Developer Effect:** Highly active and visible developers in popular open-source projects can skew the data, creating an unrepresentative sample of typical engineering behavior.
+
+## 3. Known Biases and Limitations
+
+It is crucial to acknowledge the inherent biases and limitations of the GitSyntropy system to ensure its responsible application.
+
+### 3.1. UTC Timestamp Skew
+
+Commit timestamps are recorded in UTC. While this provides a standardized measure, it can obscure the actual local working hours of developers in different time zones. The K-Means clustering for chronotype analysis may incorrectly group individuals due to this lack of localized time information.
+
+### 3.2. Bot and Non-Individual Accounts
+
+The system may inadvertently analyze the activity of bot accounts or organizational accounts, misinterpreting automated actions as individual developer behavior. This can lead to inaccurate representations of team dynamics.
+
+### 3.3. Corporate vs. OSS Profiles
+
+The collaboration patterns observed in open-source projects may not directly translate to a corporate environment. OSS developers often have more autonomy and different incentive structures, which can affect their GitHub behavior.
+
+### 3.4. Survivorship Bias
+
+The analysis is based on the activity of developers who remain active on GitHub. This introduces a survivorship bias, as the data does not include information on developers who have left the platform or specific projects. The reasons for their departure could be highly relevant to team compatibility.
+
+## 4. Calibration Analysis
+
+A well-calibrated model produces predictions that align with the true likelihood of an outcome. In the context of GitSyntropy, this means that a team with a "good" compatibility score should, on average, perform better than a team with a "poor" score.
+
+**(Placeholder for Calibration Curves)**
+
+*A calibration plot would be inserted here, showing the predicted probability of successful team collaboration against the observed frequency of success. An ideal calibration curve would be a diagonal line, indicating that the predicted probabilities match the actual outcomes.*
+
+| Predicted Compatibility | Actual Team Success Rate |
+| ----------------------- | ------------------------ |
+| Poor                    | (e.g., 15%)              |
+| Fair                    | (e.g., 40%)              |
+| Good                    | (e.g., 75%)              |
+| Excellent               | (e.g., 90%)              |
+
+*This table would be populated with empirical data from production or a held-out test set.*
+
+## 5. Sensitivity Analysis
+
+This analysis examines how the system's compatibility scores change in response to variations in the input data, particularly under conditions of data sparsity.
+
+### 5.1. Impact of Data Sparsity
+
+The confidence score is a key indicator of data availability. The following table illustrates a hypothetical scenario of how compatibility scores might fluctuate as the percentage of available data changes.
+
+| Percentage of Available Data | Average Change in Score |
+| ---------------------------- | ----------------------- |
+| 100%                         | 0                       |
+| 75%                          | +/- 2 points            |
+| 50%                          | +/- 5 points            |
+| 25%                          | +/- 10 points           |
+
+This hypothetical data suggests that as data becomes more sparse, the potential for score volatility increases significantly. This underscores the importance of interpreting scores with low confidence with extreme caution.
+
+## 6. Fairness Considerations
+
+Ensuring fairness is paramount to the ethical deployment of any system that evaluates individuals. For GitSyntropy, we consider two key aspects of fairness:
+
+### 6.1. Demographic Parity
+
+This principle requires that the distribution of compatibility scores is similar across different demographic groups (e.g., gender, ethnicity). It is crucial to audit the system to ensure that no protected group is systematically receiving lower scores.
+
+### 6.2. Equal Opportunity
+
+Equal opportunity in this context means that for any given level of "true" team compatibility, the system should assign similar scores regardless of the demographic composition of the team. This prevents the system from penalizing certain groups for behaviors that would be scored differently in another group.
+
+To address these concerns, regular fairness audits of the model's predictions against demographic data (where ethically and legally permissible to collect) are essential.
+
+## 7. Comparison with Baselines
+
+To understand the value of GitSyntropy, its performance should be compared against simpler, existing methods for team formation and evaluation.
+
+### 7.1. Baseline Methods
+
+*   **Random Assignment:** Teams are formed without any specific compatibility considerations. This serves as a "null hypothesis" to test if GitSyntropy provides any lift over chance.
+*   **Peer Feedback Surveys:** Qualitative and quantitative feedback from team members is a common method for assessing team health and compatibility.
+
+### 7.2. Comparative Performance
+
+| Method                  | Predictive Accuracy (of team success) | Scalability | Objectivity |
+| ----------------------- | ------------------------------------- | ----------- | ----------- |
+| GitSyntropy             | (To be determined via A/B testing)    | High        | High        |
+| Random Assignment       | Baseline                              | High        | High        |
+| Peer Feedback Surveys    | Medium to High                        | Low         | Low         |
+
+This table highlights the potential advantages of GitSyntropy in terms of scalability and objectivity. However, its predictive accuracy relative to these baselines needs to be rigorously validated through A/B testing and longitudinal studies.
+
+## 8. Recommendations for Production Use
+
+Based on this evaluation, the following recommendations are provided for the production deployment of the GitSyntropy system:
+
+1.  **Use as a Guide, Not a Mandate:** GitSyntropy scores should be used as one input among many in the team formation process. They should not be the sole determinant of team composition.
+2.  **Emphasize the Confidence Score:** Users must be trained to consider the confidence score alongside the compatibility score. Decisions should not be based on low-confidence predictions.
+3.  **Regular Auditing for Bias and Fairness:** Continuous monitoring and auditing of the system's predictions for bias and fairness are critical. This includes analyzing score distributions across different demographic groups.
+4.  **A/B Testing and Validation:** Before full-scale deployment, conduct A/B tests to compare the performance of teams formed with GitSyntropy's guidance against teams formed using traditional methods.
+5.  **User Feedback and Iteration:** Establish a feedback loop with engineering managers and teams to gather qualitative data on the system's effectiveness and to identify areas for improvement.
+6.  **Transparency in a Production Environment:** When used, be transparent with teams about how the system works, what data it uses, and its limitations. This can help build trust and mitigate concerns about being "judged by an algorithm."
+
+# p6 - 5
+
+### System
+
+| Method | Endpoint | Description | Auth Requirement | Key Request Fields | Key Response Fields | Common Errors |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/health` | Performs a health check on the API to verify availability and deployment version. Used by load balancers and deployment orchestrators to monitor system uptime. | None | *None* | `status`, `service`, `version` | `500`, `503` |
+
+### Authentication
+
+| Method | Endpoint | Description | Auth Requirement | Key Request Fields | Key Response Fields | Common Errors |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/github/start` | Initiates the GitHub OAuth 2.0 flow for user authentication. Returns a formatted authorization URL to seamlessly redirect the client browser. | None | `redirect_uri` (optional) | `auth_url`, `state` | `400`, `500` |
+| `POST` | `/api/v1/auth/github/callback` | Completes the GitHub OAuth flow by exchanging a temporary code for an access token. Generates and returns a Bearer JWT for subsequent API access. | None | `code`, `state` | `access_token`, `token_type`, `expires_in` | `400`, `401`, `502` |
+| `GET` | `/api/v1/auth/session` | Validates the currently active JSON Web Token provided in the authorization header. Returns session metadata if the token is valid and unexpired. | Bearer JWT | *None* (Header only) | `is_valid`, `user_id`, `expires_at` | `401`, `403` |
+
+### Users
+
+| Method | Endpoint | Description | Auth Requirement | Key Request Fields | Key Response Fields | Common Errors |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/users/me` | Retrieves the complete profile details of the currently authenticated user. Includes system metadata such as linked accounts, roles, and onboarding status. | Bearer JWT | *None* | `id`, `handle`, `name`, `role`, `created_at` | `401`, `404` |
+| `GET` | `/api/v1/users/search` | Searches the platform's user directory using a partial match on names or GitHub handles. Supports pagination and returns a list of matching lightweight user profiles. | Bearer JWT | `q` (query), `limit`, `offset` | `results`, `total_count`, `next_page` | `400`, `401`, `422` |
+
+### GitHub
+
+| Method | Endpoint | Description | Auth Requirement | Key Request Fields | Key Response Fields | Common Errors |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/github/sync` | Manually triggers an asynchronous background job to ingest a user's latest GitHub repository and commit data. Used to refresh behavioral metrics before running new compatibility scoring cycles. | Bearer JWT | `user_id`, `sync_type` (full/incremental) | `job_id`, `status`, `estimated_eta` | `401`, `403`, `404`, `429` |
+
+### Assessment
+
+| Method | Endpoint | Description | Auth Requirement | Key Request Fields | Key Response Fields | Common Errors |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/assessment/questions` | Fetches the standard baseline set of eight psychometric evaluation questions. Each question corresponds to a specific behavioral dimension scored on a Likert scale. | Bearer JWT | *None* | `questions` (id, text, dimension, scale) | `401`, `500` |
+| `POST` | `/api/v1/assessment/responses` | Submits the user's answers for a psychometric assessment batch. Triggers an internal recalculation of the user's dimension midpoint baseline scores. | Bearer JWT | `responses` (array of id/score), `completed_at` | `assessment_id`, `status`, `score_summary` | `400`, `401`, `422` |
+| `POST` | `/api/v1/assessment/cat/next` | Determines the next most optimal question in a Computerized Adaptive Testing sequence based on previous answers. Maximizes psychometric information gain while minimizing overall test length. | Bearer JWT | `session_id`, `previous_responses` | `next_question`, `is_complete`, `confidence` | `400`, `401`, `404` |
+
+### Teams
+
+| Method | Endpoint | Description | Auth Requirement | Key Request Fields | Key Response Fields | Common Errors |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/teams` | Creates a new engineering team entity within the system for future compatibility tracking. Establishes the authenticated user as the team owner and primary administrator. | Bearer JWT | `name`, `description`, `visibility` | `team_id`, `name`, `created_by`, `created_at` | `400`, `401`, `409` |
+| `GET` | `/api/v1/teams` | Retrieves a paginated list of all teams the authenticated user currently belongs to or manages. Includes high-level aggregate statistics like total member count per team. | Bearer JWT | `limit`, `offset`, `role_filter` | `teams` (array), `total_count` | `401`, `500` |
+| `POST` | `/api/v1/teams/{id}/members` | Adds a specific user to an existing team's roster. Requires appropriate administrator permissions on the target team to successfully execute. | Bearer JWT | `user_id`, `role` (member/admin) | `team_id`, `user_id`, `joined_at` | `400`, `401`, `403`, `404` |
+
+### Analysis
+
+| Method | Endpoint | Description | Auth Requirement | Key Request Fields | Key Response Fields | Common Errors |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/compatibility/run` | Executes the core GitSyntropy pairwise compatibility algorithm between specified candidates or existing team members. Combines behavioral data and psychometric profiles to output a weighted compatibility score. | Bearer JWT | `target_user_ids`, `team_id`, `dimensions` | `total_score`, `category`, `dimension_breakdown`, `confidence_score` | `400`, `401`, `422` |
+| `POST` | `/api/v1/orchestrator/run` | Triggers the full multi-agent evaluation pipeline for deep organizational analysis. Orchestrates data syncs, scoring algorithms, and report generation in a single asynchronous workflow. | Superadmin | `pipeline_type`, `target_ids`, `parameters` | `run_id`, `status`, `estimated_completion_time` | `401`, `403`, `503` |
+| `POST` | `/api/v1/candidates/simulate` | Runs a Monte Carlo simulation evaluating how a potential new hire would impact an existing team's overall compatibility metrics. Tests multiple behavioral scenarios to establish confidence intervals and risk levels. | Bearer JWT | `candidate_id`, `team_id`, `iterations` | `simulation_id`, `mean_score_impact`, `variance`, `risk_level` | `400`, `401`, `403`, `404` |
+| `GET` | `/api/v1/insights/synthesis` | Retrieves the latest fully synthesized insights report for a specific team or organizational unit. Returns aggregated compatibility trends, friction warnings, and actionable recommendations. | Bearer JWT | `target_type` (team/org), `target_id` | `report_id`, `summary`, `friction_points`, `recommendations` | `400`, `401`, `403`, `404` |
+
+
+# P - 3 - 5 
+
+[
+  {"pair_id": "P001", "member_a": {"innovation_drive": 0.9, "leadership_orientation": 0.4, "team_resilience": 2.8, "work_style": 1.2, "decision_style": 3.1, "risk_tolerance": 5.2, "stress_response": 1.5, "chronotype_sync": 2.1}, "member_b": {"innovation_drive": 0.3, "leadership_orientation": 1.8, "team_resilience": 2.5, "work_style": 1.5, "decision_style": 4.2, "risk_tolerance": 2.1, "stress_response": 2.0, "chronotype_sync": 2.3}, "ground_truth": "excellent", "rationale": "Highly complementary innovation and leadership profiles with closely aligned chronotype scores (difference of 0.2), ensuring strong rhythm synchronization while covering strategic gaps."},
+  {"pair_id": "P002", "member_a": {"innovation_drive": 0.7, "leadership_orientation": 1.5, "team_resilience": 1.8, "work_style": 3.1, "decision_style": 2.0, "risk_tolerance": 4.0, "stress_response": 3.2, "chronotype_sync": 5.5}, "member_b": {"innovation_drive": 0.6, "leadership_orientation": 1.3, "team_resilience": 2.1, "work_style": 2.8, "decision_style": 2.5, "risk_tolerance": 4.5, "stress_response": 2.8, "chronotype_sync": 5.8}, "ground_truth": "excellent", "rationale": "Nearly identical core traits across work style, risk tolerance, and stress response, with chronotype sync within 0.3 points, creating seamless collaboration and predictable team dynamics."},
+  {"pair_id": "P003", "member_a": {"innovation_drive": 0.5, "leadership_orientation": 0.9, "team_resilience": 2.5, "work_style": 2.0, "decision_style": 4.8, "risk_tolerance": 1.2, "stress_response": 4.5, "chronotype_sync": 7.0}, "member_b": {"innovation_drive": 0.5, "leadership_orientation": 1.1, "team_resilience": 2.2, "work_style": 2.3, "decision_style": 1.5, "risk_tolerance": 3.8, "stress_response": 4.2, "chronotype_sync": 6.8}, "ground_truth": "excellent", "rationale": "Perfectly complementary decision styles balance analytical and intuitive approaches, while near-identical chronotype and stress response scores minimize scheduling and pressure friction."},
+  {"pair_id": "P004", "member_a": {"innovation_drive": 0.8, "leadership_orientation": 0.2, "team_resilience": 2.9, "work_style": 3.5, "decision_style": 2.8, "risk_tolerance": 5.9, "stress_response": 1.1, "chronotype_sync": 1.0}, "member_b": {"innovation_drive": 0.7, "leadership_orientation": 0.3, "team_resilience": 3.0, "work_style": 3.2, "decision_style": 3.1, "risk_tolerance": 6.0, "stress_response": 1.4, "chronotype_sync": 1.2}, "ground_truth": "excellent", "rationale": "Shared high resilience, risk appetite, and early chronotype alignment foster a high-energy, low-friction environment where both members thrive under pressure."},
+  {"pair_id": "P005", "member_a": {"innovation_drive": 0.2, "leadership_orientation": 1.9, "team_resilience": 1.5, "work_style": 0.5, "decision_style": 5.0, "risk_tolerance": 0.8, "stress_response": 6.5, "chronotype_sync": 4.0}, "member_b": {"innovation_drive": 0.8, "leadership_orientation": 0.5, "team_resilience": 2.8, "work_style": 3.9, "decision_style": 1.2, "risk_tolerance": 4.5, "stress_response": 3.0, "chronotype_sync": 3.8}, "ground_truth": "excellent", "rationale": "Strong structural complementarity balances visionary execution and operational stability, with tightly synchronized chronotypes and well-matched stress responses enabling reliable handoffs."},
+  {"pair_id": "P006", "member_a": {"innovation_drive": 0.6, "leadership_orientation": 1.0, "team_resilience": 2.4, "work_style": 2.1, "decision_style": 3.5, "risk_tolerance": 3.2, "stress_response": 3.5, "chronotype_sync": 3.0}, "member_b": {"innovation_drive": 0.6, "leadership_orientation": 1.1, "team_resilience": 2.3, "work_style": 2.4, "decision_style": 3.8, "risk_tolerance": 3.5, "stress_response": 3.2, "chronotype_sync": 2.9}, "ground_truth": "excellent", "rationale": "Exceptional trait mirroring across all dimensions, particularly chronotype sync and stress response, ensures highly predictable collaboration and minimal coordination overhead."},
+  {"pair_id": "P007", "member_a": {"innovation_drive": 0.9, "leadership_orientation": 0.8, "team_resilience": 1.9, "work_style": 4.0, "decision_style": 4.5, "risk_tolerance": 5.0, "stress_response": 2.2, "chronotype_sync": 6.5}, "member_b": {"innovation_drive": 0.8, "leadership_orientation": 0.9, "team_resilience": 2.0, "work_style": 3.8, "decision_style": 4.2, "risk_tolerance": 5.5, "stress_response": 2.5, "chronotype_sync": 6.2}, "ground_truth": "excellent", "rationale": "Both members share late chronotype preferences and high risk tolerance, creating an ideal environment for creative exploration and autonomous execution without scheduling conflicts."},
+  {"pair_id": "P008", "member_a": {"innovation_drive": 0.4, "leadership_orientation": 1.6, "team_resilience": 2.7, "work_style": 1.8, "decision_style": 2.1, "risk_tolerance": 2.0, "stress_response": 5.0, "chronotype_sync": 4.5}, "member_b": {"innovation_drive": 0.3, "leadership_orientation": 1.4, "team_resilience": 2.9, "work_style": 1.5, "decision_style": 2.4, "risk_tolerance": 1.5, "stress_response": 5.5, "chronotype_sync": 4.7}, "ground_truth": "excellent", "rationale": "Highly stable and methodical pairing with closely aligned chronotypes and stress responses, ideal for maintaining system reliability and long-term project continuity."},
+  {"pair_id": "P009", "member_a": {"innovation_drive": 0.7, "leadership_orientation": 0.5, "team_resilience": 2.2, "work_style": 2.9, "decision_style": 3.0, "risk_tolerance": 4.1, "stress_response": 3.8, "chronotype_sync": 3.5}, "member_b": {"innovation_drive": 0.7, "leadership_orientation": 0.6, "team_resilience": 2.5, "work_style": 3.0, "decision_style": 2.8, "risk_tolerance": 4.4, "stress_response": 4.0, "chronotype_sync": 3.2}, "ground_truth": "excellent", "rationale": "Strong alignment in work rhythm, innovation drive, and risk appetite, with nearly identical chronotype sync values enabling seamless peer-level collaboration."},
+  {"pair_id": "P010", "member_a": {"innovation_drive": 0.1, "leadership_orientation": 2.0, "team_resilience": 3.0, "work_style": 0.2, "decision_style": 4.9, "risk_tolerance": 0.5, "stress_response": 6.8, "chronotype_sync": 1.5}, "member_b": {"innovation_drive": 0.8, "leadership_orientation": 0.4, "team_resilience": 2.6, "work_style": 3.8, "decision_style": 1.1, "risk_tolerance": 5.5, "stress_response": 2.0, "chronotype_sync": 1.8}, "ground_truth": "excellent", "rationale": "Classic complementary pairing: highly structured and risk-aware leader pairs with innovative, flexible executor, anchored by tightly synchronized early-morning chronotypes."},
+  {"pair_id": "P011", "member_a": {"innovation_drive": 0.5, "leadership_orientation": 1.2, "team_resilience": 2.1, "work_style": 2.5, "decision_style": 3.3, "risk_tolerance": 3.0, "stress_response": 4.1, "chronotype_sync": 5.0}, "member_b": {"innovation_drive": 0.5, "leadership_orientation": 1.0, "team_resilience": 2.0, "work_style": 2.7, "decision_style": 3.0, "risk_tolerance": 3.2, "stress_response": 4.3, "chronotype_sync": 4.8}, "ground_truth": "excellent", "rationale": "Consistently aligned across all high-weight dimensions, with minor complementary variations in decision style that enhance problem-solving without introducing friction."},
+  {"pair_id": "P012", "member_a": {"innovation_drive": 0.8, "leadership_orientation": 0.7, "team_resilience": 1.8, "work_style": 3.6, "decision_style": 2.2, "risk_tolerance": 4.8, "stress_response": 2.5, "chronotype_sync": 7.5}, "member_b": {"innovation_drive": 0.9, "leadership_orientation": 0.5, "team_resilience": 2.0, "work_style": 3.9, "decision_style": 2.0, "risk_tolerance": 5.0, "stress_response": 2.8, "chronotype_sync": 7.2}, "ground_truth": "excellent", "rationale": "Night-owl synchronized pair with high innovation and risk tolerance, perfectly suited for creative sprints and flexible-hour development cycles."},
+  {"pair_id": "P013", "member_a": {"innovation_drive": 0.3, "leadership_orientation": 1.5, "team_resilience": 2.4, "work_style": 1.0, "decision_style": 4.0, "risk_tolerance": 1.0, "stress_response": 5.5, "chronotype_sync": 2.0}, "member_b": {"innovation_drive": 0.7, "leadership_orientation": 1.3, "team_resilience": 2.2, "work_style": 1.2, "decision_style": 4.5, "risk_tolerance": 2.0, "stress_response": 5.2, "chronotype_sync": 1.8}, "ground_truth": "excellent", "rationale": "Shared early chronotype and high stress tolerance enable consistent morning productivity, while complementary innovation levels balance strategic planning with exploratory research."},
+  {"pair_id": "P014", "member_a": {"innovation_drive": 0.6, "leadership_orientation": 1.1, "team_resilience": 2.5, "work_style": 2.2, "decision_style": 3.1, "risk_tolerance": 3.5, "stress_response": 4.0, "chronotype_sync": 4.5}, "member_b": {"innovation_drive": 0.5, "leadership_orientation": 1.4, "team_resilience": 2.3, "work_style": 3.0, "decision_style": 2.8, "risk_tolerance": 4.0, "stress_response": 3.5, "chronotype_sync": 4.2}, "ground_truth": "good", "rationale": "Strong overall alignment with minor work-style divergence, easily managed through explicit communication protocols and shared documentation practices."},
+  {"pair_id": "P015", "member_a": {"innovation_drive": 0.8, "leadership_orientation": 0.9, "team_resilience": 2.0, "work_style": 3.8, "decision_style": 2.5, "risk_tolerance": 5.0, "stress_response": 3.0, "chronotype_sync": 6.0}, "member_b": {"innovation_drive": 0.4, "leadership_orientation": 1.5, "team_resilience": 2.7, "work_style": 2.1, "decision_style": 4.5, "risk_tolerance": 2.5, "stress_response": 4.0, "chronotype_sync": 3.0}, "ground_truth": "good", "rationale": "Complementary strengths in innovation and execution with moderate chronotype offset; requires scheduled overlap windows but maintains high delivery velocity."},
+  {"pair_id": "P016", "member_a": {"innovation_drive": 0.2, "leadership_orientation": 1.8, "team_resilience": 2.9, "work_style": 0.5, "decision_style": 4.8, "risk_tolerance": 0.8, "stress_response": 6.0, "chronotype_sync": 1.2}, "member_b": {"innovation_drive": 0.6, "leadership_orientation": 1.0, "team_resilience": 2.4, "work_style": 2.0, "decision_style": 3.5, "risk_tolerance": 3.0, "stress_response": 3.5, "chronotype_sync": 1.5}, "ground_truth": "good", "rationale": "High operational stability and matching chronotypes offset moderate differences in risk appetite and stress tolerance, requiring light delegation adjustments."},
+  {"pair_id": "P017", "member_a": {"innovation_drive": 0.7, "leadership_orientation": 0.6, "team_resilience": 2.1, "work_style": 3.5, "decision_style": 1.8, "risk_tolerance": 4.2, "stress_response": 2.5, "chronotype_sync": 7.0}, "member_b": {"innovation_drive": 0.5, "leadership_orientation": 0.9, "team_resilience": 1.8, "work_style": 2.2, "decision_style": 3.2, "risk_tolerance": 2.8, "stress_response": 4.5, "chronotype_sync": 5.5}, "ground_truth": "good", "rationale": "Shared late chronotype preferences enable strong evening collaboration, though divergent stress responses require clear escalation paths during crunch periods."},
+  {"pair_id": "P018", "member_a": {"innovation_drive": 0.9, "leadership_orientation": 0.3, "team_resilience": 1.5, "work_style": 4.0, "decision_style": 1.0, "risk_tolerance": 5.8, "stress_response": 1.2, "chronotype_sync": 2.5}, "member_b": {"innovation_drive": 0.3, "leadership_orientation": 1.2, "team_resilience": 2.8, "work_style": 1.0, "decision_style": 4.8, "risk_tolerance": 1.5, "stress_response": 5.0, "chronotype_sync": 4.0}, "ground_truth": "good", "rationale": "Excellent complementary skill coverage offset by moderate chronotype misalignment; requires asynchronous handoffs but yields highly robust project outcomes."},
+  {"pair_id": "P019", "member_a": {"innovation_drive": 0.4, "leadership_orientation": 1.6, "team_resilience": 2.6, "work_style": 1.5, "decision_style": 4.2, "risk_tolerance": 1.8, "stress_response": 5.8, "chronotype_sync": 3.0}, "member_b": {"innovation_drive": 0.7, "leadership_orientation": 0.8, "team_resilience": 1.9, "work_style": 3.2, "decision_style": 2.0, "risk_tolerance": 4.0, "stress_response": 3.0, "chronotype_sync": 3.5}, "ground_truth": "good", "rationale": "Strong structural balance between planning and execution, with manageable chronotype differences that can be bridged through daily sync meetings."},
+  {"pair_id": "P020", "member_a": {"innovation_drive": 0.5, "leadership_orientation": 1.3, "team_resilience": 2.2, "work_style": 2.8, "decision_style": 3.5, "risk_tolerance": 3.8, "stress_response": 4.2, "chronotype_sync": 5.0}, "member_b": {"innovation_drive": 0.6, "leadership_orientation": 1.1, "team_resilience": 2.0, "work_style": 3.5, "decision_style": 3.0, "risk_tolerance": 4.5, "stress_response": 3.5, "chronotype_sync": 5.5}, "ground_truth": "good", "rationale": "Highly compatible decision-making and risk profiles; minor work-style variance requires agreed-upon task tracking but poses no structural risk to delivery."},
+  {"pair_id": "P021", "member_a": {"innovation_drive": 0.1, "leadership_orientation": 1.9, "team_resilience": 3.0, "work_style": 0.3, "decision_style": 5.0, "risk_tolerance": 0.5, "stress_response": 6.5, "chronotype_sync": 1.0}, "member_b": {"innovation_drive": 0.5, "leadership_orientation": 1.5, "team_resilience": 2.5, "work_style": 1.8, "decision_style": 4.0, "risk_tolerance": 2.0, "stress_response": 4.5, "chronotype_sync": 1.5}, "ground_truth": "good", "rationale": "Shared early chronotype and high stress tolerance create reliable baseline operations; differing risk appetite requires explicit approval thresholds for experimental work."},
+  {"pair_id": "P022", "member_a": {"innovation_drive": 0.8, "leadership_orientation": 0.4, "team_resilience": 1.7, "work_style": 3.9, "decision_style": 2.2, "risk_tolerance": 5.5, "stress_response": 2.0, "chronotype_sync": 8.0}, "member_b": {"innovation_drive": 0.6, "leadership_orientation": 0.8, "team_resilience": 2.1, "work_style": 2.5, "decision_style": 3.5, "risk_tolerance": 3.5, "stress_response": 3.0, "chronotype_sync": 6.5}, "ground_truth": "good", "rationale": "Strong alignment on flexible work preferences and late chronotype sync; moderate differences in decision speed require brief alignment checkpoints before major commits."},
+  {"pair_id": "P023", "member_a": {"innovation_drive": 0.3, "leadership_orientation": 1.4, "team_resilience": 2.8, "work_style": 1.2, "decision_style": 3.8, "risk_tolerance": 1.0, "stress_response": 5.2, "chronotype_sync": 2.0}, "member_b": {"innovation_drive": 0.7, "leadership_orientation": 0.9, "team_resilience": 2.0, "work_style": 3.0, "decision_style": 1.5, "risk_tolerance": 4.5, "stress_response": 3.8, "chronotype_sync": 3.5}, "ground_truth": "good", "rationale": "Complementary operational and exploratory strengths with slight chronotype friction; manageable through staggered shift planning and clear ownership boundaries."},
+  {"pair_id": "P024", "member_a": {"innovation_drive": 0.6, "leadership_orientation": 1.0, "team_resilience": 2.3, "work_style": 2.5, "decision_style": 4.0, "risk_tolerance": 3.2, "stress_response": 4.5, "chronotype_sync": 4.0}, "member_b": {"innovation_drive": 0.5, "leadership_orientation": 1.2, "team_resilience": 2.1, "work_style": 3.0, "decision_style": 2.5, "risk_tolerance": 3.8, "stress_response": 3.2, "chronotype_sync": 5.0}, "ground_truth": "good", "rationale": "Well-matched risk tolerance and stress profiles with minor work-style divergence; easily resolved through flexible scheduling and outcome-focused metrics."},
+  {"pair_id": "P025", "member_a": {"innovation_drive": 0.9, "leadership_orientation": 0.2, "team_resilience": 1.6, "work_style": 4.0, "decision_style": 1.5, "risk_tolerance": 6.0, "stress_response": 1.0, "chronotype_sync": 7.5}, "member_b": {"innovation_drive": 0.4, "leadership_orientation": 1.7, "team_resilience": 2.9, "work_style": 0.8, "decision_style": 4.5, "risk_tolerance": 1.2, "stress_response": 6.2, "chronotype_sync": 4.5}, "ground_truth": "good", "rationale": "Classic visionary-executor dynamic with notable chronotype offset; requires defined async communication windows but delivers exceptional coverage and output diversity."},
+  {"pair_id": "P026", "member_a": {"innovation_drive": 0.2, "leadership_orientation": 1.5, "team_resilience": 2.7, "work_style": 0.9, "decision_style": 4.8, "risk_tolerance": 0.6, "stress_response": 6.8, "chronotype_sync": 2.0}, "member_b": {"innovation_drive": 0.6, "leadership_orientation": 1.0, "team_resilience": 2.2, "work_style": 2.8, "decision_style": 2.0, "risk_tolerance": 3.5, "stress_response": 3.0, "chronotype_sync": 2.5}, "ground_truth": "good", "rationale": "Highly aligned chronotypes and strong stress resilience enable consistent morning productivity; minor work-style differences require shared task board usage."},
+  {"pair_id": "P027", "member_a": {"innovation_drive": 0.7, "leadership_orientation": 0.7, "team_resilience": 2.0, "work_style": 3.2, "decision_style": 2.8, "risk_tolerance": 4.5, "stress_response": 3.2, "chronotype_sync": 6.0}, "member_b": {"innovation_drive": 0.8, "leadership_orientation": 0.5, "team_resilience": 1.8, "work_style": 3.8, "decision_style": 3.5, "risk_tolerance": 5.0, "stress_response": 2.5, "chronotype_sync": 7.0}, "ground_truth": "good", "rationale": "Strong late-chronotype synchronization and high innovation alignment; slight stress-response variation manageable through regular check-ins and workload balancing."},
+  {"pair_id": "P028", "member_a": {"innovation_drive": 0.4, "leadership_orientation": 1.8, "team_resilience": 2.5, "work_style": 1.5, "decision_style": 3.5, "risk_tolerance": 2.0, "stress_response": 5.0, "chronotype_sync": 3.5}, "member_b": {"innovation_drive": 0.6, "leadership_orientation": 0.6, "team_resilience": 2.3, "work_style": 2.5, "decision_style": 1.8, "risk_tolerance": 4.0, "stress_response": 3.5, "chronotype_sync": 3.0}, "ground_truth": "good", "rationale": "Balanced leadership and innovation profiles with closely matched chronotypes; requires minor alignment on risk assessment frameworks to optimize joint decision velocity."},
+  {"pair_id": "P029", "member_a": {"innovation_drive": 0.5, "leadership_orientation": 1.1, "team_resilience": 2.1, "work_style": 2.6, "decision_style": 3.0, "risk_tolerance": 3.5, "stress_response": 4.0, "chronotype_sync": 5.0}, "member_b": {"innovation_drive": 0.5, "leadership_orientation": 1.0, "team_resilience": 2.4, "work_style": 2.0, "decision_style": 3.2, "risk_tolerance": 3.0, "stress_response": 4.5, "chronotype_sync": 4.5}, "ground_truth": "good", "rationale": "Near-identical trait distribution with negligible friction; minor work-style preference shifts easily accommodated through flexible deadline structuring."},
+  {"pair_id": "P030", "member_a": {"innovation_drive": 0.8, "leadership_orientation": 0.3, "team_resilience": 1.5, "work_style": 3.9, "decision_style": 1.2, "risk_tolerance": 5.5, "stress_response": 1.5, "chronotype_sync": 7.0}, "member_b": {"innovation_drive": 0.3, "leadership_orientation": 1.9, "team_resilience": 3.0, "work_style": 0.5, "decision_style": 5.0, "risk_tolerance": 0.5, "stress_response": 6.5, "chronotype_sync": 3.5}, "ground_truth": "good", "rationale": "Highly complementary operational and creative roles; moderate chronotype divergence mitigated by clear phase-gate deliverables and asynchronous review cycles."},
+  {"pair_id": "P031", "member_a": {"innovation_drive": 0.9, "leadership_orientation": 0.2, "team_resilience": 1.2, "work_style": 4.0, "decision_style": 1.0, "risk_tolerance": 5.8, "stress_response": 1.0, "chronotype_sync": 8.0}, "member_b": {"innovation_drive": 0.2, "leadership_orientation": 1.9, "team_resilience": 2.8, "work_style": 0.5, "decision_style": 5.0, "risk_tolerance": 0.5, "stress_response": 7.0, "chronotype_sync": 1.0}, "ground_truth": "fair", "rationale": "Clear high-weight misalignment in chronotype sync (7.0 difference) and stress response (6.0 difference) creates scheduling bottlenecks and friction during high-pressure iterations."},
+  {"pair_id": "P032", "member_a": {"innovation_drive": 0.5, "leadership_orientation": 1.0, "team_resilience": 2.5, "work_style": 1.5, "decision_style": 4.5, "risk_tolerance": 2.0, "stress_response": 5.5, "chronotype_sync": 2.0}, "member_b": {"innovation_drive": 0.8, "leadership_orientation": 0.5, "team_resilience": 1.5, "work_style": 3.8, "decision_style": 1.5, "risk_tolerance": 5.0, "stress_response": 2.0, "chronotype_sync": 7.5}, "ground_truth": "fair", "rationale": "Significant divergence in chronotype preferences and stress coping mechanisms requires heavy process scaffolding; workable with strict boundary definitions and manager mediation."},
+  {"pair_id": "P033", "member_a": {"innovation_drive": 0.1, "leadership_orientation": 2.0, "team_resilience": 3.0, "work_style": 0.2, "decision_style": 4.9, "risk_tolerance": 0.3, "stress_response": 7.0, "chronotype_sync": 1.0}, "member_b": {"innovation_drive": 0.9, "leadership_orientation": 0.1, "team_resilience": 1.0, "work_style": 4.0, "decision_style": 0.5, "risk_tolerance": 6.0, "stress_response": 1.5, "chronotype_sync": 8.0}, "ground_truth": "fair", "rationale": "Extreme opposites in risk tolerance, decision style, and chronotype create predictable friction points; successful collaboration depends on explicit role partitioning and asynchronous workflows."},
+  {"pair_id": "P034", "member_a": {"innovation_drive": 0.6, "leadership_orientation": 0.8, "team_resilience": 2.0, "work_style": 3.0, "decision_style": 2.5, "risk_tolerance": 3.5, "stress_response": 4.0, "chronotype_sync": 5.5}, "member_b": {"innovation_drive": 0.7, "leadership_orientation": 1.8, "team_resilience": 1.8, "work_style": 1.0, "decision_style": 4.0, "risk_tolerance": 2.0, "stress_response": 5.5, "chronotype_sync": 1.5}, "ground_truth": "fair", "rationale": "High-weight misalignment in work style and chronotype sync generates coordination delays; manageable with standardized handoff protocols and limited parallel tasking."},
+  {"pair_id": "P035", "member_a": {"innovation_drive": 0.3, "leadership_orientation": 1.5, "team_resilience": 2.8, "work_style": 1.2, "decision_style": 4.2, "risk_tolerance": 1.0, "stress_response": 6.0, "chronotype_sync": 2.5}, "member_b": {"innovation_drive": 0.8, "leadership_orientation": 0.4, "team_resilience": 2.0, "work_style": 3.9, "decision_style": 1.0, "risk_tolerance": 5.5, "stress_response": 2.5, "chronotype_sync": 7.0}, "ground_truth": "fair", "rationale": "Notable friction in stress response and decision pacing, compounded by a 4.5-point chronotype gap; requires structured escalation paths to prevent miscommunication."},
+  {"pair_id": "P036", "member_a": {"innovation_drive": 0.7, "leadership_orientation": 0.9, "team_resilience": 2.3, "work_style": 3.5, "decision_style": 2.0, "risk_tolerance": 4.5, "stress_response": 3.0, "chronotype_sync": 7.0}, "member_b": {"innovation_drive": 0.2, "leadership_orientation": 1.9, "team_resilience": 2.5, "work_style": 0.5, "decision_style": 5.0, "risk_tolerance": 0.8, "stress_response": 6.5, "chronotype_sync": 2.0}, "ground_truth": "fair", "rationale": "Opposing work rhythms and risk profiles introduce measurable friction in sprint planning; viable with clear milestone gating and dedicated alignment sessions."},
+  {"pair_id": "P037", "member_a": {"innovation_drive": 0.4, "leadership_orientation": 1.3, "team_resilience": 2.6, "work_style": 2.0, "decision_style": 3.8, "risk_tolerance": 2.5, "stress_response": 5.0, "chronotype_sync": 3.0}, "member_b": {"innovation_drive": 0.9, "leadership_orientation": 0.6, "team_resilience": 1.5, "work_style": 3.8, "decision_style": 1.2, "risk_tolerance": 5.8, "stress_response": 1.5, "chronotype_sync": 7.5}, "ground_truth": "fair", "rationale": "Significant misalignment in stress coping and chronotype synchronization creates peak-time availability conflicts; requires deliberate workload staggering to maintain quality."},
+  {"pair_id": "P038", "member_a": {"innovation_drive": 0.5, "leadership_orientation": 1.1, "team_resilience": 2.4, "work_style": 2.8, "decision_style": 3.0, "risk_tolerance": 3.2, "stress_response": 4.2, "chronotype_sync": 4.5}, "member_b": {"innovation_drive": 0.8, "leadership_orientation": 0.4, "team_resilience": 1.6, "work_style": 3.5, "decision_style": 1.8, "risk_tolerance": 5.5, "stress_response": 2.0, "chronotype_sync": 7.8}, "ground_truth": "fair", "rationale": "Clear divergence in decision speed and chronotype preferences introduces scheduling complexity; workable with explicit overlap hours and documented approval workflows."},
+  {"pair_id": "P039", "member_a": {"innovation_drive": 0.2, "leadership_orientation": 2.0, "team_resilience": 3.0, "work_style": 0.5, "decision_style": 4.8, "risk_tolerance": 0.5, "stress_response": 6.5, "chronotype_sync": 1.5}, "member_b": {"innovation_drive": 0.7, "leadership_orientation": 0.5, "team_resilience": 2.2, "work_style": 3.0, "decision_style": 1.5, "risk_tolerance": 4.8, "stress_response": 2.5, "chronotype_sync": 5.5}, "ground_truth": "fair", "rationale": "Moderate friction driven by differing work styles and stress tolerances; requires manager-facilitated alignment to balance operational rigor with experimental agility."},
+  {"pair_id": "P040", "member_a": {"innovation_drive": 0.9, "leadership_orientation": 0.3, "team_resilience": 1.8, "work_style": 3.8, "decision_style": 1.5, "risk_tolerance": 5.2, "stress_response": 1.2, "chronotype_sync": 8.0}, "member_b": {"innovation_drive": 0.4, "leadership_orientation": 1.7, "team_resilience": 2.7, "work_style": 1.2, "decision_style": 4.5, "risk_tolerance": 1.5, "stress_response": 5.8, "chronotype_sync": 2.5}, "ground_truth": "fair", "rationale": "High-weight chronotype gap and contrasting risk profiles necessitate structured phase transitions; collaboration succeeds only with explicit boundary management and async communication."},
+  {"pair_id": "P041", "member_a": {"innovation_drive": 0.6, "leadership_orientation": 1.0, "team_resilience": 2.1, "work_style": 2.5, "decision_style": 3.5, "risk_tolerance": 3.8, "stress_response": 3.5, "chronotype_sync": 4.0}, "member_b": {"innovation_drive": 0.3, "leadership_orientation": 1.8, "team_resilience": 2.9, "work_style": 0.8, "decision_style": 4.2, "risk_tolerance": 1.0, "stress_response": 6.0, "chronotype_sync": 1.0}, "ground_truth": "fair", "rationale": "Notable work-style and stress-response mismatches create predictable coordination overhead; viable with rigid role definitions and standardized review cadences."},
+  {"pair_id": "P042", "member_a": {"innovation_drive": 0.7, "leadership_orientation": 0.8, "team_resilience": 2.0, "work_style": 3.5, "decision_style": 2.2, "risk_tolerance": 4.5, "stress_response": 2.8, "chronotype_sync": 6.5}, "member_b": {"innovation_drive": 0.4, "leadership_orientation": 1.5, "team_resilience": 2.6, "work_style": 1.5, "decision_style": 4.0, "risk_tolerance": 2.0, "stress_response": 5.0, "chronotype_sync": 2.0}, "ground_truth": "fair", "rationale": "Moderate-to-high friction in decision pacing and chronotype alignment requires careful sprint structuring; team performs best when tasks are decoupled and ownership is explicit."},
+  {"pair_id": "P043", "member_a": {"innovation_drive": 0.9, "leadership_orientation": 0.1, "team_resilience": 1.0, "work_style": 4.0, "decision_style": 0.5, "risk_tolerance": 6.0, "stress_response": 0.5, "chronotype_sync": 8.0}, "member_b": {"innovation_drive": 0.1, "leadership_orientation": 2.0, "team_resilience": 3.0, "work_style": 0.2, "decision_style": 5.0, "risk_tolerance": 0.2, "stress_response": 7.0, "chronotype_sync": 0.5}, "ground_truth": "poor", "rationale": "Severe misalignment across all critical dimensions including chronotype (7.5 diff), stress response (6.5 diff), and decision style (4.5 diff); high probability of persistent conflict and delivery failure without heavy restructuring."},
+  {"pair_id": "P044", "member_a": {"innovation_drive": 0.8, "leadership_orientation": 0.2, "team_resilience": 1.5, "work_style": 3.9, "decision_style": 1.0, "risk_tolerance": 5.5, "stress_response": 1.0, "chronotype_sync": 7.5}, "member_b": {"innovation_drive": 0.2, "leadership_orientation": 1.9, "team_resilience": 2.8, "work_style": 0.5, "decision_style": 4.8, "risk_tolerance": 0.5, "stress_response": 6.8, "chronotype_sync": 1.0}, "ground_truth": "poor", "rationale": "Extreme opposites in work rhythm, risk appetite, and stress coping mechanisms create unsustainable coordination costs; pairing requires significant isolation of workstreams to avoid friction."},
+  {"pair_id": "P045", "member_a": {"innovation_drive": 0.5, "leadership_orientation": 1.0, "team_resilience": 2.0, "work_style": 2.5, "decision_style": 2.5, "risk_tolerance": 3.0, "stress_response": 3.0, "chronotype_sync": 4.0}, "member_b": {"innovation_drive": 0.9, "leadership_orientation": 0.3, "team_resilience": 1.0, "work_style": 4.0, "decision_style": 0.5, "risk_tolerance": 6.0, "stress_response": 1.0, "chronotype_sync": 8.0}, "ground_truth": "poor", "rationale": "Critical misalignment in chronotype sync, decision velocity, and stress tolerance; chronic scheduling gaps and conflicting work approaches severely undermine synchronous collaboration."},
+  {"pair_id": "P046", "member_a": {"innovation_drive": 0.1, "leadership_orientation": 2.0, "team_resilience": 3.0, "work_style": 0.1, "decision_style": 5.0, "risk_tolerance": 0.5, "stress_response": 7.0, "chronotype_sync": 1.0}, "member_b": {"innovation_drive": 0.7, "leadership_orientation": 0.4, "team_resilience": 1.2, "work_style": 3.8, "decision_style": 1.0, "risk_tolerance": 5.0, "stress_response": 1.5, "chronotype_sync": 7.5}, "ground_truth": "poor", "rationale": "Multiple high-weight mismatches in work style, chronotype, and risk tolerance create constant friction; requires heavy managerial oversight and strict task segregation to function."},
+  {"pair_id": "P047", "member_a": {"innovation_drive": 0.6, "leadership_orientation": 0.7, "team_resilience": 2.3, "work_style": 3.0, "decision_style": 3.0, "risk_tolerance": 4.0, "stress_response": 3.5, "chronotype_sync": 5.0}, "member_b": {"innovation_drive": 0.3, "leadership_orientation": 1.8, "team_resilience": 2.5, "work_style": 0.8, "decision_style": 4.5, "risk_tolerance": 1.0, "stress_response": 6.5, "chronotype_sync": 1.5}, "ground_truth": "poor", "rationale": "Pronounced divergence in stress response, chronotype synchronization, and decision pacing generates recurring bottlenecks; team viability depends on completely asynchronous workflows."},
+  {"pair_id": "P048", "member_a": {"innovation_drive": 0.9, "leadership_orientation": 0.3, "team_resilience": 1.8, "work_style": 3.8, "decision_style": 1.2, "risk_tolerance": 5.8, "stress_response": 2.0, "chronotype_sync": 7.0}, "member_b": {"innovation_drive": 0.2, "leadership_orientation": 2.0, "team_resilience": 2.9, "work_style": 0.5, "decision_style": 4.9, "risk_tolerance": 0.3, "stress_response": 6.8, "chronotype_sync": 1.5}, "ground_truth": "poor", "rationale": "Fundamental incompatibilities in work cadence, risk tolerance, and stress management prevent effective peer collaboration; high risk of burnout and project derailment without structural intervention."},
+  {"pair_id": "P049", "member_a": {"innovation_drive": 0.4, "leadership_orientation": 1.2, "team_resilience": 2.5, "work_style": 1.5, "decision_style": 4.0, "risk_tolerance": 2.0, "stress_response": 5.5, "chronotype_sync": 2.0}, "member_b": {"innovation_drive": 0.8, "leadership_orientation": 0.5, "team_resilience": 1.5, "work_style": 3.9, "decision_style": 0.8, "risk_tolerance": 5.5, "stress_response": 1.2, "chronotype_sync": 7.5}, "ground_truth": "poor", "rationale": "Severe chronotype offset and opposing stress/decision profiles create persistent communication breakdowns; pairing should be avoided unless roles are strictly siloed."},
+  {"pair_id": "P050", "member_a": {"innovation_drive": 0.7, "leadership_orientation": 0.6, "team_resilience": 2.1, "work_style": 3.5, "decision_style": 2.0, "risk_tolerance": 4.5, "stress_response": 2.5, "chronotype_sync": 6.5}, "member_b": {"innovation_drive": 0.1, "leadership_orientation": 1.9, "team_resilience": 3.0, "work_style": 0.2, "decision_style": 5.0, "risk_tolerance": 0.5, "stress_response": 7.0, "chronotype_sync": 1.0}, "ground_truth": "poor", "rationale": "Critical misalignment across work style, chronotype sync, and stress response dimensions generates unsustainable coordination overhead; collaboration highly likely to fail without heavy process constraints."}
+]
+
+# P -2 -4 
+team_key = json.dumps(team_scores, sort_keys=True)
+seed = int(hashlib.md5(team_key.encode()).hexdigest(), 16) % (2**32)
+rng = random.Random(seed)
+

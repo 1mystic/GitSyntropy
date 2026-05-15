@@ -192,6 +192,7 @@ function InsightsInner() {
   const [steps, setSteps] = useState<StreamStep[]>([]);
   const [data, setData] = useState<InsightResponse | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
+  const [lastCompatScore, setLastCompatScore] = useState<number | null>(null);
 
   const startStream = async () => {
     setStreaming(true);
@@ -200,6 +201,7 @@ function InsightsInner() {
     setProgress(0);
     setData(null);
     setReportId(null);
+    setLastCompatScore(null);
     setSteps(STEP_ORDER.map((name) => ({ name, status: "pending" })));
 
     const teamId = activeTeam?.id ?? "";
@@ -228,6 +230,12 @@ function InsightsInner() {
         const event = JSON.parse(evt.data as string) as OrchestratorStreamEvent;
 
         setProgress(event.progress_pct);
+
+        // Capture compatibility score as it comes through, before synthesis step
+        if (event.status === "completed" && event.step === "compatibility_engine" && event.data?.compatibility) {
+          const compat = event.data.compatibility as unknown as { total_score_36?: number };
+          if (typeof compat.total_score_36 === "number") setLastCompatScore(compat.total_score_36);
+        }
 
         $orchestrator.set({
           runId: run.run_id,
@@ -259,8 +267,8 @@ function InsightsInner() {
           // Save to localStorage for report page using real team and score from compatibility data
           const id = `${Date.now()}`;
           setReportId(id);
-          const compatData = event.data.compatibility as unknown as { total_score_36?: number } | undefined;
-          const score = compatData?.total_score_36 ?? 28;
+          // score comes from the compatibility step's data, captured separately via lastCompatScore
+          const score = lastCompatScore ?? 28;
           const resilienceScore = Math.round((score / 36) * 100);
           const reports = JSON.parse(localStorage.getItem("gitsyntropy.reports") ?? "[]") as object[];
           reports.unshift({

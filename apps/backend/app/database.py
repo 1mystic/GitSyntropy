@@ -9,13 +9,18 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
+_is_sqlite = settings.database_url.startswith("sqlite")
+
 engine = create_async_engine(
     settings.database_url,
     echo=False,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-    connect_args={"statement_cache_size": 0},
+    # SQLite doesn't support pool_size/max_overflow or asyncpg connect_args
+    **({} if _is_sqlite else {
+        "pool_pre_ping": True,
+        "pool_size": 5,
+        "max_overflow": 10,
+        "connect_args": {"statement_cache_size": 0},
+    }),
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)

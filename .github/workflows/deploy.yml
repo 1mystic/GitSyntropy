@@ -71,7 +71,8 @@ jobs:
       - name: Build Astro project
         run: npm run build
         env:
-          PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL_PROD }}
+          PUBLIC_API_BASE: ${{ secrets.PUBLIC_API_URL_PROD }}/api/v1
+          PUBLIC_WS_BASE: ${{ secrets.PUBLIC_API_URL_PROD }}
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
@@ -82,7 +83,8 @@ jobs:
           working-directory: apps/frontend
           production: true
         env:
-          PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL_PROD }}
+          PUBLIC_API_BASE: ${{ secrets.PUBLIC_API_URL_PROD }}/api/v1
+          PUBLIC_WS_BASE: ${{ secrets.PUBLIC_API_URL_PROD }}
 
       - name: Comment PR with deployment URL
         if: github.event_name == 'pull_request'

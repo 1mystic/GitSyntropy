@@ -91,7 +91,7 @@ class GithubSyncResponse(BaseModel):
     sync_id: str
     user_id: str
     github_handle: str
-    chronotype: Literal["owl", "lark", "balanced"]
+    chronotype: Literal["owl", "lark", "balanced", "daytime", "evening"]
     activity_rhythm_score: float
     collaboration_index: float
     prs_last_30_days: int
