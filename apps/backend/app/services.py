@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 import math
 import random
@@ -20,7 +21,9 @@ from .memory import MemoryManager
 from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember, TeamScore, UserProfile
 from .schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
 
+# In-memory by design for local/dev usage; production should move this to Redis/DB.
 _oauth_state_store: dict[str, datetime] = {}
+_oauth_state_lock = asyncio.Lock()
 memory_manager = MemoryManager()
 
 # Lazy imports to avoid startup errors when optional packages aren't configured
@@ -70,14 +73,16 @@ def create_oauth_state() -> str:
     return uuid4().hex
 
 
-def register_oauth_state(state: str) -> None:
-    _oauth_state_store[state] = datetime.now(tz=UTC)
+async def register_oauth_state(state: str) -> None:
+    async with _oauth_state_lock:
+        _oauth_state_store[state] = datetime.now(tz=UTC)
 
 
-def consume_oauth_state(state: str | None, max_age_seconds: int = 600) -> bool:
+async def consume_oauth_state(state: str | None, max_age_seconds: int = 600) -> bool:
     if not state:
         return False
-    created_at = _oauth_state_store.pop(state, None)
+    async with _oauth_state_lock:
+        created_at = _oauth_state_store.pop(state, None)
     if created_at is None:
         return False
     return (datetime.now(tz=UTC) - created_at).total_seconds() <= max_age_seconds
@@ -576,6 +581,9 @@ def mock_compatibility_scores(member_id: str, data_mode: str = "full") -> dict[s
 
 
 DIMENSION_PRIOR_RATIOS: dict[str, float] = {
+    # Placeholder priors derived from early public-OSS exploratory snapshots
+    # documented in docs/DATASET_REGISTRY.md. These are provisional defaults
+    # used only when one side of a dimension is missing.
     "varna_alignment": 0.52,
     "vashya_influence": 0.48,
     "tara_resilience": 0.55,
@@ -679,8 +687,6 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
     insufficient_confidence = confidence < 0.6 or len(data_gaps) >= 4
     if insufficient_confidence:
         risk_flags.append("Low confidence: one or more dimensions have sparse data.")
-
-    if insufficient_confidence:
         level, label = "insufficient", "insufficient_data"
 
     if dim_scores["nadi_chronotype_sync"] < ASHTAKOOT_WEIGHTS["nadi_chronotype_sync"] * 0.45:
@@ -714,9 +720,13 @@ _QUESTION_WEIGHTS: dict[str, float] = {
     for idx, weight in enumerate(ASHTAKOOT_WEIGHTS.values())
 }
 _QUESTION_IRT_PARAMS: dict[str, tuple[float, float]] = {
+    # 2PL-inspired initialization:
+    # a (discrimination) increases with dimension weight,
+    # b (difficulty) is centered so high-weight items are asked earlier.
     qid: (1.0 + (weight / 8.0), (4.5 - weight) / 2.0)
     for qid, weight in _QUESTION_WEIGHTS.items()
 }
+CAT_INFORMATION_STOP_THRESHOLD = 3.2
 
 
 def _estimate_theta(current_answers: dict[str, int]) -> float:
@@ -725,6 +735,7 @@ def _estimate_theta(current_answers: dict[str, int]) -> float:
     transformed: list[float] = []
     for qid, answer in current_answers.items():
         a, b = _QUESTION_IRT_PARAMS.get(qid, (1.0, 0.0))
+        # Answers are expected on a 1-5 Likert scale (validated in API schema).
         p = min(0.95, max(0.05, (answer - 1) / 4))
         transformed.append((math.log(p / (1 - p)) / a) + b)
     return float(sum(transformed) / max(1, len(transformed)))
@@ -757,7 +768,7 @@ def cat_select_next_question(current_answers: dict[str, int]) -> str | None:
     if not current_answers:
         return "q8"
 
-    if len(current_answers) >= 5 and _test_information(current_answers) >= 3.2:
+    if len(current_answers) >= 5 and _test_information(current_answers) >= CAT_INFORMATION_STOP_THRESHOLD:
         return None
 
     theta = _estimate_theta(current_answers)
@@ -788,8 +799,15 @@ def cat_estimated_remaining(next_qid: str | None, current_answers: dict[str, int
 
 
 # ---------------------------------------------------------------------------
-# Monte Carlo — candidate simulation (1 000 iterations)
+# Monte Carlo — candidate simulation (1,000 iterations)
 # ---------------------------------------------------------------------------
+
+MAX_RANDOM_SEED = 2_147_483_647
+# Confidence is intentionally bounded to avoid false certainty/instability.
+MIN_CONFIDENCE = 0.35
+MAX_CONFIDENCE = 0.99
+# Upper bound on the uncertainty penalty applied to confidence.
+MAX_CONFIDENCE_PENALTY = 0.65
 
 
 def monte_carlo_candidate_simulation(
@@ -805,7 +823,7 @@ def monte_carlo_candidate_simulation(
     2. Compute pairwise compatibility with each team member.
     3. Track score improvement vs current team-internal mean.
     """
-    seed = random_seed if random_seed is not None else secrets.randbelow(2_147_483_647)
+    seed = random_seed if random_seed is not None else secrets.randbelow(MAX_RANDOM_SEED)
 
     if not team_scores:
         team_scores = [{dim: round(w * 0.5, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
@@ -864,7 +882,11 @@ def monte_carlo_candidate_simulation(
     mean_improvement = float(np.mean(improvements))
     std_improvement = float(np.std(improvements))
     sem = std_improvement / math.sqrt(max(1, total_samples))
-    confidence = max(0.35, min(0.99, 1.0 - min(0.65, sem / (abs(mean_improvement) + 1.0))))
+    # Confidence decreases as SEM grows relative to the absolute mean effect.
+    # +1.0 keeps denominator stable when mean improvement is near zero.
+    normalized_uncertainty = sem / (abs(mean_improvement) + 1.0)
+    confidence_penalty = min(MAX_CONFIDENCE_PENALTY, normalized_uncertainty)
+    confidence = max(MIN_CONFIDENCE, min(MAX_CONFIDENCE, 1.0 - confidence_penalty))
     sensitivity_spread = max(bootstrap_means) - min(bootstrap_means) if bootstrap_means else 0.0
 
     return {
@@ -1443,11 +1465,16 @@ def synthesis_from_compat(total_score: float, weak_dimensions: list[str]) -> dic
         verdict = "The pair/team is workable but needs intentional alignment rituals."
 
     strengths = "The team profile suggests stable collaboration patterns."
-    uncertainty = (
-        f"Weak dimensions detected in {', '.join(weak_dimensions[:3])}; collect more behavioral data before making high-impact team changes."
-        if weak_dimensions
-        else "No high-risk weak dimensions detected in this run."
-    )
+    if weak_dimensions:
+        shown = ", ".join(weak_dimensions[:3])
+        remainder = len(weak_dimensions) - 3
+        suffix = f" and {remainder} more" if remainder > 0 else ""
+        uncertainty = (
+            f"Weak dimensions detected in {shown}{suffix}; collect more behavioral data "
+            "before making high-impact team changes."
+        )
+    else:
+        uncertainty = "No high-risk weak dimensions detected in this run."
 
     return {
         "run_id": str(uuid4()),

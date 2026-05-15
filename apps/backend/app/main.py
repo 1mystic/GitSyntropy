@@ -133,6 +133,8 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    # Astro injects inline hydration scripts/styles in the current build;
+    # migrate to nonce/hash-based CSP for stricter production hardening.
     response.headers["Content-Security-Policy"] = "default-src 'self'; connect-src 'self' https: ws: wss:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline';"
     return response
 
@@ -197,7 +199,7 @@ async def mock_analysis(payload: AnalysisRequest) -> AnalysisResponse:
 @limiter.limit("30/minute")
 async def auth_github_start(request: Request) -> GithubAuthStartResponse:
     state = create_oauth_state()
-    register_oauth_state(state)
+    await register_oauth_state(state)
     return {
         "provider": "github",
         "authorization_url": build_github_authorization_url(state),
@@ -210,7 +212,7 @@ async def auth_github_start(request: Request) -> GithubAuthStartResponse:
 @app.post(f"{settings.api_prefix}/auth/github/callback", response_model=AuthTokenResponse)
 @limiter.limit("20/minute")
 async def auth_github_callback(request: Request, payload: GithubAuthCallbackRequest, db: AsyncSession = Depends(get_db)) -> AuthTokenResponse:
-    if not consume_oauth_state(payload.state):
+    if not await consume_oauth_state(payload.state):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired OAuth state")
     try:
         identity = await exchange_github_code_for_identity(payload.code, db)

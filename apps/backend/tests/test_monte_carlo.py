@@ -1,4 +1,4 @@
-"""Tests for Feature 8: Monte Carlo candidate simulation (1 000 iterations)."""
+"""Tests for Feature 8: Monte Carlo candidate simulation (1,000 iterations)."""
 
 from fastapi.testclient import TestClient
 
@@ -57,6 +57,7 @@ def test_simulation_optimal_scores_in_valid_range() -> None:
 
 def test_simulation_confidence_is_bounded_at_1000() -> None:
     result = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=1000)
+    # Confidence output is intentionally clamped to keep uncertainty interpretable.
     assert 0.35 <= result["confidence"] <= 0.99
 
 
