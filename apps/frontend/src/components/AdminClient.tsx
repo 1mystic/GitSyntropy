@@ -39,9 +39,7 @@ function BestTeamCard({ name, score }: { name: string; score: number }) {
       <p className="text-lg font-bold font-display leading-tight truncate" title={name}>
         {name}
       </p>
-      <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">
-        Best Team{score > 0 ? ` · ${score}%` : ""}
-      </p>
+      <p className="text-xs text-gray-500 uppercase tracking-wider font-mono truncate">Best Team</p>
     </div>
   );
 }

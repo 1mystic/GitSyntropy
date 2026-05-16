@@ -338,7 +338,7 @@ function DashboardInner() {
   return (
     <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-24 flex flex-col min-h-screen">
       {/* Header */}
-      <motion.header variants={slideDown} initial="hidden" animate="visible" className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
+      <motion.header variants={slideDown} initial="hidden" animate="visible" className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2 relative z-[100]">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 font-display">
             Dashboard
