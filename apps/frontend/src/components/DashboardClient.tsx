@@ -389,7 +389,7 @@ function DashboardInner() {
                     </span>
                   </button>
                   {teamDropOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 w-56 bg-[#0d0d0f]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden z-50">
+                    <div className="absolute top-full left-0 mt-1.5 w-56 bg-[#0d0d0f]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden z-[300]">
                       <div className="px-3 pt-2.5 pb-1">
                         <p className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">Switch Team</p>
                       </div>

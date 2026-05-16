@@ -274,14 +274,23 @@ async def search_users(query: str, db: AsyncSession, limit: int = 10) -> list[di
 
 async def get_platform_stats(db: AsyncSession) -> dict[str, Any]:
     total_users_result = await db.execute(select(sa_func.count(UserProfile.user_id)))
-    total_teams_result = await db.execute(select(sa_func.count(Team.id)))
+    # Teams with at least one member (excludes empty/orphan test teams)
+    total_teams_result = await db.execute(
+        select(sa_func.count(sa_func.distinct(TeamMember.team_id)))
+    )
+    # Distinct users who completed an assessment (not duplicate profile rows)
     total_assessments_result = await db.execute(
-        select(sa_func.count(PsychometricProfile.id)).where(PsychometricProfile.complete == True)  # noqa: E712
+        select(sa_func.count(sa_func.distinct(PsychometricProfile.user_id))).where(PsychometricProfile.complete == True)  # noqa: E712
     )
     total_syncs_result = await db.execute(
         select(sa_func.count(GithubProfile.id)).where(GithubProfile.sync_status == "complete")
     )
-    total_runs_result = await db.execute(select(sa_func.count(AgentRun.id)))
+    # Agent runs for current registered users only (excludes stale test-user runs)
+    total_runs_result = await db.execute(
+        select(sa_func.count(AgentRun.id)).where(
+            AgentRun.user_id.in_(select(UserProfile.user_id))
+        )
+    )
 
     # Best performing team by compatibility score from TeamScore
     best_score_result = await db.execute(
