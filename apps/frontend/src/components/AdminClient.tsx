@@ -28,6 +28,26 @@ function StatCard({ label, value, icon, color = "primary" }: { label: string; va
 }
 
 // ---------------------------------------------------------------------------
+// Best team card (string value, not a number)
+// ---------------------------------------------------------------------------
+function BestTeamCard({ name, score }: { name: string; score: number }) {
+  return (
+    <div className="glass-card rounded-none p-5 flex flex-col gap-2">
+      <div className="w-9 h-9 rounded-lg border flex items-center justify-center text-amber-400 bg-amber-400/10 border-amber-400/20">
+        <span className="material-symbols-outlined text-[18px]">emoji_events</span>
+      </div>
+      <p className="text-lg font-bold font-display leading-tight truncate" title={name}>
+        {name}
+      </p>
+      {score > 0 && (
+        <p className="text-xs text-amber-400 font-mono">{score}% compat</p>
+      )}
+      <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Best Team</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // User row
 // ---------------------------------------------------------------------------
 function UserRow({ user, index }: { user: AdminUserResponse; index: number }) {
@@ -196,12 +216,13 @@ export function AdminClient() {
       {!loading && stats && (
         <>
           {/* Stats grid */}
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
             <motion.div variants={fadeInUp}><StatCard label="Total Users" value={stats.total_users} icon="group" color="primary" /></motion.div>
             <motion.div variants={fadeInUp}><StatCard label="Teams" value={stats.total_teams} icon="groups" color="teal" /></motion.div>
-            <motion.div variants={fadeInUp}><StatCard label="Assessments" value={stats.total_assessments} icon="psychology" color="neon" /></motion.div>
-            <motion.div variants={fadeInUp}><StatCard label="GitHub Syncs" value={stats.total_github_syncs} icon="sync" color="purple" /></motion.div>
+            <motion.div variants={fadeInUp}><StatCard label="Assessments Done" value={stats.total_assessments} icon="psychology" color="neon" /></motion.div>
+            <motion.div variants={fadeInUp}><StatCard label="Real GH Syncs" value={stats.total_github_syncs} icon="sync" color="purple" /></motion.div>
             <motion.div variants={fadeInUp}><StatCard label="Agent Runs" value={stats.total_agent_runs} icon="smart_toy" color="amber" /></motion.div>
+            <motion.div variants={fadeInUp}><BestTeamCard name={stats.best_team_name} score={stats.best_team_score} /></motion.div>
           </motion.div>
 
           {/* Users table */}

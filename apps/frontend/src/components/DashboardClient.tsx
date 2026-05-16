@@ -409,12 +409,26 @@ function DashboardInner() {
               </div>
               <span
                 className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider border ${
-                  resilienceScore !== null
-                    ? "bg-accent-neon/10 text-accent-neon border-accent-neon/20"
-                    : "bg-gray-500/10 text-gray-400 border-gray-500/20"
+                  resilienceScore === null
+                    ? "bg-gray-500/10 text-gray-400 border-gray-500/20"
+                    : resilienceScore >= 78
+                      ? "bg-accent-neon/10 text-accent-neon border-accent-neon/20"
+                      : resilienceScore >= 56
+                        ? "bg-blue-400/10 text-blue-400 border-blue-400/20"
+                        : resilienceScore >= 33
+                          ? "bg-yellow-400/10 text-yellow-400 border-yellow-400/20"
+                          : "bg-red-400/10 text-red-400 border-red-400/20"
                 }`}
               >
-                {resilienceScore !== null ? "HEALTHY" : "PENDING"}
+                {resilienceScore === null
+                  ? "PENDING"
+                  : resilienceScore >= 78
+                    ? "HEALTHY"
+                    : resilienceScore >= 56
+                      ? "MODERATE"
+                      : resilienceScore >= 33
+                        ? "AT RISK"
+                        : "CRITICAL"}
               </span>
             </div>
 

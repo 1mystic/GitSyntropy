@@ -10,6 +10,11 @@ import math
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+
+def _as_utc(dt: datetime) -> datetime:
+    """Ensure a datetime is UTC-aware. PyGithub returns naive UTC datetimes."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+
 import numpy as np
 from github import Auth, Github, GithubException
 from sklearn.cluster import KMeans
@@ -128,15 +133,13 @@ class GitHubAnalystClient:
                 user = self._gh.get_user(username)
                 hours = []
                 for repo in user.get_repos(type="owner", sort="pushed"):
-                    if repo.pushed_at and repo.pushed_at < since:
+                    if repo.pushed_at and _as_utc(repo.pushed_at) < since:
                         continue
                     try:
                         commits = repo.get_commits(author=username, since=since)
                         for commit in commits:
                             if commit.commit.author and commit.commit.author.date:
-                                dt = commit.commit.author.date
-                                if dt.tzinfo is None:
-                                    dt = dt.replace(tzinfo=UTC)
+                                dt = _as_utc(commit.commit.author.date)
                                 hours.append(dt.hour)
                     except GithubException:
                         continue
@@ -158,12 +161,12 @@ class GitHubAnalystClient:
                 after_hours_prs = 0
 
                 for repo in user.get_repos(type="owner", sort="pushed"):
-                    if repo.pushed_at and repo.pushed_at < since:
+                    if repo.pushed_at and _as_utc(repo.pushed_at) < since:
                         continue
                     try:
                         pulls = repo.get_pulls(state="closed", sort="updated", direction="desc")
                         for pr in pulls:
-                            if pr.created_at < since:
+                            if _as_utc(pr.created_at) < since:
                                 break
                             if pr.user and pr.user.login == username:
                                 pr_count += 1
@@ -196,13 +199,13 @@ class GitHubAnalystClient:
                 user = self._gh.get_user(username)
                 score = 0
                 for repo in user.get_repos(type="owner", sort="pushed"):
-                    if repo.pushed_at and repo.pushed_at < since:
+                    if repo.pushed_at and _as_utc(repo.pushed_at) < since:
                         continue
                     try:
                         # Count review comments (proxy for collab)
                         for comment in repo.get_pulls_review_comments():
                             if comment.user and comment.user.login == username:
-                                if comment.created_at >= since:
+                                if _as_utc(comment.created_at) >= since:
                                     score += 2
                     except GithubException:
                         continue

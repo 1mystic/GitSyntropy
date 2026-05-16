@@ -56,6 +56,8 @@ export type AdminStatsResponse = {
   total_assessments: number;
   total_github_syncs: number;
   total_agent_runs: number;
+  best_team_name: string;
+  best_team_score: number;
 };
 export type GithubStartResponse = {
   provider: "github";
@@ -73,7 +75,7 @@ export type GithubSyncResponse = {
   sync_id: string;
   user_id: string;
   github_handle: string;
-  chronotype: "owl" | "lark" | "balanced";
+  chronotype: "owl" | "lark" | "balanced" | "daytime" | "evening" | "flexible";
   activity_rhythm_score: number;
   collaboration_index: number;
   prs_last_30_days: number;

@@ -1,12 +1,15 @@
 from datetime import UTC, datetime, timedelta
 import hashlib
 import json
+import logging
 import math
 import random
 from functools import lru_cache
 from typing import Any, AsyncIterator, TypedDict
 from urllib.parse import urlencode
 from uuid import uuid4
+
+_log = logging.getLogger(__name__)
 
 from jose import JWTError, jwt
 from langgraph.graph import END, START, StateGraph
@@ -269,12 +272,30 @@ async def search_users(query: str, db: AsyncSession, limit: int = 10) -> list[di
 # Admin — platform-wide stats and user listing (superadmin only)
 # ---------------------------------------------------------------------------
 
-async def get_platform_stats(db: AsyncSession) -> dict[str, int]:
+async def get_platform_stats(db: AsyncSession) -> dict[str, Any]:
     total_users_result = await db.execute(select(sa_func.count(UserProfile.user_id)))
     total_teams_result = await db.execute(select(sa_func.count(Team.id)))
-    total_assessments_result = await db.execute(select(sa_func.count(PsychometricProfile.id)))
-    total_syncs_result = await db.execute(select(sa_func.count(GithubProfile.id)))
+    total_assessments_result = await db.execute(
+        select(sa_func.count(PsychometricProfile.id)).where(PsychometricProfile.complete == True)  # noqa: E712
+    )
+    total_syncs_result = await db.execute(
+        select(sa_func.count(GithubProfile.id)).where(GithubProfile.sync_status == "complete")
+    )
     total_runs_result = await db.execute(select(sa_func.count(AgentRun.id)))
+
+    # Best performing team by compatibility score from TeamScore
+    best_score_result = await db.execute(
+        select(TeamScore.team_id, TeamScore.compatibility_pct)
+        .order_by(TeamScore.compatibility_pct.desc())
+        .limit(1)
+    )
+    best_row = best_score_result.first()
+    best_team_name = "—"
+    best_team_score = 0.0
+    if best_row:
+        team_name_result = await db.execute(select(Team.name).where(Team.id == best_row[0]))
+        best_team_name = team_name_result.scalar_one_or_none() or "—"
+        best_team_score = round(float(best_row[1]), 1)
 
     return {
         "total_users": total_users_result.scalar_one() or 0,
@@ -282,6 +303,8 @@ async def get_platform_stats(db: AsyncSession) -> dict[str, int]:
         "total_assessments": total_assessments_result.scalar_one() or 0,
         "total_github_syncs": total_syncs_result.scalar_one() or 0,
         "total_agent_runs": total_runs_result.scalar_one() or 0,
+        "best_team_name": best_team_name,
+        "best_team_score": best_team_score,
     }
 
 
@@ -306,9 +329,12 @@ async def get_all_users_admin(db: AsyncSession) -> list[dict[str, Any]]:
         )
         assessment_complete = assessment_result.scalar_one_or_none() is not None
 
-        # Count GitHub syncs
+        # Count completed GitHub syncs only (mock/queued profiles have sync_status="queued")
         syncs_result = await db.execute(
-            select(sa_func.count(GithubProfile.id)).where(GithubProfile.user_id == p.user_id)
+            select(sa_func.count(GithubProfile.id)).where(
+                GithubProfile.user_id == p.user_id,
+                GithubProfile.sync_status == "complete",
+            )
         )
         github_syncs = syncs_result.scalar_one() or 0
 
@@ -409,10 +435,20 @@ async def trigger_github_sync(github_handle: str, user_id: str, db: AsyncSession
                 completed_at=datetime.now(tz=UTC),
                 raw_data=data,
             )
-        except Exception:  # noqa: BLE001 — fall back to mock on any API failure
+        except Exception as exc:  # noqa: BLE001 — fall back to mock on any API failure
+            _log.warning(
+                "GitHub sync real-API failed for %s (user %s), falling back to mock: %r",
+                github_handle, user_id, exc, exc_info=True,
+            )
             profile = _mock_github_profile(sync_id, user_id, github_handle)
             used_mock = True
     else:
+        _log.warning(
+            "GitHub sync: no access_token for user %s — github_access_token is NULL in DB "
+            "and GS_GITHUB_ACCESS_TOKEN env var is not set. Using mock for %s. "
+            "Fix: set GS_GITHUB_ACCESS_TOKEN in Render env vars, or have user re-login.",
+            user_id, github_handle,
+        )
         profile = _mock_github_profile(sync_id, user_id, github_handle)
         used_mock = True
 

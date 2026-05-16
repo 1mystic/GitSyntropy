@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as d3 from "d3";
 
-type Chronotype = "owl" | "lark" | "balanced";
+type Chronotype = "owl" | "lark" | "balanced" | "daytime" | "evening" | "flexible";
 
 interface ChronotypeHeatmapProps {
   chronotype: Chronotype;

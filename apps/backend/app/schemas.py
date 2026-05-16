@@ -91,7 +91,7 @@ class GithubSyncResponse(BaseModel):
     sync_id: str
     user_id: str
     github_handle: str
-    chronotype: Literal["owl", "lark", "balanced", "daytime", "evening"]
+    chronotype: Literal["owl", "lark", "balanced", "daytime", "evening", "flexible"]
     activity_rhythm_score: float
     collaboration_index: float
     prs_last_30_days: int
@@ -306,6 +306,8 @@ class AdminStatsResponse(BaseModel):
     total_assessments: int
     total_github_syncs: int
     total_agent_runs: int
+    best_team_name: str = "—"
+    best_team_score: float = 0.0
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
@@ -160,7 +160,7 @@ function InsightsInner() {
   const [steps, setSteps] = useState<StreamStep[]>([]);
   const [data, setData] = useState<InsightResponse | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
-  const [lastCompatScore, setLastCompatScore] = useState<number | null>(null);
+  const lastCompatScoreRef = useRef<number | null>(null);
   const [streamingText, setStreamingText] = useState("");
 
   if (AUTH_REQUIRED && !session) {
@@ -203,7 +203,7 @@ function InsightsInner() {
     setProgress(0);
     setData(null);
     setReportId(null);
-    setLastCompatScore(null);
+    lastCompatScoreRef.current = null;
     setStreamingText("");
     setSteps(STEP_ORDER.map((name) => ({ name, status: "pending" })));
 
@@ -242,7 +242,7 @@ function InsightsInner() {
         // Capture compatibility score as it comes through, before synthesis step
         if (event.status === "completed" && event.step === "compatibility_engine" && event.data?.compatibility) {
           const compat = event.data.compatibility as unknown as { total_score_36?: number };
-          if (typeof compat.total_score_36 === "number") setLastCompatScore(compat.total_score_36);
+          if (typeof compat.total_score_36 === "number") lastCompatScoreRef.current = compat.total_score_36;
         }
 
         $orchestrator.set({
@@ -277,7 +277,7 @@ function InsightsInner() {
           const id = `${Date.now()}`;
           setReportId(id);
           // score comes from the compatibility step's data, captured separately via lastCompatScore
-          const score = lastCompatScore ?? 28;
+          const score = lastCompatScoreRef.current ?? 28;
           const resilienceScore = Math.round((score / 36) * 100);
           const reports = JSON.parse(localStorage.getItem("gitsyntropy.reports") ?? "[]") as object[];
           reports.unshift({
