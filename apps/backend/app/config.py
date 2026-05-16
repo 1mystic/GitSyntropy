@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     jwt_issuer: str = "gitsyntropy-local"
     github_client_id: str = "local-dev"
     github_redirect_url: str = "http://localhost:4321/auth"
-    github_scope: str = "read:user user:email"
+    github_scope: str = "read:user user:email public_repo"
     frontend_url: str = "http://localhost:4321"
     anthropic_model: str = "claude-sonnet-4-6"
     anthropic_api_key: str = ""

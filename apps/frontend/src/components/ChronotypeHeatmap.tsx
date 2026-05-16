@@ -63,7 +63,7 @@ export function ChronotypeHeatmap({ chronotype, commitCount }: ChronotypeHeatmap
     if (!svgRef.current || !containerRef.current) return;
 
     const data = generateHeatmapData(chronotype);
-    const margin = { top: 8, right: 12, bottom: 28, left: 46 };
+    const margin = { top: 8, right: 4, bottom: 28, left: 46 };
     const containerWidth = containerRef.current.clientWidth || 360;
     const height = 160;
     const innerW = containerWidth - margin.left - margin.right;
@@ -116,8 +116,8 @@ export function ChronotypeHeatmap({ chronotype, commitCount }: ChronotypeHeatmap
   }, [chronotype, commitCount]);
 
   return (
-    <div ref={containerRef} className="w-full">
-      <svg ref={svgRef} className="w-full overflow-visible" />
+    <div ref={containerRef} className="w-full overflow-hidden">
+      <svg ref={svgRef} className="block w-full" />
     </div>
   );
 }
