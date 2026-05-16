@@ -193,6 +193,16 @@ async function authedRequest<T>(path: string, token: string, init?: RequestInit)
   });
 }
 
+async function authedRequestVoid(path: string, token: string, init?: RequestInit): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
+  });
+  if (!res.ok) {
+    throw new Error(`API error ${res.status}`);
+  }
+}
+
 export const api = {
   health: () => request<HealthResponse>("/health"),
   mockAnalysis: (teamId: string) =>
@@ -209,17 +219,17 @@ export const api = {
     request<AuthSessionResponse>("/auth/session", {
       headers: { Authorization: `Bearer ${token}` }
     }),
-  githubSync: (github_handle: string, user_id = "user_local") =>
-    request<GithubSyncResponse>("/github/sync", {
+  githubSync: (github_handle: string, token: string) =>
+    authedRequest<GithubSyncResponse>("/github/sync", token, {
       method: "POST",
-      body: JSON.stringify({ github_handle, user_id })
+      body: JSON.stringify({ github_handle })
     }),
   githubSyncStatus: (sync_id: string) => request<GithubSyncResponse>(`/github/sync/${sync_id}`),
   assessmentQuestions: () => request<AssessmentQuestion[]>("/assessment/questions"),
-  assessmentResponse: (user_id: string) =>
-    cached(`/assessment/responses/${user_id}`, 30_000, () => request<AssessmentSubmitResponse>(`/assessment/responses/${user_id}`)),
-  submitAssessment: (user_id: string, answers: Record<string, number>) =>
-    request<AssessmentSubmitResponse>("/assessment/responses", {
+  assessmentResponse: (user_id: string, token: string) =>
+    cached(`/assessment/responses/${user_id}`, 30_000, () => authedRequest<AssessmentSubmitResponse>(`/assessment/responses/${user_id}`, token)),
+  submitAssessment: (user_id: string, answers: Record<string, number>, token: string) =>
+    authedRequest<AssessmentSubmitResponse>("/assessment/responses", token, {
       method: "POST",
       body: JSON.stringify({ user_id, answers })
     }).then((r) => { bustCache(`/assessment/responses/${user_id}`); return r; }),
@@ -228,35 +238,35 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ member_a: memberA, member_b: memberB, data_mode: dataMode })
     }),
-  orchestratorRun: (team_id: string, user_id: string, include_candidates = false) =>
-    request<OrchestratorResponse>("/orchestrator/run", {
+  orchestratorRun: (team_id: string, user_id: string, token: string, include_candidates = false) =>
+    authedRequest<OrchestratorResponse>("/orchestrator/run", token, {
       method: "POST",
       body: JSON.stringify({ team_id, user_id, include_candidates })
     }),
   synthesis: () => request<InsightResponse>("/insights/synthesis"),
 
   // Teams
-  createTeam: (name: string, description: string | null, created_by: string) =>
-    request<Team>("/teams", {
+  createTeam: (name: string, description: string | null, created_by: string, token: string) =>
+    authedRequest<Team>("/teams", token, {
       method: "POST",
       body: JSON.stringify({ name, description, created_by }),
     }).then((t) => { bustCache("/teams"); return t; }),
-  listTeams: (user_id: string) =>
-    cached(`/teams?user_id=${user_id}`, 30_000, () => request<Team[]>(`/teams?user_id=${encodeURIComponent(user_id)}`)),
+  listTeams: (user_id: string, token: string) =>
+    cached(`/teams?user_id=${user_id}`, 30_000, () => authedRequest<Team[]>(`/teams?user_id=${encodeURIComponent(user_id)}`, token)),
   getTeam: (team_id: string) =>
     cached(`/teams/${team_id}`, 15_000, () => request<Team>(`/teams/${team_id}`)),
-  updateTeam: (team_id: string, name?: string, description?: string) =>
-    request<Team>(`/teams/${team_id}`, {
+  updateTeam: (team_id: string, token: string, name?: string, description?: string) =>
+    authedRequest<Team>(`/teams/${team_id}`, token, {
       method: "PATCH",
       body: JSON.stringify({ name: name ?? null, description: description ?? null }),
     }).then((t) => { bustCache("/teams"); return t; }),
-  addMember: (team_id: string, user_id: string, github_handle?: string, role?: string) =>
-    request<TeamMember>(`/teams/${team_id}/members`, {
+  addMember: (team_id: string, user_id: string, token: string, github_handle?: string, role?: string) =>
+    authedRequest<TeamMember>(`/teams/${team_id}/members`, token, {
       method: "POST",
       body: JSON.stringify({ user_id, github_handle: github_handle ?? null, role: role ?? null }),
     }).then((m) => { bustCache("/teams"); return m; }),
-  removeMember: (team_id: string, user_id: string) =>
-    requestVoid(`/teams/${team_id}/members/${encodeURIComponent(user_id)}`, { method: "DELETE" })
+  removeMember: (team_id: string, user_id: string, token: string) =>
+    authedRequestVoid(`/teams/${team_id}/members/${encodeURIComponent(user_id)}`, token, { method: "DELETE" })
       .then(() => { bustCache("/teams"); }),
 
   // Authenticated user profile
@@ -267,8 +277,8 @@ export const api = {
       body: JSON.stringify({ display_name }),
     }),
 
-  // User search (no auth required — searching public handles/names)
-  searchUsers: (q: string) => request<UserSearchResult[]>(`/users/search?q=${encodeURIComponent(q)}`),
+  // User search
+  searchUsers: (q: string, token: string) => authedRequest<UserSearchResult[]>(`/users/search?q=${encodeURIComponent(q)}`, token),
 
   // Admin (superadmin only)
   adminStats: (token: string) =>

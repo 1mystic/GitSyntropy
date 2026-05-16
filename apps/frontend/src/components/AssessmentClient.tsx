@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStore } from "@nanostores/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 
@@ -141,20 +142,8 @@ function LoadingSkeleton() {
 }
 
 function AssessmentInner() {
-  const session = $session.get();
+  const session = useStore($session);
   const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
-
-  if (AUTH_REQUIRED && !session) {
-    return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-[1400px] mx-auto px-4 md:px-8">
-        <section className="glass-panel p-8 rounded-none w-full text-center">
-          <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
-          <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to complete the assessment.</p>
-          <a href="/auth" className="btn btn-primary justify-center">Go to Sign In</a>
-        </section>
-      </main>
-    );
-  }
 
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -164,11 +153,17 @@ function AssessmentInner() {
   const [scoreScreen, setScoreScreen] = useState(false);
   const [finalScores, setFinalScores] = useState<Record<string, number>>({});
 
+  const totalCount = STATIC_QUESTIONS.length;
+  const answeredCount = Object.keys(answers).length;
+  const progress = useMemo(() => Math.round((answeredCount / totalCount) * 100), [answeredCount, totalCount]);
+  const activeQuestion = STATIC_QUESTIONS[currentIndex];
+  const hasAllAnswers = answeredCount === totalCount;
+
   const loadData = async () => {
     setLoading(true);
     setLoadError(false);
     try {
-      const profileData = await api.assessmentResponse(userId);
+      const profileData = await api.assessmentResponse(userId, session?.token ?? "");
       const restoredAnswers: Record<string, number> = {};
       const scoreDimensions = Object.keys(profileData.scores);
       scoreDimensions.forEach((dimension, idx) => {
@@ -197,10 +192,22 @@ function AssessmentInner() {
 
   useEffect(() => { void loadData(); }, [userId]);
 
+  if (AUTH_REQUIRED && !session) {
+    return (
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-10 pb-12 w-full max-w-[1400px] mx-auto px-4 md:px-8">
+        <section className="glass-panel p-8 rounded-none w-full text-center">
+          <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
+          <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to complete the assessment.</p>
+          <a href="/auth" className="btn btn-primary justify-center">Go to Sign In</a>
+        </section>
+      </main>
+    );
+  }
+
   const submitAssessment = async () => {
     setSubmitting(true);
     try {
-      const data = await api.submitAssessment(userId, answers);
+      const data = await api.submitAssessment(userId, answers, session?.token ?? "");
       $assessment.set({
         userId: data.user_id,
         scores: data.scores,
@@ -216,12 +223,6 @@ function AssessmentInner() {
       setSubmitting(false);
     }
   };
-
-  const totalCount = STATIC_QUESTIONS.length;
-  const answeredCount = Object.keys(answers).length;
-  const progress = useMemo(() => Math.round((answeredCount / totalCount) * 100), [answeredCount, totalCount]);
-  const activeQuestion = STATIC_QUESTIONS[currentIndex];
-  const hasAllAnswers = answeredCount === totalCount;
 
   const selectAnswer = (questionId: string, value: number) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));

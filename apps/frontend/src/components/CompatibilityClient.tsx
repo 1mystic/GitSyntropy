@@ -23,24 +23,10 @@ function getDimensionLabel(dimension: string) {
 }
 
 export function CompatibilityClient() {
-  const _session = $session.get();
-  if (AUTH_REQUIRED && !_session) {
-    return (
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 md:px-8 pt-10 pb-12 w-full max-w-[1400px] mx-auto">
-        <section className="glass-panel p-8 rounded-none w-full text-center">
-          <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
-          <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to view compatibility analysis.</p>
-          <a href="/auth" className="btn btn-primary justify-center">Go to Sign In</a>
-        </section>
-      </main>
-    );
-  }
-
-  const session = $session.get();
-  const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
+  const session = useStore($session);
   const teams = useStore($teams);
+  const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
 
-  // Build a flat list of all members from all teams for quick-select
   const allMembers = useMemo(() => {
     const seen = new Set<string>();
     const out: { id: string; label: string; teamName: string }[] = [];
@@ -66,6 +52,26 @@ export function CompatibilityClient() {
   const [data, setData] = useState<CompatibilityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const scoreTone = useMemo(() => {
+    const level = data?.level;
+    if (level === "excellent") return "text-accent-neon bg-accent-neon/10 border-accent-neon/30";
+    if (level === "good") return "text-accent-info bg-accent-info/10 border-accent-info/30";
+    if (level === "fair") return "text-yellow-400 bg-yellow-400/10 border-yellow-400/30";
+    return "text-red-400 bg-red-400/10 border-red-400/30";
+  }, [data?.level]);
+
+  if (AUTH_REQUIRED && !session) {
+    return (
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 md:px-8 pt-10 pb-12 w-full max-w-[1400px] mx-auto">
+        <section className="glass-panel p-8 rounded-none w-full text-center">
+          <h3 className="text-xl font-bold font-display text-white">Authentication Required</h3>
+          <p className="text-gray-400 mt-2 mb-6">Sign in on the auth page to view compatibility analysis.</p>
+          <a href="/auth" className="btn btn-primary justify-center">Go to Sign In</a>
+        </section>
+      </main>
+    );
+  }
+
   const run = async () => {
     if (!memberA.trim() || !memberB.trim()) {
       setError("Please enter both member IDs to run comparison.");
@@ -82,14 +88,6 @@ export function CompatibilityClient() {
       setLoading(false);
     }
   };
-
-  const scoreTone = useMemo(() => {
-    const level = data?.level;
-    if (level === "excellent") return "text-accent-neon bg-accent-neon/10 border-accent-neon/30";
-    if (level === "good") return "text-accent-info bg-accent-info/10 border-accent-info/30";
-    if (level === "fair") return "text-yellow-400 bg-yellow-400/10 border-yellow-400/30";
-    return "text-red-400 bg-red-400/10 border-red-400/30";
-  }, [data?.level]);
 
   return (
     <motion.main variants={fadeInUp} initial="hidden" animate="visible" className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-20 flex flex-col min-h-screen">

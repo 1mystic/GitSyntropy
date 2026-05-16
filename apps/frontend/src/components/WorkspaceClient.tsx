@@ -78,7 +78,7 @@ function WorkspaceInner() {
     (async () => {
       setTeamsLoading(true);
       try {
-        const data = await api.listTeams(userId);
+        const data = await api.listTeams(userId, session?.token ?? "");
         setTeams(data);
         $teams.set(data);
         if (data.length > 0) {
@@ -145,7 +145,7 @@ function WorkspaceInner() {
     setWLoading(true);
     setWError(null);
     try {
-      const team = await api.createTeam(wName.trim(), wDesc.trim() || null, userId);
+      const team = await api.createTeam(wName.trim(), wDesc.trim() || null, userId, session?.token ?? "");
       setWCreatedTeam(team);
       setActiveTeam(team);
       setGlobalActiveTeam(team);
@@ -168,7 +168,7 @@ function WorkspaceInner() {
     if (q.length < 2) { setWInvSearchResults([]); setWInvShowDropdown(false); return; }
     setWInvSearchLoading(true);
     try {
-      const results = await api.searchUsers(q);
+      const results = await api.searchUsers(q, session?.token ?? "");
       setWInvSearchResults(results);
       setWInvShowDropdown(true);
     } catch { setWInvSearchResults([]); } finally { setWInvSearchLoading(false); }
@@ -190,6 +190,7 @@ function WorkspaceInner() {
       await api.addMember(
         wCreatedTeam.id,
         wInvUserId.trim(),
+        session?.token ?? "",
         wInvHandle.trim() || undefined,
         wInvRole.trim() || undefined,
       );
@@ -235,7 +236,7 @@ function WorkspaceInner() {
     }
     setInvSearchLoading(true);
     try {
-      const results = await api.searchUsers(q);
+      const results = await api.searchUsers(q, session?.token ?? "");
       setInvSearchResults(results);
       setInvShowDropdown(true);
     } catch {
@@ -261,6 +262,7 @@ function WorkspaceInner() {
       await api.addMember(
         activeTeam.id,
         invUserId.trim(),
+        session?.token ?? "",
         invHandle.trim() || undefined,
         invRole.trim() || undefined,
       );
@@ -301,7 +303,7 @@ function WorkspaceInner() {
     setEditLoading(true);
     setEditError(null);
     try {
-      const updated = await api.updateTeam(activeTeam.id, editName.trim(), editDesc.trim() || undefined);
+      const updated = await api.updateTeam(activeTeam.id, session?.token ?? "", editName.trim(), editDesc.trim() || undefined);
       setActiveTeam(updated);
       setGlobalActiveTeam(updated);
       syncTeams(updated);
@@ -318,7 +320,7 @@ function WorkspaceInner() {
     if (!activeTeam) return;
     setRemoveError(null);
     try {
-      await api.removeMember(activeTeam.id, memberId);
+      await api.removeMember(activeTeam.id, memberId, session?.token ?? "");
       await refreshTeam(activeTeam.id);
     } catch {
       setRemoveError("Failed to remove member. Please try again.");
@@ -334,7 +336,7 @@ function WorkspaceInner() {
     setCurrentRun(null);
     try {
       if (!activeTeam) { setRunError("Select a team first."); setStartingRun(false); return; }
-      const data = await api.orchestratorRun(activeTeam.id, userId, true);
+      const data = await api.orchestratorRun(activeTeam.id, userId, session?.token ?? "", true);
       setCurrentRun(data.run_id);
     } catch {
       setRunError("Could not start orchestrator run.");

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useStore } from "@nanostores/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
 import { api, wsUrlForRun, type InsightResponse, type OrchestratorStreamEvent } from "@/lib/api";
@@ -148,9 +149,19 @@ function NarrativeCard({ narrative }: { narrative: string }) {
 // ---------------------------------------------------------------------------
 
 function InsightsInner() {
-  const session = $session.get();
+  const session = useStore($session);
   const userId = session?.userId ?? AUTH_BYPASS_USER_ID;
   const activeTeam = $activeTeam.get();
+
+  const [streaming, setStreaming] = useState(false);
+  const [streamDone, setStreamDone] = useState(false);
+  const [streamError, setStreamError] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [steps, setSteps] = useState<StreamStep[]>([]);
+  const [data, setData] = useState<InsightResponse | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [lastCompatScore, setLastCompatScore] = useState<number | null>(null);
+  const [streamingText, setStreamingText] = useState("");
 
   if (AUTH_REQUIRED && !session) {
     return (
@@ -185,16 +196,6 @@ function InsightsInner() {
     ? new Date(savedReports[0].createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
     : null;
 
-  const [streaming, setStreaming] = useState(false);
-  const [streamDone, setStreamDone] = useState(false);
-  const [streamError, setStreamError] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [steps, setSteps] = useState<StreamStep[]>([]);
-  const [data, setData] = useState<InsightResponse | null>(null);
-  const [reportId, setReportId] = useState<string | null>(null);
-  const [lastCompatScore, setLastCompatScore] = useState<number | null>(null);
-  const [streamingText, setStreamingText] = useState("");
-
   const startStream = async () => {
     setStreaming(true);
     setStreamDone(false);
@@ -216,7 +217,7 @@ function InsightsInner() {
     }
 
     try {
-      const run = await api.orchestratorRun(teamId, userId);
+      const run = await api.orchestratorRun(teamId, userId, session?.token ?? "");
 
       $orchestrator.set({
         runId: run.run_id,

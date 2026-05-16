@@ -124,7 +124,7 @@ function DashboardInner() {
   useEffect(() => {
     if (teams.length > 0) return;
     setTeamsLoading(true);
-    void api.listTeams(userId)
+    void api.listTeams(userId, session?.token ?? "")
       .then((data) => {
         $teams.set(data);
         if (data.length > 0 && !$activeTeam.get()) setActiveTeam(data[0]);
@@ -146,7 +146,7 @@ function DashboardInner() {
     setAssessmentLoading(true);
     setAssessmentError(false);
     void api
-      .assessmentResponse(userId)
+      .assessmentResponse(userId, session?.token ?? "")
       .then((data) => {
         setAssessmentReady(data.complete);
         setAssessmentAnswered(data.answered_count);
@@ -170,7 +170,7 @@ function DashboardInner() {
     if (!teamId) { setOrchError(true); setAnalysisLoading(false); return; }
 
     try {
-      const run = await api.orchestratorRun(teamId, userId);
+      const run = await api.orchestratorRun(teamId, userId, session?.token ?? "");
 
       $orchestrator.set({
         runId: run.run_id,
@@ -264,7 +264,7 @@ function DashboardInner() {
     try {
       const handle = githubHandle.trim();
       if (!handle) { setSyncStartError(true); setSyncStarting(false); return; }
-      const data = await api.githubSync(handle);
+      const data = await api.githubSync(handle, session?.token ?? "");
       setSyncResult(data);
       pushSyncStore(data);
     } catch {
