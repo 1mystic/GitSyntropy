@@ -118,7 +118,7 @@ class GitHubAnalystClient:
     """Async wrapper around PyGithub (synchronous) using asyncio.to_thread."""
 
     def __init__(self, access_token: str) -> None:
-        self._gh = Github(Auth.Token(access_token), per_page=100)
+        self._gh = Github(auth=Auth.Token(access_token), per_page=100)
 
     async def _run(self, fn, *args, **kwargs):
         """Run a blocking PyGithub call in a thread."""

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
@@ -66,6 +66,10 @@ function WorkspaceInner() {
   const [invSelectedUser, setInvSelectedUser] = useState<UserSearchResult | null>(null);
   const [invShowDropdown, setInvShowDropdown] = useState(false);
 
+  // ── Team dropdown ───────────────────────────────────────────────────────
+  const [teamDropOpen, setTeamDropOpen] = useState(false);
+  const teamDropRef = useRef<HTMLDivElement>(null);
+
   // ── Orchestrator ────────────────────────────────────────────────────────
   const [events, setEvents] = useState<OrchestratorStreamEvent[]>([]);
   const [currentRun, setCurrentRun] = useState<string | null>(null);
@@ -94,6 +98,16 @@ function WorkspaceInner() {
       }
     })();
   }, [userId]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (teamDropRef.current && !teamDropRef.current.contains(e.target as Node)) {
+        setTeamDropOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const syncTeams = (updated: Team) => {
     setTeams((prev) => {
@@ -768,18 +782,66 @@ function WorkspaceInner() {
                   {teamsLoading ? (
                     <div className="w-full h-9 bg-black/20 border border-white/10 rounded-lg animate-pulse" />
                   ) : teams.length > 0 ? (
-                    <select
-                      value={activeTeam?.id ?? ""}
-                      onChange={(e) => {
-                        const found = teams.find((t) => t.id === e.target.value);
-                        if (found) { setActiveTeam(found); setGlobalActiveTeam(found); }
-                      }}
-                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                    >
-                      {teams.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
+                    <div ref={teamDropRef} className="relative">
+                      <button
+                        onClick={() => setTeamDropOpen((v) => !v)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                          teamDropOpen
+                            ? "bg-primary/20 border-primary/50 text-white"
+                            : "bg-black/20 border-white/10 text-gray-300 hover:border-white/30 hover:text-white"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[14px] text-primary">schema</span>
+                        <span className="flex-1 text-left truncate font-display text-sm">
+                          {activeTeam?.name ?? "Select team"}
+                        </span>
+                        <span
+                          className="material-symbols-outlined text-[13px] text-gray-500 transition-transform flex-shrink-0"
+                          style={{ transform: teamDropOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                        >
+                          expand_more
+                        </span>
+                      </button>
+                      {teamDropOpen && (
+                        <div className="absolute top-full left-0 mt-1.5 w-full bg-[#0d0d0f]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden z-20">
+                          <div className="px-3 pt-2.5 pb-1">
+                            <p className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">Select Team</p>
+                          </div>
+                          <div className="flex flex-col pb-2">
+                            {teams.map((t) => {
+                              const isActive = t.id === activeTeam?.id;
+                              return (
+                                <button
+                                  key={t.id}
+                                  onClick={() => {
+                                    setActiveTeam(t);
+                                    setGlobalActiveTeam(t);
+                                    setTeamDropOpen(false);
+                                  }}
+                                  className={`flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/5 transition-colors ${
+                                    isActive ? "text-white" : "text-gray-400 hover:text-white"
+                                  }`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? "bg-primary" : "bg-white/10"}`} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate font-display">{t.name}</p>
+                                    <p className="text-[10px] text-gray-600 truncate">
+                                      {t.members.length} member{t.members.length !== 1 ? "s" : ""} ·{" "}
+                                      {t.members.find((m) => m.role === "owner")?.github_handle
+                                        ? `@${t.members.find((m) => m.role === "owner")!.github_handle}`
+                                        : "owner"}
+                                    </p>
+                                  </div>
+                                  {isActive && (
+                                    <span className="material-symbols-outlined text-primary text-[16px] flex-shrink-0">check</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-xs text-gray-500 py-1.5">No teams yet.</p>
                   )}

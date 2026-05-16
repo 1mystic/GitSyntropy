@@ -69,7 +69,7 @@ export function GlobalTeamSelector() {
   return (
     <div
       ref={dropdownRef}
-      className="fixed top-4 right-4 z-[60] flex flex-col items-end"
+      className="fixed bottom-4 right-4 z-[60] flex flex-col-reverse items-end"
     >
       {/* Trigger button */}
       <button
@@ -92,7 +92,7 @@ export function GlobalTeamSelector() {
 
       {/* Dropdown */}
       {open && (
-        <div className="mt-2 w-64 bg-[#0d0d0f]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden">
+        <div className="mb-2 w-64 bg-[#0d0d0f]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden">
           {teams.length === 0 ? (
             <div className="px-4 py-4 text-center">
               <p className="text-xs text-gray-500 mb-3">No teams yet</p>
