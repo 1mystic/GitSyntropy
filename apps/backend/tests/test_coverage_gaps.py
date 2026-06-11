@@ -135,3 +135,25 @@ def test_cat_select_next_irt_semantics() -> None:
     # Questions are drawn from the valid set
     for qid in order:
         assert qid in {f"q{i}" for i in range(1, 9)}
+
+
+async def test_github_analyst_node_runs_with_members() -> None:
+    """Regression: the orchestrator GitHub-analyst node uses asyncio.gather over members.
+
+    A missing `import asyncio` in services.py raised NameError only on a live run (no test hit
+    this path), surfacing as 'Orchestration failed: name asyncio is not defined'. This exercises
+    the concurrent path with the deterministic (no-token, no-network) fallback.
+    """
+    from app.services import _github_analyst_node
+
+    state = {
+        "user_id": "user_demo",
+        "member_profiles": [
+            {"user_id": "user_demo", "github_handle": "octocat", "github_data": None},
+            {"user_id": "user_two", "github_handle": "hubber", "github_data": None},
+        ],
+    }
+    out = await _github_analyst_node(state)
+    assert "github_signals" in out
+    assert "member_github_signals" in out
+    assert set(out["member_github_signals"]) == {"user_demo", "user_two"}

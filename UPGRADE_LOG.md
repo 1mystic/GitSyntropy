@@ -180,3 +180,41 @@ Suite is now **order-independent**. **92 passed; frontend `astro check` 0 errors
 2. Run on Supabase (query editor): `apps/backend/migrations/0001_rename_dimensions.sql` then
    `apps/backend/migrations/0002_agent_events.sql`. (Both idempotent; the read-shim and
    `CREATE TABLE IF NOT EXISTS` keep things working pre-migration, but apply them to be correct.)
+
+## Local demo tooling + UI gap fix (2026-06-11)
+
+- **`scripts/seed_demo.py`** (local-only; hard SQLite guard, `seed_demo_` prefix, `--clear`): now
+  seeds 10 assessed users **and** a "Demo Squad (seed)" team (owner + 5 members) **and** a real
+  compatibility report, so the dashboard/compatibility/insights/hire-sim all populate locally — not
+  just the recommendation pool. `--clear` removes only seeded rows + the seed team (real teams kept).
+- **Recommendations UI was unmounted** (gap from WS-2 / parallel work): `RecommendationsClient` existed
+  but no page rendered it. Now reads `$activeTeam` and is mounted on `compatibility.astro`.
+- **API base hardened** (`src/lib/api.ts`): `PUBLIC_API_BASE` env wins (vercel.json sets the Render URL
+  on deploy); else host-based auto-detect → localhost when on localhost/127.0.0.1, else
+  `https://gitsyntropy.onrender.com`. Same logic for the WS base. Local always hits localhost; a
+  deployed build can never accidentally call localhost. `astro check` 0 errors.
+
+## Deployment-readiness fixes (2026-06-11)
+
+- **CRITICAL — `asyncio` NameError**: `services.py` used `asyncio.gather` in `_github_analyst_node`
+  (WS-5 F3 concurrent GitHub analysis) but never imported `asyncio` → every "Run Analysis" failed
+  with "Orchestration failed: name 'asyncio' is not defined" (local AND prod). Added `import asyncio`.
+  Added regression test `test_github_analyst_node_runs_with_members` (the live orchestrator path had
+  no test coverage, which is why CI missed it). **93 tests pass.**
+- **Hydration errors**: `NavUser` + `GlobalTeamSelector` are session/localStorage-driven and were
+  SSR'd via `client:load`, causing "Hydration failed" cascades. Switched to `client:only="react"` in
+  `SideNav.astro` — no server HTML to mismatch. `astro check` 0 errors.
+- **API/WS base auto-detection** (recap): env var (vercel.json → Render) wins; else host-based
+  (localhost → local, else Render). Local always local; deployed always Render.
+- **Prod safety:** `matplotlib` is a **dev/script** dependency only (not imported by `app/`), so the
+  Render production install does not pull it. Local SQLite demo DB is gitignored.
+- **Known minor (pre-existing, non-blocking):** React duplicate-key `` warning in `CompatibilityClient`
+  option lists — cosmetic, does not affect correctness.
+
+### Deploy checklist
+1. Commit + push (Render auto-deploys backend; Vercel auto-deploys frontend with vercel.json env).
+2. Apply on Supabase (query editor), in order: `apps/backend/migrations/0001_rename_dimensions.sql`,
+   then `0002_agent_events.sql`. Both idempotent. Required for correct real data (renamed keys +
+   agent_events column).
+3. Verify deployed: frontend (Vercel) → `gitsyntropy.onrender.com` → Supabase; run an assessment +
+   "Run Analysis" to confirm the agent trace persists.

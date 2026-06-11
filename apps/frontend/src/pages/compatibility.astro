@@ -1,6 +1,7 @@
 ---
 import SideNav from "@/components/SideNav.astro";
 import { CompatibilityClient } from "@/components/CompatibilityClient";
+import { RecommendationsClient } from "@/components/RecommendationsClient";
 import { ProtectedGate } from "@/components/ProtectedGate";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
@@ -16,6 +17,9 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
   <div class="lg:ml-[220px]">
     <ProtectedGate client:load>
       <CompatibilityClient client:load />
+      <div class="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pb-20">
+        <RecommendationsClient client:load />
+      </div>
     </ProtectedGate>
   </div>
 </BaseLayout>

@@ -1,4 +1,23 @@
-const API_BASE = import.meta.env.PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
+// Resolve the backend base URL with this precedence:
+//   1. PUBLIC_API_BASE env var (set by vercel.json on deploy) — always wins.
+//   2. If running in a browser on a non-localhost host → the deployed Render backend
+//      (safety net so a production build can never accidentally call localhost).
+//   3. Otherwise → local dev backend.
+const PROD_API_BASE = "https://gitsyntropy.onrender.com/api/v1";
+const LOCAL_API_BASE = "http://localhost:8000/api/v1";
+
+function resolveApiBase(): string {
+  const explicit = import.meta.env.PUBLIC_API_BASE;
+  if (explicit) return explicit;
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const isLocal = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+    return isLocal ? LOCAL_API_BASE : PROD_API_BASE;
+  }
+  return LOCAL_API_BASE;
+}
+
+const API_BASE = resolveApiBase();
 
 // Simple in-memory TTL cache for GET requests
 const _cache = new Map<string, { data: unknown; expiresAt: number }>();
@@ -363,6 +382,17 @@ export const api = {
 };
 
 export const wsUrlForRun = (runId: string) => {
-  const base = (import.meta.env.PUBLIC_WS_BASE ?? "ws://localhost:8000").replace(/\/$/, "");
+  // Same precedence as resolveApiBase: env var → host-based → local.
+  let base = import.meta.env.PUBLIC_WS_BASE as string | undefined;
+  if (!base) {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      const isLocal = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+      base = isLocal ? "ws://localhost:8000" : "wss://gitsyntropy.onrender.com";
+    } else {
+      base = "ws://localhost:8000";
+    }
+  }
+  base = base.replace(/\/$/, "");
   return `${base}/ws/analysis/${runId}`;
 };
