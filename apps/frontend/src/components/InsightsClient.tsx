@@ -395,7 +395,7 @@ function InsightsInner() {
             {[
               { icon: "code", step: "1", title: "GitHub Analyst", desc: "Fetches commit history and PR activity to compute chronotype and collaboration index." },
               { icon: "psychology", step: "2", title: "Psychometric Profiler", desc: "Loads your 8-dimension behavioral profile from the Assessment page." },
-              { icon: "hub", step: "3", title: "Compatibility Engine", desc: "Scores 8 Ashtakoot dimensions across the team, flagging weak and strong alignments." },
+              { icon: "hub", step: "3", title: "Compatibility Engine", desc: "Scores 8 psychometric dimensions across the team, flagging weak and strong alignments." },
               { icon: "auto_awesome", step: "4", title: "Claude Synthesis", desc: "Streams a GPT-quality narrative report with strengths, risks, hiring gaps, and meeting windows." },
             ].map((item) => (
               <div key={item.step} className="flex flex-col gap-3 p-5 bg-white/[0.02] border border-white/5 rounded">

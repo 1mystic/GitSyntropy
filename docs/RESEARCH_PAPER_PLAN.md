@@ -104,14 +104,14 @@ else                  → "owl"     (night owl, covers 23–5)
 
 | # | Internal Key | English Label | Weight (max pts) | Measures |
 |---|---|---|---|---|
-| 1 | `varna_alignment` | Innovation Drive | 1 | Conservative vs. exploratory orientation |
-| 2 | `vashya_influence` | Leadership Orientation | 2 | Authority and influence patterns |
-| 3 | `tara_resilience` | Team Resilience | 3 | Communication style fit |
-| 4 | `yoni_workstyle` | Work Style | 4 | Conflict resolution / work mode |
-| 5 | `graha_maitri_cognition` | Decision Style | 5 | Data-driven vs. intuitive |
-| 6 | `gana_temperament` | Risk Tolerance | 6 | Bold vs. cautious |
-| 7 | `bhakoot_strategy` | Stress Response | 7 | Pressure handling patterns |
-| 8 | `nadi_chronotype_sync` | Chronotype Sync | 8 | Peak-hour overlap (from GitHub) |
+| 1 | `innovation_drive` | Innovation Drive | 1 | Conservative vs. exploratory orientation |
+| 2 | `leadership_orientation` | Leadership Orientation | 2 | Authority and influence patterns |
+| 3 | `team_resilience` | Team Resilience | 3 | Communication style fit |
+| 4 | `work_style` | Work Style | 4 | Conflict resolution / work mode |
+| 5 | `decision_style` | Decision Style | 5 | Data-driven vs. intuitive |
+| 6 | `risk_tolerance` | Risk Tolerance | 6 | Bold vs. cautious |
+| 7 | `stress_response` | Stress Response | 7 | Pressure handling patterns |
+| 8 | `chronotype_sync` | Chronotype Sync | 8 | Peak-hour overlap (from GitHub) |
 
 **Scoring formula for each dimension d:**
 ```
@@ -148,7 +148,7 @@ confidence = observed_signal_count / (len(dimensions) × 2)
 ```
 Where `observed_signal_count` = number of non-None scores across both members (max 16).
 
-**Special chronotype risk flag:** If `nadi_chronotype_sync < 8 × 0.45 = 3.6`, the flag "Chronotype sync is weak; consider async-first collaboration rituals." is emitted.
+**Special chronotype risk flag:** If `chronotype_sync < 8 × 0.45 = 3.6`, the flag "Chronotype sync is weak; consider async-first collaboration rituals." is emitted.
 
 ---
 
@@ -614,14 +614,14 @@ GitSyntropy takes a list of GitHub usernames (a software team), fetches their co
 
 | Question ID | Question Text | Left → Right | Dimension Key | Weight |
 |---|---|---|---|---|
-| q1 | Decision style in uncertainty | Intuitive → Analytical | varna_alignment | 1 |
-| q2 | Preferred delivery rhythm | Steady → Bursty | vashya_influence | 2 |
-| q3 | Conflict handling pattern | Direct → Diplomatic | tara_resilience | 3 |
-| q4 | Team interaction mode | Independent → Collaborative | yoni_workstyle | 4 |
-| q5 | Context switching tolerance | Low → High | graha_maitri_cognition | 5 |
-| q6 | Communication density | Concise → Detailed | gana_temperament | 6 |
-| q7 | Experimentation appetite | Conservative → Exploratory | bhakoot_strategy | 7 |
-| q8 | Working-hour preference | Early → Late | nadi_chronotype_sync | 8 |
+| q1 | Decision style in uncertainty | Intuitive → Analytical | innovation_drive | 1 |
+| q2 | Preferred delivery rhythm | Steady → Bursty | leadership_orientation | 2 |
+| q3 | Conflict handling pattern | Direct → Diplomatic | team_resilience | 3 |
+| q4 | Team interaction mode | Independent → Collaborative | work_style | 4 |
+| q5 | Context switching tolerance | Low → High | decision_style | 5 |
+| q6 | Communication density | Concise → Detailed | risk_tolerance | 6 |
+| q7 | Experimentation appetite | Conservative → Exploratory | stress_response | 7 |
+| q8 | Working-hour preference | Early → Late | chronotype_sync | 8 |
 
 ### What the paper claims as novel (and what it must not over-claim)
 

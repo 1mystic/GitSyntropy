@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services import (
-    ASHTAKOOT_DIMENSIONS,
+    TRAIT_DIMENSIONS,
     cat_select_next_question,
     cat_rationale,
     cat_estimated_remaining,
@@ -26,7 +26,7 @@ def test_cat_first_question_is_max_fisher_info() -> None:
 
 
 def test_cat_returns_none_when_all_answered() -> None:
-    all_answers = {f"q{i + 1}": 3 for i in range(len(ASHTAKOOT_DIMENSIONS))}
+    all_answers = {f"q{i + 1}": 3 for i in range(len(TRAIT_DIMENSIONS))}
     assert cat_select_next_question(all_answers) is None
 
 
@@ -101,7 +101,7 @@ def test_cat_next_endpoint_partial_answers() -> None:
 
 
 def test_cat_next_endpoint_all_answered() -> None:
-    all_answers = {f"q{i + 1}": 3 for i in range(len(ASHTAKOOT_DIMENSIONS))}
+    all_answers = {f"q{i + 1}": 3 for i in range(len(TRAIT_DIMENSIONS))}
     resp = client.post("/api/v1/assessment/cat/next", json={"current_answers": all_answers})
     assert resp.status_code == 200
     payload = resp.json()

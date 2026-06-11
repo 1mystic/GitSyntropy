@@ -61,7 +61,7 @@ class PsychometricProfile(Base):
     # Raw answers keyed by question ID: {"q1": 3, "q2": 5, ...}
     answers: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
-    # Computed dimension scores: {"nadi_chronotype_sync": 6.4, ...}
+    # Computed dimension scores: {"chronotype_sync": 6.4, ...}
     scores: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
     answered_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -135,7 +135,7 @@ class UserProfile(Base):
 
 
 class TeamScore(Base):
-    """Versioned team Ashtakoot scores — one row per run."""
+    """Versioned team compatibility scores — one row per run."""
 
     __tablename__ = "team_scores"
 

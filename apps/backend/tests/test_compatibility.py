@@ -21,14 +21,14 @@ def test_compatibility_full_data_contract() -> None:
     assert 0.5 <= payload["confidence"] <= 1.0
     assert len(payload["dimension_breakdown"]) == 8
     assert set(payload["dimension_scores"]) == {
-        "varna_alignment",
-        "vashya_influence",
-        "tara_resilience",
-        "yoni_workstyle",
-        "graha_maitri_cognition",
-        "gana_temperament",
-        "bhakoot_strategy",
-        "nadi_chronotype_sync",
+        "innovation_drive",
+        "leadership_orientation",
+        "team_resilience",
+        "work_style",
+        "decision_style",
+        "risk_tolerance",
+        "stress_response",
+        "chronotype_sync",
     }
 
 

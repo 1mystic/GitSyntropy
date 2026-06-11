@@ -9,6 +9,7 @@ app/database.py
 app/github_client.py
 app/main.py
 app/models.py
+app/recommender.py
 app/schemas.py
 app/services.py
 gitsyntropy_backend.egg-info/PKG-INFO
@@ -23,4 +24,5 @@ tests/test_coverage_gaps.py
 tests/test_github_client.py
 tests/test_health.py
 tests/test_monte_carlo.py
+tests/test_recommender.py
 tests/test_teams.py

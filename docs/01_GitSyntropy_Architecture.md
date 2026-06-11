@@ -2,7 +2,7 @@
 ## Full Architecture & Project Plan — 2026
 
 **Version:** 2.0 (Agentic Rebuild)  
-**Conceptual Foundation:** Vedic Ashtakoot Compatibility Framework  
+**Conceptual Foundation:** Weighted Psychometric Compatibility Model  
 **Architecture Pattern:** Multi-Agent Orchestration  
 **Stack:** FastAPI · LangGraph · Astro.js · Supabase · Claude API  
 **Timeline:** May → August 2026
@@ -11,28 +11,28 @@
 
 ## PART I: THE VISION
 
-### 1.1 The Conceptual Foundation: Vedic Ashtakoot as Signal
+### 1.1 The Conceptual Foundation: a Weighted Psychometric Compatibility Model
 
-Ancient Indian astrology developed the Ashtakoot system — a framework for measuring compatibility between two individuals across eight dimensions (Gunas), each weighted differently, summing to a total of 36 points. This "Gun Milan" (quality matching) system has predicted relationship compatibility for centuries. It is not superstition. It is structured, weighted, multi-dimensional scoring — exactly what modern team dynamics science independently arrived at.
+Team compatibility is not one number — it is multi-dimensional. Two engineers can align perfectly on working hours yet clash on risk appetite, or share a decision style while differing on how they absorb pressure. GitSyntropy models this with **eight orthogonal psychometric dimensions**, each carrying an integer weight from 1 to 8 (summing to a 36-point scale). The weights encode the relative impact of each dimension on day-to-day team cohesion: chronotype overlap and stress-response alignment are weighted highest because misalignment there causes the most friction; innovation-style differences are weighted lowest because they are usually complementary rather than disruptive.
 
-GitSyntropy takes this insight seriously. Not the astrology — the framework. The idea that compatibility can be decomposed into eight orthogonal dimensions, each with a different weight, and that the aggregate score predicts relationship success, is both ancient wisdom and modern organizational science. We are not building an astrology tool. We are building a team intelligence platform that honors the structural insight the Ashtakoot system discovered.
+This is a **multi-criteria weighted scoring model** — the same structural pattern used across organizational-psychology team-effectiveness instruments and multi-criteria decision analysis (MCDM). The 1–8 weighting is a **design hypothesis**, not an empirically-fitted factor loading; it is stated as such, and the calibration layer (Platt scaling) quantifies how much to trust a score given how much data backs it.
 
-The eight Ashtakoot dimensions map to eight team dynamics dimensions, translated from behavioral signals and psychometric data:
+The eight dimensions, each scored from the adaptive (IRT) assessment plus GitHub behavioural signals:
 
-| Vedic Guna | Points | Meaning | GitSyntropy Dimension |
-|---|---|---|---|
-| Nadi | 8 | Life-force compatibility | **Chronotype Sync** — peak work hour overlap |
-| Bhakoot | 7 | Emotional compatibility | **Stress Response Alignment** — how members handle pressure |
-| Gana | 6 | Nature type (Deva/Manushya/Rakshasa) | **Risk Tolerance** — bold vs. cautious decision-making |
-| Graha Maitri | 5 | Intellectual compatibility | **Decision Framework** — data-driven vs. intuitive |
-| Yoni | 4 | Instinctual compatibility | **Conflict Resolution Style** — direct vs. avoidant |
-| Maitri | 3 | Social compatibility | **Communication Channel** — sync vs. async preference |
-| Vashya | 2 | Influence dynamics | **Leadership Orientation** — directive vs. collaborative |
-| Varna | 1 | Role alignment | **Innovation Drive** — incremental vs. disruptive |
+| Weight | GitSyntropy Dimension | Behavioural meaning |
+|---|---|---|
+| 8 | **Chronotype Sync** | Overlap in peak productive hours |
+| 7 | **Stress Response** | How members handle pressure and tight deadlines |
+| 6 | **Risk Tolerance** | Bold vs. cautious decision-making |
+| 5 | **Decision Style** | Data-driven vs. intuitive reasoning |
+| 4 | **Work Style** | Solo-focus vs. collaborative preference |
+| 3 | **Team Resilience** | Capacity to absorb and recover from setbacks |
+| 2 | **Leadership Orientation** | Tendency to lead, follow, or self-direct |
+| 1 | **Innovation Drive** | Appetite for novel approaches vs. proven methods |
 
-**Total: 36 points.** Scores above 28 indicate excellent team compatibility. Below 18 indicates high friction risk.
+**Total: 36 points.** Scores above 28 indicate excellent team compatibility; below 18 indicates high friction risk.
 
-This is not cosmetic branding. Every scoring algorithm maps directly to the Guna's behavioral interpretation, preserving both mathematical integrity and conceptual coherence. This becomes your most memorable interview story: "I rediscovered that what ancient Indian scholars figured out about compatibility, modern organizational psychology independently validated — and I built an AI agent system around it."
+Every scoring path maps directly to a dimension's behavioural interpretation. The interview story is the engineering one: *"I decomposed team fit into eight weighted psychometric dimensions, scored each with an IRT adaptive assessment plus GitHub behavioural signals, calibrated the aggregate confidence with Platt scaling, and orchestrated the whole pipeline as a LangGraph multi-agent system."*
 
 ### 1.2 What GitSyntropy Is
 
@@ -40,7 +40,7 @@ GitSyntropy is an **AI-native team composition intelligence platform**. Given a 
 
 1. Extracts behavioral signals from GitHub commit history (chronotype, work pace, collaboration patterns)
 2. Administers a short adaptive psychometric assessment (8 questions, 5 minutes)
-3. Computes pairwise and team-level Ashtakoot compatibility scores
+3. Computes pairwise and team-level compatibility scores
 4. Generates AI-powered risk assessments, meeting time recommendations, and hiring suggestions
 5. Monitors team resilience over time as team composition changes
 
@@ -95,7 +95,7 @@ GitSyntropy's moat: **objective GitHub behavioral data** combined with **psychom
 │  │  │ ANALYST      │  │ AGENT        │  │ ENGINE AGENT         │  │ │
 │  │  │ AGENT        │  │              │  │                      │  │ │
 │  │  │ • Commit     │  │ • Adaptive   │  │ • Pairwise scores    │  │ │
-│  │  │   ingestion  │  │   CAT quiz   │  │ • Team Ashtakoot     │  │ │
+│  │  │   ingestion  │  │   CAT quiz   │  │ • Team compatibility     │  │ │
 │  │  │ • Chronotype │  │ • 8-dim      │  │ • Variance analysis  │  │ │
 │  │  │   detection  │  │   scoring    │  │ • Monte Carlo sim    │  │ │
 │  │  │ • Collab     │  │ • Profile    │  │ • Risk detection     │  │ │
@@ -173,7 +173,7 @@ class TeamAnalysisState(TypedDict):
     missing_profiles: List[str]    # users who haven't completed assessment
     
     # Compatibility Engine outputs
-    pairwise_scores: dict          # (u1, u2) → AshtakootScore (8 dimensions)
+    pairwise_scores: dict          # (u1, u2) → CompatibilityScore (8 dimensions)
     team_resilience_score: float   # 0–36 composite
     weak_dimensions: List[str]     # dimensions with variance > threshold
     risk_flags: List[RiskFlag]     # specific risk signals
@@ -339,17 +339,17 @@ def analyze_collaboration(
     pass
 ```
 
-### 2.5 The Ashtakoot Compatibility Engine (Deep Dive)
+### 2.5 The Weighted Compatibility Engine (Deep Dive)
 
-The core algorithm. Computes team resilience using variance-based scoring across all 8 Ashtakoot dimensions.
+The core algorithm. Computes team resilience using variance-based scoring across all 8 compatibility dimensions.
 
 ```python
 import numpy as np
 from typing import List, Dict, Tuple
 from dataclasses import dataclass
 
-# Dimension weights mirror the original Ashtakoot point system
-ASHTAKOOT_WEIGHTS = {
+# Dimension weights: integer 1..8 by relative impact on team cohesion
+TRAIT_WEIGHTS = {
     "chronotype_sync":      8,   # Nadi — highest weight, life-force compatibility
     "stress_response":      7,   # Bhakoot — emotional compatibility
     "risk_tolerance":       6,   # Gana — nature type
@@ -362,7 +362,7 @@ ASHTAKOOT_WEIGHTS = {
 # Total: 36 points
 
 @dataclass
-class AshtakootScore:
+class CompatibilityScore:
     total: float                        # 0–36
     pct: float                          # 0–100
     level: str                          # "Excellent" | "Good" | "Fair" | "Poor"
@@ -372,11 +372,11 @@ class AshtakootScore:
     risk_flags: List[str]               # specific human-readable risk signals
     confidence: float                   # based on data completeness
 
-def compute_team_ashtakoot(
+def compute_team_compatibility(
     member_profiles: List[MemberProfile]
-) -> AshtakootScore:
+) -> CompatibilityScore:
     """
-    Compute the team's Ashtakoot score.
+    Compute the team's compatibility score.
     
     Scoring philosophy: alignment matters more than absolute values.
     A team of all risk-takers scores poorly. A team of one risk-taker
@@ -394,7 +394,7 @@ def compute_team_ashtakoot(
     dimension_scores = {}
     risk_flags = []
     
-    for dim, weight in ASHTAKOOT_WEIGHTS.items():
+    for dim, weight in TRAIT_WEIGHTS.items():
         values = [p.get_dimension(dim) for p in member_profiles]
         values = np.array(values)
         
@@ -447,14 +447,14 @@ def compute_team_ashtakoot(
     else:
         level = "Poor"
     
-    weak = [d for d, s in dimension_scores.items() if s < ASHTAKOOT_WEIGHTS[d] * 0.30]
-    strong = [d for d, s in dimension_scores.items() if s > ASHTAKOOT_WEIGHTS[d] * 0.80]
+    weak = [d for d, s in dimension_scores.items() if s < TRAIT_WEIGHTS[d] * 0.30]
+    strong = [d for d, s in dimension_scores.items() if s > TRAIT_WEIGHTS[d] * 0.80]
     
     # Confidence: based on what percentage of profiles are complete
     complete_profiles = sum(1 for p in member_profiles if p.is_complete)
     confidence = complete_profiles / n
     
-    return AshtakootScore(
+    return CompatibilityScore(
         total=round(total, 1),
         pct=round(pct, 1),
         level=level,
@@ -482,7 +482,7 @@ def simulate_candidate_impact(
     Why Monte Carlo? Profiles have uncertainty (assessment scores aren't perfect).
     We sample from a distribution around each score to get a realistic range.
     """
-    baseline_score = compute_team_ashtakoot(current_team).total
+    baseline_score = compute_team_compatibility(current_team).total
     impact_scores = []
     
     for _ in range(n_simulations):
@@ -490,7 +490,7 @@ def simulate_candidate_impact(
         perturbed_team = [p.sample_with_noise(sigma=0.05) for p in current_team]
         perturbed_candidate = candidate.sample_with_noise(sigma=0.05)
         
-        simulated_score = compute_team_ashtakoot(
+        simulated_score = compute_team_compatibility(
             perturbed_team + [perturbed_candidate]
         ).total
         impact_scores.append(simulated_score)
@@ -525,7 +525,7 @@ and software engineering team structures. You analyze team compatibility data an
 produce concise, actionable reports.
 
 Your framework draws on:
-- Vedic Ashtakoot compatibility theory (8 dimensions, 36-point system)
+- weighted psychometric compatibility theory (8 dimensions, 36-point system)
 - Patrick Lencioni's Five Dysfunctions of a Team
 - Tuckman's stages of team development
 - Modern research on remote engineering team effectiveness
@@ -544,7 +544,7 @@ TEAM ANALYSIS INPUT:
 Team Composition: {state['member_github_usernames']}
 Members Analyzed: {len(state['member_github_usernames'])}
 
-ASHTAKOOT SCORES:
+COMPATIBILITY SCORES:
 {format_dimension_scores(state['pairwise_scores'], state['team_resilience_score'])}
 
 CHRONOTYPE DATA:
@@ -640,12 +640,12 @@ CREATE TABLE github_profiles (
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Psychometric profiles (8 Ashtakoot dimensions)
+-- Psychometric profiles (8 compatibility dimensions)
 CREATE TABLE psychometric_profiles (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id                 UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     
-    -- 8 Ashtakoot Dimensions (0.0 – 1.0 scale)
+    -- 8 Compatibility Dimensions (0.0 – 1.0 scale)
     chronotype_sync         FLOAT NOT NULL,   -- Nadi     (8 pts) - derived from GitHub
     stress_response         FLOAT NOT NULL,   -- Bhakoot  (7 pts) - from assessment
     risk_tolerance          FLOAT NOT NULL,   -- Gana     (6 pts) - from assessment
@@ -682,7 +682,7 @@ CREATE TABLE team_members (
     PRIMARY KEY (team_id, user_id)
 );
 
--- Team Ashtakoot scores (versioned — stored on every recalculation)
+-- Team compatibility scores (versioned — stored on every recalculation)
 CREATE TABLE team_scores (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     team_id                 UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
@@ -705,7 +705,7 @@ CREATE TABLE team_scores (
     hiring_gap_analysis     JSONB,            -- if team has open slots
     
     -- Pairwise data
-    pairwise_scores         JSONB,            -- {(u1,u2): AshtakootScore}
+    pairwise_scores         JSONB,            -- {(u1,u2): CompatibilityScore}
     
     -- Metadata
     agent_run_id            UUID,
@@ -822,7 +822,7 @@ Teams:
   GET  /api/v1/teams/join/{token}       → Join via invite token
 
 Analysis:
-  POST /api/v1/teams/{id}/analyze       → Trigger full Ashtakoot analysis (async)
+  POST /api/v1/teams/{id}/analyze       → Trigger full compatibility analysis (async)
   GET  /api/v1/teams/{id}/analysis/status/{run_id} → Poll analysis status
   GET  /api/v1/teams/{id}/scores        → Score history (pagination)
   GET  /api/v1/teams/{id}/scores/latest → Latest score with full report
@@ -874,7 +874,7 @@ src/
 │   │   └── FeatureSection.astro
 │   └── react/                # React islands (hydrated on client)
 │       ├── TeamDashboard.tsx  # client:load
-│       ├── AshtakootRadar.tsx # Radar chart of 8 dimensions — client:visible
+│       ├── CompatibilityRadar.tsx # Radar chart of 8 dimensions — client:visible
 │       ├── ChronotypeHeatmap.tsx # D3 24h heatmap — client:visible
 │       ├── AgentStream.tsx    # WebSocket streaming UI — client:load
 │       ├── Psychometric.tsx   # Assessment form — client:load
@@ -890,8 +890,8 @@ src/
 
 ### 5.2 Key UI Patterns
 
-**Ashtakoot Radar Chart (React + recharts):**
-A radar/spider chart showing all 8 dimensions for each team member overlaid — visual representation of where alignment exists and where gaps appear. Each dimension maps to one of the 8 Vedic Gunas with tooltip explanations.
+**Compatibility Radar Chart (React + recharts):**
+A radar/spider chart showing all 8 dimensions for each team member overlaid — visual representation of where alignment exists and where gaps appear. Each dimension has a tooltip explaining its behavioural meaning.
 
 **Chronotype Heatmap (React + D3):**
 A 24-hour × team-member heatmap showing when each person is most productive (derived from commit timestamps). Overlapping high-activity hours are highlighted in green — these are the ideal meeting windows.
@@ -900,7 +900,7 @@ A 24-hour × team-member heatmap showing when each person is most productive (de
 As analysis runs, a live terminal-style feed shows which agent is running, what it found, and streams the synthesis report character by character. This is the "wow" moment of the product.
 
 **Score History Timeline (React + recharts):**
-Line chart showing the team's Ashtakoot score over time as members join/leave. A dashed vertical line marks when a member was added or removed, annotated with their impact.
+Line chart showing the team's compatibility score over time as members join/leave. A dashed vertical line marks when a member was added or removed, annotated with their impact.
 
 ---
 
@@ -926,13 +926,13 @@ Line chart showing the team's Ashtakoot score over time as members join/leave. A
 
 **Week 3 (May 18–24): Psychometric Agent**
 - 8-question assessment API (submit + retrieve)
-- Score computation for all 8 Ashtakoot dimensions
+- Score computation for all 8 compatibility dimensions
 - Adaptive question ordering (CAT: harder questions if initial answers suggest extreme scores)
 - Profile storage in Supabase
 - Frontend: Assessment form component (Astro page + React island)
 
 **Week 4 (May 25–31): Compatibility Engine Agent**
-- Variance-weighted Ashtakoot scoring (all 8 dimensions)
+- Variance-weighted compatibility scoring (all 8 dimensions)
 - Pairwise score matrix for team members
 - Risk flag detection (critical misalignment conditions)
 - Monte Carlo candidate simulation (1000 iterations)
@@ -956,7 +956,7 @@ Line chart showing the team's Ashtakoot score over time as members join/leave. A
 
 **Week 7 (June 15–21): Frontend Dashboard**
 - Team overview page (list teams, latest scores, status indicators)
-- Ashtakoot radar chart (recharts, all 8 dimensions per member)
+- Compatibility radar chart (recharts, all 8 dimensions per member)
 - Chronotype heatmap (D3, 24h overlap visualization)
 - Agent stream view (WebSocket, live analysis terminal)
 - Score history timeline (recharts line chart with member change annotations)
@@ -984,17 +984,17 @@ Line chart showing the team's Ashtakoot score over time as members join/leave. A
 - GitHub repo: 20+ meaningful commits, proper branch strategy, closed issues
 
 **Week 11 (July 15–21): Launch**
-- HackerNews: "Show HN: I used Vedic Ashtakoot compatibility theory to model team dynamics with AI agents"
+- HackerNews: "Show HN: I used weighted psychometric compatibility theory to model team dynamics with AI agents"
 - ProductHunt: prepare assets (logo, screenshots, 60-second GIF)
-- dev.to article: "How Ancient Indian Astrology Inspired My Team Analytics Algorithm"
-- LinkedIn post: the algorithmic story (Gun Milan → Ashtakoot → team dynamics)
+- dev.to article: "Modelling team compatibility as a weighted multi-criteria psychometric problem"
+- LinkedIn post: the algorithmic story (IRT assessment → weighted compatibility → LangGraph agents)
 
 **Week 12 (July 22–28): Interview Preparation**
 - Whiteboard architecture walkthrough (practice 5-minute version)
 - Algorithm explanation (variance-weighted scoring, chronotype detection)
 - "How would you scale to 10K teams?" answer
 - "What did you learn building this?" answer
-- Prepare code walkthrough (LangGraph orchestration + Ashtakoot scoring)
+- Prepare code walkthrough (LangGraph orchestration + compatibility scoring)
 
 ### August: Applications + Optimization
 
@@ -1007,12 +1007,12 @@ Line chart showing the team's Ashtakoot score over time as members join/leave. A
 ### 7.1 What You Claim in Interviews
 
 - "I built a multi-agent AI system using LangGraph that orchestrates four specialized agents — GitHub Analyst, Psychometric, Compatibility Engine, and Synthesis — to analyze team dynamics and produce actionable hiring recommendations"
-- "The core algorithm is a variance-weighted 8-dimension scoring system inspired by the Vedic Ashtakoot compatibility framework — same mathematical structure, modern behavioral science interpretation"
+- "The core algorithm is a variance-weighted 8-dimension scoring system inspired by the weighted psychometric compatibility model — same mathematical structure, modern behavioral science interpretation"
 - "I chose Astro.js for the frontend because it ships zero JavaScript by default — React islands are only hydrated for interactive components, giving sub-second page loads critical for user retention on launch day"
 - "The system uses Monte Carlo simulation to predict how a candidate hire will change the team's resilience score — 1000 iterations with Gaussian perturbation of profile scores"
 
 ### 7.2 The Story No One Else Has
 
-"I was reading about ancient Indian Kundali matching when I realized the Ashtakoot system — eight compatibility dimensions, each differently weighted, summing to 36 — is mathematically identical to what modern organizational psychologists designed for team effectiveness. The Vedic scholars figured out that compatibility is multi-dimensional and weighted 1500 years ago. I built an AI agent system that implements this insight with GitHub behavioral data as the objective signal."
+"Team fit is multi-dimensional, so I modelled it as eight orthogonal psychometric dimensions, each integer-weighted 1–8 by its impact on cohesion (a 36-point scale). Each dimension is scored from an IRT adaptive assessment plus GitHub behavioural signals, the aggregate confidence is calibrated with Platt scaling, and the whole pipeline runs as a LangGraph multi-agent system streaming results over WebSocket."
 
 That story is memorable. No competing candidate has it.

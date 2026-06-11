@@ -65,16 +65,16 @@ Internal key → User-facing label (use these labels in UI, never the key names)
 
 | Internal Key | UI Label | Weight |
 |---|---|---|
-| `varna_alignment` | Innovation Drive | 1 |
-| `vashya_influence` | Leadership Orientation | 2 |
-| `tara_resilience` | Team Resilience | 3 |
-| `yoni_workstyle` | Work Style | 4 |
-| `graha_maitri_cognition` | Decision Style | 5 |
-| `gana_temperament` | Risk Tolerance | 6 |
-| `bhakoot_strategy` | Stress Response | 7 |
-| `nadi_chronotype_sync` | Chronotype Sync | 8 |
+| `innovation_drive` | Innovation Drive | 1 |
+| `leadership_orientation` | Leadership Orientation | 2 |
+| `team_resilience` | Team Resilience | 3 |
+| `work_style` | Work Style | 4 |
+| `decision_style` | Decision Style | 5 |
+| `risk_tolerance` | Risk Tolerance | 6 |
+| `stress_response` | Stress Response | 7 |
+| `chronotype_sync` | Chronotype Sync | 8 |
 
-**CRITICAL NAMING RULE:** Never use the internal keys or the Vedic names in user-facing copy, Claude prompts, or README. Always use the UI label column. The internal keys exist only as DB identifiers and must eventually be migrated to English slugs.
+**NAMING (migrated 2026-06):** Internal keys are now neutral English slugs (`innovation_drive` … `chronotype_sync`) — the legacy Vedic-derived keys have been fully removed from code, tests, scripts, prompts, and interview docs. Stored JSON in `psychometric_profiles.scores` / `team_scores` is remapped by `schemas.normalize_dimension_keys()` (read-time shim) and made permanent by `apps/backend/migrations/0001_rename_dimensions.sql`. Continue to use the UI Label column in user-facing copy.
 
 ---
 
@@ -86,7 +86,7 @@ Internal key → User-facing label (use these labels in UI, never the key names)
 | B2 | Chronotype schema crash — `"daytime"/"evening"` not in `Literal` | `schemas.py:93` | ✅ FIXED |
 | B3 | InsightsClient score always 28 — reads wrong event key | `InsightsClient.tsx:262` | ✅ FIXED |
 | B4 | Character-by-character WebSocket streaming of synthesis (400+ messages) | `main.py:599` | ✅ FIXED |
-| B5 | Hardcoded `vashya_influence` in insights fallback | `main.py:534` | ✅ FIXED |
+| B5 | Hardcoded `leadership_orientation` in insights fallback | `main.py:534` | ✅ FIXED |
 
 ---
 

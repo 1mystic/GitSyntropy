@@ -166,6 +166,21 @@ export type UserSearchResult = {
   display_name?: string | null;
   github_avatar_url?: string | null;
 };
+export type TeammateRecommendation = {
+  user_id: string;
+  github_handle: string | null;
+  github_name: string | null;
+  score: number;
+  directional_to_seeker: number;
+  directional_from_seeker: number;
+};
+export type TeammateRecommendationsResponse = {
+  seeker_id: string;
+  method: "content" | "matrix_factorization" | "hybrid";
+  candidate_pool_size: number;
+  recommendations: TeammateRecommendation[];
+  cold_start: boolean;
+};
 
 async function requestVoid(path: string, init?: RequestInit): Promise<void> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -270,6 +285,11 @@ export const api = {
   removeMember: (team_id: string, user_id: string, token: string) =>
     authedRequestVoid(`/teams/${team_id}/members/${encodeURIComponent(user_id)}`, token, { method: "DELETE" })
       .then(() => { bustCache("/teams"); }),
+  teamRecommendations: (team_id: string, seeker_id: string, token: string, k = 5) =>
+    authedRequest<TeammateRecommendationsResponse>(
+      `/teams/${team_id}/recommendations?seeker_id=${encodeURIComponent(seeker_id)}&k=${k}`,
+      token,
+    ),
 
   // Authenticated user profile
   me: (token: string) => authedRequest<UserProfileResponse>("/users/me", token),

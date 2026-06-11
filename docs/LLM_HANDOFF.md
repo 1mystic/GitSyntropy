@@ -89,7 +89,7 @@ GitSyntropy/
 | `agent_runs` | LangGraph orchestrator run log |
 | `teams` | Team records |
 | `team_members` | Many-to-many users ↔ teams |
-| `team_scores` | Versioned Ashtakoot compatibility scores per run |
+| `team_scores` | Versioned compatibility scores per run |
 
 Tables are created automatically via `Base.metadata.create_all` on startup (no manual migrations needed for new tables).
 
@@ -161,14 +161,14 @@ WS   /ws/analysis/{run_id}    → LangGraph step streaming + Claude token stream
 
 | Internal key | Display label |
 |-------------|--------------|
-| `varna_alignment` | Innovation Drive |
-| `vashya_influence` | Leadership Orientation |
-| `tara_resilience` | Team Resilience |
-| `yoni_workstyle` | Work Style |
-| `graha_maitri_cognition` | Decision Style |
-| `gana_temperament` | Risk Tolerance |
-| `bhakoot_strategy` | Stress Response |
-| `nadi_chronotype_sync` | Chronotype Sync |
+| `innovation_drive` | Innovation Drive |
+| `leadership_orientation` | Leadership Orientation |
+| `team_resilience` | Team Resilience |
+| `work_style` | Work Style |
+| `decision_style` | Decision Style |
+| `risk_tolerance` | Risk Tolerance |
+| `stress_response` | Stress Response |
+| `chronotype_sync` | Chronotype Sync |
 
 Weights: 1–8 (nadi highest). Total max score = 36. `score_pct_100 = total/36*100`.
 

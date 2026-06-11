@@ -22,7 +22,7 @@ from .calibration import CalibrationModel
 from .config import settings
 from .crypto import decrypt_token, encrypt_token
 from .models import AgentRun, GithubProfile, PsychometricProfile, Team, TeamMember, TeamScore, UserProfile
-from .schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
+from .schemas import TRAIT_DIMENSIONS, TRAIT_WEIGHTS, normalize_dimension_keys
 
 
 @lru_cache(maxsize=1)
@@ -518,7 +518,7 @@ def assessment_questions() -> list[dict]:
                 "prompt": prompt,
                 "left_label": left,
                 "right_label": right,
-                "dimension": ASHTAKOOT_DIMENSIONS[index],
+                "dimension": TRAIT_DIMENSIONS[index],
             }
         )
     return questions
@@ -526,19 +526,19 @@ def assessment_questions() -> list[dict]:
 
 def score_assessment(answers: dict[str, int]) -> dict[str, float]:
     scored: dict[str, float] = {}
-    for index, dimension in enumerate(ASHTAKOOT_DIMENSIONS):
+    for index, dimension in enumerate(TRAIT_DIMENSIONS):
         key = f"q{index + 1}"
         value = answers.get(key)
         if value is None:
             scored[dimension] = 0.0
             continue
         normalized = max(1, min(5, value)) / 5
-        scored[dimension] = round(normalized * ASHTAKOOT_WEIGHTS[dimension], 2)
+        scored[dimension] = round(normalized * TRAIT_WEIGHTS[dimension], 2)
     return scored
 
 
 def build_assessment_profile(user_id: str, answers: dict[str, int], submitted_at: datetime | None = None) -> dict:
-    question_ids = [f"q{index + 1}" for index in range(len(ASHTAKOOT_DIMENSIONS))]
+    question_ids = [f"q{index + 1}" for index in range(len(TRAIT_DIMENSIONS))]
     missing_question_ids = [qid for qid in question_ids if qid not in answers]
     return {
         "user_id": user_id,
@@ -591,7 +591,7 @@ async def get_assessment_response(user_id: str, db: AsyncSession) -> dict:
         return build_assessment_profile(user_id=user_id, answers={})
     return {
         "user_id": record.user_id,
-        "scores": record.scores,
+        "scores": normalize_dimension_keys(record.scores),
         "answered_count": record.answered_count,
         "total_questions": record.total_questions,
         "missing_question_ids": record.missing_question_ids,
@@ -608,11 +608,11 @@ def mock_compatibility_scores(member_id: str, data_mode: str = "full") -> dict[s
     seed = sum(ord(ch) for ch in member_id.lower())
     rng = random.Random(seed)
     scores: dict[str, float | None] = {}
-    for dimension in ASHTAKOOT_DIMENSIONS:
-        weight = ASHTAKOOT_WEIGHTS[dimension]
+    for dimension in TRAIT_DIMENSIONS:
+        weight = TRAIT_WEIGHTS[dimension]
         scores[dimension] = round(weight * rng.uniform(0.35, 0.95), 2)
     if data_mode == "incomplete":
-        for dimension in rng.sample(ASHTAKOOT_DIMENSIONS, k=3):
+        for dimension in rng.sample(TRAIT_DIMENSIONS, k=3):
             scores[dimension] = None
     return scores
 
@@ -626,10 +626,10 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
     data_gaps: set[str] = set()
     total = 0.0
     observed_signal_count = 0
-    total_signal_count = len(ASHTAKOOT_DIMENSIONS) * 2
+    total_signal_count = len(TRAIT_DIMENSIONS) * 2
 
-    for dimension in ASHTAKOOT_DIMENSIONS:
-        max_dim = ASHTAKOOT_WEIGHTS[dimension]
+    for dimension in TRAIT_DIMENSIONS:
+        max_dim = TRAIT_WEIGHTS[dimension]
         raw_a = scores_a.get(dimension)
         raw_b = scores_b.get(dimension)
 
@@ -679,7 +679,7 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
 
     signal_coverage = observed_signal_count / total_signal_count
     score_vector = [
-        dim_scores[d] / ASHTAKOOT_WEIGHTS[d] for d in ASHTAKOOT_DIMENSIONS
+        dim_scores[d] / TRAIT_WEIGHTS[d] for d in TRAIT_DIMENSIONS
     ]
     try:
         import numpy as np
@@ -691,7 +691,7 @@ def compatibility(scores_a: dict[str, float | None], scores_b: dict[str, float |
     if confidence < 0.75 or signal_coverage < 0.80:
         risk_flags.append("Low confidence: one or more dimensions have sparse data.")
 
-    if dim_scores["nadi_chronotype_sync"] < ASHTAKOOT_WEIGHTS["nadi_chronotype_sync"] * 0.45:
+    if dim_scores["chronotype_sync"] < TRAIT_WEIGHTS["chronotype_sync"] * 0.45:
         risk_flags.append("Chronotype sync is weak; consider async-first collaboration rituals.")
 
     return {
@@ -824,7 +824,7 @@ def monte_carlo_candidate_simulation(
     rng = random.Random(seed)
 
     if not team_scores:
-        team_scores = [{dim: round(w * 0.5, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
+        team_scores = [{dim: round(w * 0.5, 2) for dim, w in TRAIT_WEIGHTS.items()}]
 
     # Current team-internal mean pairwise compatibility (computed once, outside loop)
     internal_pairs: list[float] = []
@@ -835,11 +835,11 @@ def monte_carlo_candidate_simulation(
 
     # Identify weak dimensions to bias sampling toward complementary candidates
     team_mean = {
-        dim: sum(m.get(dim, ASHTAKOOT_WEIGHTS[dim] * 0.5) for m in team_scores) / len(team_scores)
-        for dim in ASHTAKOOT_DIMENSIONS
+        dim: sum(m.get(dim, TRAIT_WEIGHTS[dim] * 0.5) for m in team_scores) / len(team_scores)
+        for dim in TRAIT_DIMENSIONS
     }
     weak_dims = {
-        dim for dim in ASHTAKOOT_DIMENSIONS if team_mean[dim] < ASHTAKOOT_WEIGHTS[dim] * 0.45
+        dim for dim in TRAIT_DIMENSIONS if team_mean[dim] < TRAIT_WEIGHTS[dim] * 0.45
     }
 
     best_improvement = -float("inf")
@@ -848,8 +848,8 @@ def monte_carlo_candidate_simulation(
 
     for _ in range(n_iterations):
         candidate: dict[str, float] = {}
-        for dim in ASHTAKOOT_DIMENSIONS:
-            max_w = ASHTAKOOT_WEIGHTS[dim]
+        for dim in TRAIT_DIMENSIONS:
+            max_w = TRAIT_WEIGHTS[dim]
             lo, hi = (0.5, 1.0) if dim in weak_dims else (0.15, 0.95)
             candidate[dim] = round(max_w * rng.uniform(lo, hi), 2)
 
@@ -879,6 +879,73 @@ def monte_carlo_candidate_simulation(
         "weak_dimensions_targeted": sorted(weak_dims),
         "confidence": 1.0,  # always high at 1000 iterations
         "status": "complete",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Reciprocal teammate recommendations
+# ---------------------------------------------------------------------------
+
+async def recommend_teammates(
+    seeker_id: str,
+    db: AsyncSession,
+    k: int = 5,
+    exclude_team_id: str | None = None,
+) -> dict[str, Any]:
+    """Recommend top-k reciprocal teammate matches for *seeker_id*.
+
+    Candidate pool = every user with a completed psychometric assessment. Production ranking uses
+    the cold-start-safe content recommender (the matrix-factorization ranker is benchmarked
+    offline on synthetic collaboration outcomes; it is enabled once enough real outcomes
+    accumulate — see scripts/eval_recommender.py and docs/recommender_eval.md).
+    """
+    from .recommender import ContentRecommender  # lazy: pulls numpy
+
+    result = await db.execute(
+        select(PsychometricProfile).where(PsychometricProfile.complete.is_(True))
+    )
+    rows = result.scalars().all()
+    profiles = {r.user_id: normalize_dimension_keys(r.scores) for r in rows}
+
+    if seeker_id not in profiles:
+        raise ValueError("Seeker has not completed the assessment yet.")
+
+    exclude: set[str] = set()
+    if exclude_team_id:
+        members = await db.execute(
+            select(TeamMember.user_id).where(TeamMember.team_id == exclude_team_id)
+        )
+        exclude = {row[0] for row in members.all()}
+
+    recommender = ContentRecommender(profiles)
+    recs = recommender.recommend(seeker_id, k=k, exclude=exclude)
+
+    # Enrich with display info (handle / name) for the recommended users.
+    rec_ids = [r.user_id for r in recs]
+    handle_map: dict[str, tuple[str | None, str | None]] = {}
+    if rec_ids:
+        up_rows = await db.execute(
+            select(UserProfile.user_id, UserProfile.github_handle, UserProfile.github_name)
+            .where(UserProfile.user_id.in_(rec_ids))
+        )
+        handle_map = {uid: (h, n) for uid, h, n in up_rows.all()}
+
+    return {
+        "seeker_id": seeker_id,
+        "method": "content",
+        "candidate_pool_size": len(profiles),
+        "cold_start": True,  # no real interaction history in production yet
+        "recommendations": [
+            {
+                "user_id": r.user_id,
+                "github_handle": handle_map.get(r.user_id, (None, None))[0],
+                "github_name": handle_map.get(r.user_id, (None, None))[1],
+                "score": r.score,
+                "directional_to_seeker": r.directional_to_seeker,
+                "directional_from_seeker": r.directional_from_seeker,
+            }
+            for r in recs
+        ],
     }
 
 
@@ -922,7 +989,7 @@ async def _load_member_profiles(team_id: str, db: AsyncSession) -> list[dict[str
                 "prs_last_30_days": gp.prs_last_30_days,
                 "raw_data": gp.raw_data,
             } if gp else None,
-            "psychometric_scores": pp.scores if (pp and pp.complete) else None,
+            "psychometric_scores": normalize_dimension_keys(pp.scores) if (pp and pp.complete) else None,
             "psychometric_answers": pp.answers if pp else None,
         })
 
@@ -966,7 +1033,7 @@ async def get_real_scores_for_user(
     )
     pp = result.scalar_one_or_none()
     if pp and pp.complete:
-        return dict(pp.scores)
+        return normalize_dimension_keys(pp.scores)
     return mock_compatibility_scores(user_id, data_mode=data_mode)
 
 
@@ -1056,7 +1123,7 @@ async def _psychometric_profiler_node(state: OrchestratorState) -> dict[str, Any
             return {"assessment_profile": profile}
 
     # No real assessment yet — use neutral midpoint so pipeline still runs
-    answer_map = {f"q{idx + 1}": 3 for idx in range(len(ASHTAKOOT_DIMENSIONS))}
+    answer_map = {f"q{idx + 1}": 3 for idx in range(len(TRAIT_DIMENSIONS))}
     profile = build_assessment_profile(user_id=user_id, answers=answer_map, submitted_at=datetime.now(tz=UTC))
     return {"assessment_profile": profile}
 
@@ -1097,12 +1164,12 @@ def _compatibility_engine_node(state: OrchestratorState) -> dict[str, Any]:
         avg_pct = round(sum(r["score_pct_100"] for r in pair_results) / n, 1)
         avg_dim = {
             d: round(sum(r["dimension_scores"].get(d, 0.0) for r in pair_results) / n, 2)
-            for d in ASHTAKOOT_DIMENSIONS
+            for d in TRAIT_DIMENSIONS
         }
         # Weak = any pair flagged weak; Strong = all pairs flagged strong
         all_weak = sorted({d for r in pair_results for d in r.get("weak_dimensions", [])})
         all_strong = sorted(
-            {d for d in ASHTAKOOT_DIMENSIONS
+            {d for d in TRAIT_DIMENSIONS
              if all(d in r.get("strong_dimensions", []) for r in pair_results)}
         )
         all_risk = list(dict.fromkeys(f for r in pair_results for f in r.get("risk_flags", [])))
@@ -1129,10 +1196,10 @@ def _compatibility_engine_node(state: OrchestratorState) -> dict[str, Any]:
             "data_gaps": [],
             "dimension_scores": avg_dim,
             "dimension_breakdown": [
-                {"dimension": d, "weight": ASHTAKOOT_WEIGHTS[d], "score": avg_dim[d],
-                 "pct_of_weight": round((avg_dim[d] / ASHTAKOOT_WEIGHTS[d]) * 100, 1),
+                {"dimension": d, "weight": TRAIT_WEIGHTS[d], "score": avg_dim[d],
+                 "pct_of_weight": round((avg_dim[d] / TRAIT_WEIGHTS[d]) * 100, 1),
                  "status": "weak" if d in all_weak else ("strong" if d in all_strong else "balanced")}
-                for d in ASHTAKOOT_DIMENSIONS
+                for d in TRAIT_DIMENSIONS
             ],
             "pairwise_scores": pairwise_scores,
             "member_count": len(scored),
@@ -1140,9 +1207,9 @@ def _compatibility_engine_node(state: OrchestratorState) -> dict[str, Any]:
 
     # Single or no scored members: compare primary user vs balanced reference
     source_scores = state.get("assessment_profile", {}).get("scores") or {
-        d: round(ASHTAKOOT_WEIGHTS[d] * 0.5, 2) for d in ASHTAKOOT_DIMENSIONS
+        d: round(TRAIT_WEIGHTS[d] * 0.5, 2) for d in TRAIT_DIMENSIONS
     }
-    reference_scores = {d: round(max(w - 0.6, 0.4), 2) for d, w in ASHTAKOOT_WEIGHTS.items()}
+    reference_scores = {d: round(max(w - 0.6, 0.4), 2) for d, w in TRAIT_WEIGHTS.items()}
     return {"compatibility": compatibility(source_scores, reference_scores)}
 
 

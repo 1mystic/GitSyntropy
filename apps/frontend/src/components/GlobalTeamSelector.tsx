@@ -23,7 +23,7 @@ export function GlobalTeamSelector() {
     if (!session || teams.length > 0) return;
     setLoading(true);
     void api
-      .listTeams(session.userId)
+      .listTeams(session.userId, session.token)
       .then((data) => {
         $teams.set(data);
         // Auto-select first team if nothing persisted

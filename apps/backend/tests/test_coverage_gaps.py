@@ -60,8 +60,8 @@ def test_session_invalid_token_returns_401() -> None:
 def test_score_assessment_missing_question_defaults_zero() -> None:
     """Missing question ID → score defaults to 0.0 for that dimension."""
     scores = score_assessment({"q1": 5})  # only q1 answered
-    from app.schemas import ASHTAKOOT_DIMENSIONS
-    for i, dim in enumerate(ASHTAKOOT_DIMENSIONS):
+    from app.schemas import TRAIT_DIMENSIONS
+    for i, dim in enumerate(TRAIT_DIMENSIONS):
         if i == 0:  # q1 answered
             assert scores[dim] > 0
         else:  # rest unanswered
@@ -81,9 +81,9 @@ def test_synthesis_from_compat_excellent() -> None:
 
 
 def test_synthesis_from_compat_poor() -> None:
-    r = synthesis_from_compat(total_score=10.0, weak_dimensions=["nadi_chronotype_sync", "bhakoot_strategy"])
+    r = synthesis_from_compat(total_score=10.0, weak_dimensions=["chronotype_sync", "stress_response"])
     assert "friction" in r["narrative"].lower()
-    assert "nadi_chronotype_sync" in r["uncertainty_note"]
+    assert "chronotype_sync" in r["uncertainty_note"]
 
 
 def test_synthesis_from_compat_workable() -> None:
@@ -92,13 +92,13 @@ def test_synthesis_from_compat_workable() -> None:
 
 
 def test_compatibility_chronotype_risk_flag() -> None:
-    """Very low nadi score triggers the chronotype-specific risk flag."""
-    from app.schemas import ASHTAKOOT_WEIGHTS
-    scores_a = {dim: w * 0.9 for dim, w in ASHTAKOOT_WEIGHTS.items()}
-    scores_b = {dim: w * 0.9 for dim, w in ASHTAKOOT_WEIGHTS.items()}
-    # Drive nadi scores apart to force the chronotype risk flag
-    scores_a["nadi_chronotype_sync"] = ASHTAKOOT_WEIGHTS["nadi_chronotype_sync"] * 0.9
-    scores_b["nadi_chronotype_sync"] = ASHTAKOOT_WEIGHTS["nadi_chronotype_sync"] * 0.05
+    """Very low chronotype_sync score triggers the chronotype-specific risk flag."""
+    from app.schemas import TRAIT_WEIGHTS
+    scores_a = {dim: w * 0.9 for dim, w in TRAIT_WEIGHTS.items()}
+    scores_b = {dim: w * 0.9 for dim, w in TRAIT_WEIGHTS.items()}
+    # Drive chronotype_sync scores apart to force the chronotype risk flag
+    scores_a["chronotype_sync"] = TRAIT_WEIGHTS["chronotype_sync"] * 0.9
+    scores_b["chronotype_sync"] = TRAIT_WEIGHTS["chronotype_sync"] * 0.05
     result = compatibility(scores_a, scores_b)
     assert any("Chronotype" in flag for flag in result["risk_flags"])
 
@@ -110,12 +110,12 @@ def test_mock_compatibility_incomplete_mode() -> None:
 
 
 def test_assessment_questions_dimensions_match() -> None:
-    """Each question should map to a valid Ashtakoot dimension."""
-    from app.schemas import ASHTAKOOT_DIMENSIONS
+    """Each question should map to a valid compatibility dimension."""
+    from app.schemas import TRAIT_DIMENSIONS
     questions = assessment_questions()
     assert len(questions) == 8
     dims = [q["dimension"] for q in questions]
-    assert dims == ASHTAKOOT_DIMENSIONS
+    assert dims == TRAIT_DIMENSIONS
 
 
 def test_cat_select_next_irt_semantics() -> None:

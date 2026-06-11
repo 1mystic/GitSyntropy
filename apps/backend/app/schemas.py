@@ -4,27 +4,59 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 
-ASHTAKOOT_DIMENSIONS = [
-    "varna_alignment",
-    "vashya_influence",
-    "tara_resilience",
-    "yoni_workstyle",
-    "graha_maitri_cognition",
-    "gana_temperament",
-    "bhakoot_strategy",
-    "nadi_chronotype_sync",
+# Eight weighted psychometric compatibility dimensions. Weights (1..8) encode the
+# relative impact of each dimension on team cohesion and are used both for the
+# adaptive (IRT) assessment and the pairwise compatibility scorer.
+TRAIT_DIMENSIONS = [
+    "innovation_drive",
+    "leadership_orientation",
+    "team_resilience",
+    "work_style",
+    "decision_style",
+    "risk_tolerance",
+    "stress_response",
+    "chronotype_sync",
 ]
 
-ASHTAKOOT_WEIGHTS = {
-    "varna_alignment": 1.0,
-    "vashya_influence": 2.0,
-    "tara_resilience": 3.0,
-    "yoni_workstyle": 4.0,
-    "graha_maitri_cognition": 5.0,
-    "gana_temperament": 6.0,
-    "bhakoot_strategy": 7.0,
-    "nadi_chronotype_sync": 8.0,
+TRAIT_WEIGHTS = {
+    "innovation_drive": 1.0,
+    "leadership_orientation": 2.0,
+    "team_resilience": 3.0,
+    "work_style": 4.0,
+    "decision_style": 5.0,
+    "risk_tolerance": 6.0,
+    "stress_response": 7.0,
+    "chronotype_sync": 8.0,
 }
+
+# --- Backward-compatibility shim ------------------------------------------------
+# The dimensions were previously stored under legacy keys. Stored JSON in
+# `psychometric_profiles.scores` and `team_scores` may still use the old keys
+# until the one-time migration (apps/backend/migrations/0001_rename_dimensions.sql)
+# is applied. `normalize_dimension_keys()` is called at every DB-read boundary so
+# legacy rows never break. This shim can be removed once the migration has run in
+# every environment.
+LEGACY_DIMENSION_MAP = {
+    "varna_alignment": "innovation_drive",
+    "vashya_influence": "leadership_orientation",
+    "tara_resilience": "team_resilience",
+    "yoni_workstyle": "work_style",
+    "graha_maitri_cognition": "decision_style",
+    "gana_temperament": "risk_tolerance",
+    "bhakoot_strategy": "stress_response",
+    "nadi_chronotype_sync": "chronotype_sync",
+}
+
+
+def normalize_dimension_keys(scores: dict | None) -> dict:
+    """Remap any legacy dimension keys in a stored scores dict to current keys.
+
+    Idempotent: dicts already using current keys pass through unchanged.
+    Returns a new dict; non-dict / falsy input returns an empty dict.
+    """
+    if not scores:
+        return {}
+    return {LEGACY_DIMENSION_MAP.get(k, k): v for k, v in scores.items()}
 
 
 class HealthResponse(BaseModel):
@@ -265,6 +297,27 @@ class CandidateSimulateResponse(BaseModel):
     weak_dimensions_targeted: list[str]
     confidence: float
     status: str
+
+
+# ---------------------------------------------------------------------------
+# Reciprocal teammate recommendations
+# ---------------------------------------------------------------------------
+
+class TeammateRecommendation(BaseModel):
+    user_id: str
+    github_handle: str | None = None
+    github_name: str | None = None
+    score: float                      # reciprocal match score in [0, 1]
+    directional_to_seeker: float      # how well the candidate satisfies the seeker
+    directional_from_seeker: float    # how well the seeker satisfies the candidate
+
+
+class TeammateRecommendationsResponse(BaseModel):
+    seeker_id: str
+    method: Literal["content", "matrix_factorization", "hybrid"]
+    candidate_pool_size: int
+    recommendations: list[TeammateRecommendation]
+    cold_start: bool = False          # true when ranked purely from trait vectors (no history)
 
 
 # ---------------------------------------------------------------------------

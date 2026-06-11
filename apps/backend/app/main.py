@@ -37,6 +37,7 @@ from .schemas import (
     CandidateSimulateResponse,
     CompatibilityRequest,
     CompatibilityResponse,
+    TeammateRecommendationsResponse,
     GithubAuthCallbackRequest,
     GithubAuthStartResponse,
     GithubSyncRequest,
@@ -84,6 +85,7 @@ from .services import (
     list_teams_for_user,
     mock_compatibility_scores,
     monte_carlo_candidate_simulation,
+    recommend_teammates,
     remove_team_member,
     save_team_score,
     start_orchestrator_steps,
@@ -502,6 +504,31 @@ async def simulate_candidates(request: Request, payload: CandidateSimulateReques
         n_iterations=payload.n_iterations,
     )
     return CandidateSimulateResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# Reciprocal teammate recommendations
+# ---------------------------------------------------------------------------
+
+@app.get(
+    f"{settings.api_prefix}/teams/{{team_id}}/recommendations",
+    response_model=TeammateRecommendationsResponse,
+)
+@limiter.limit("30/minute")
+async def team_recommendations_route(
+    request: Request,
+    team_id: str,
+    seeker_id: str,
+    k: int = 5,
+    claims: dict = Depends(_decode_token_claims),
+    db: AsyncSession = Depends(get_db),
+) -> TeammateRecommendationsResponse:
+    """Top-k reciprocal teammate matches for *seeker_id*, excluding current members of *team_id*."""
+    try:
+        data = await recommend_teammates(seeker_id, db, k=max(1, min(k, 25)), exclude_team_id=team_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return TeammateRecommendationsResponse(**data)
 
 
 # ---------------------------------------------------------------------------

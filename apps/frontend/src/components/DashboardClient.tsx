@@ -12,14 +12,14 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 const REPORTS_STORAGE_KEY = "gitsyntropy.reports";
 
 const DIMENSION_LABELS: Record<string, string> = {
-  varna_alignment: "Innovation Drive",
-  vashya_influence: "Leadership Orientation",
-  tara_resilience: "Team Resilience",
-  yoni_workstyle: "Work Style",
-  graha_maitri_cognition: "Decision Style",
-  gana_temperament: "Risk Tolerance",
-  bhakoot_strategy: "Stress Response",
-  nadi_chronotype_sync: "Chronotype Sync",
+  innovation_drive: "Innovation Drive",
+  leadership_orientation: "Leadership Orientation",
+  team_resilience: "Team Resilience",
+  work_style: "Work Style",
+  decision_style: "Decision Style",
+  risk_tolerance: "Risk Tolerance",
+  stress_response: "Stress Response",
+  chronotype_sync: "Chronotype Sync",
 };
 function getDimensionLabel(key: string) {
   return DIMENSION_LABELS[key] ?? key.replace(/_/g, " ");

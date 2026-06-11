@@ -64,8 +64,8 @@ It outputs a **compatibility score out of 36** across 8 weighted dimensions (wei
 - t-test: **p < 0.001**, Cohen's d = **3.71**
 
 ### Ashtakoot Dimension Weights (exact, total = 36)
-varna_alignment=1, vashya_influence=2, tara_resilience=3, yoni_workstyle=4,
-graha_maitri_cognition=5, gana_temperament=6, bhakoot_strategy=7, nadi_chronotype_sync=8
+innovation_drive=1, leadership_orientation=2, team_resilience=3, work_style=4,
+decision_style=5, risk_tolerance=6, stress_response=7, chronotype_sync=8
 
 ### English labels (NEVER use Vedic names in paper):
 - varna → Innovation Drive, vashya → Leadership Orientation, tara → Team Resilience
@@ -189,7 +189,7 @@ docs/
 apps/backend/
   app/github_client.py            — chronotype algorithm (source of truth)
   app/services.py                 — CAT, Monte Carlo, compatibility (source of truth)
-  app/schemas.py                  — ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
+  app/schemas.py                  — TRAIT_DIMENSIONS, TRAIT_WEIGHTS
 ```
 
 ---

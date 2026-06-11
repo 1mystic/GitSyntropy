@@ -10,21 +10,23 @@ from typing import Any
 import anthropic
 
 from .config import settings
-from .schemas import ASHTAKOOT_WEIGHTS
+from .schemas import TRAIT_WEIGHTS
 
 
 _SYSTEM_PROMPT = """You are GitSyntropy's synthesis engine. You analyze engineering team
-composition using the Vedic Ashtakoot framework adapted for modern software teams.
+composition using an 8-dimension weighted psychometric compatibility model. Each dimension
+is scored from an adaptive (IRT) assessment plus GitHub behavioural signals, and weighted by
+its relative impact on team cohesion.
 
 The 8 dimensions (with max points) are:
-- Nadi / Chronotype Sync (8 pts): overlap in peak productive hours
-- Bhakoot / Stress Response (7 pts): how team members handle pressure
-- Gana / Risk Tolerance (6 pts): bold vs cautious decision-making alignment
-- Graha Maitri / Decision Framework (5 pts): data-driven vs intuition alignment
-- Yoni / Conflict Resolution (4 pts): how disagreements are handled
-- Maitri / Social Compatibility (3 pts): communication style fit
-- Vashya / Leadership Orientation (2 pts): authority and influence patterns
-- Varna / Innovation Drive (1 pt): creative vs stability orientation
+- Chronotype Sync (8 pts): overlap in peak productive hours
+- Stress Response (7 pts): how team members handle pressure
+- Risk Tolerance (6 pts): bold vs cautious decision-making alignment
+- Decision Style (5 pts): data-driven vs intuition alignment
+- Work Style (4 pts): solo-focus vs collaborative working preference
+- Team Resilience (3 pts): capacity to absorb and recover from setbacks
+- Leadership Orientation (2 pts): tendency to lead, follow, or self-direct
+- Innovation Drive (1 pt): appetite for novel approaches vs proven methods
 Total: 36 points. Score >28 = excellent, 18–28 = workable, <18 = high friction.
 
 Write in a direct, data-informed tone. Be specific about which dimensions drive the score.
@@ -48,7 +50,7 @@ def _build_synthesis_prompt(
 
     dim_lines = []
     for dim, score in dim_scores.items():
-        max_w = ASHTAKOOT_WEIGHTS.get(dim, 1)
+        max_w = TRAIT_WEIGHTS.get(dim, 1)
         pct_dim = round(score / max_w * 100) if max_w else 0
         dim_lines.append(f"  {dim}: {score:.1f}/{max_w:.0f} ({pct_dim}%)")
 
@@ -76,7 +78,7 @@ Psychometric assessment: {answered}/8 questions answered (complete)"""
     return f"""Analyze this team composition data and write a concise team health report.
 
 Team size: {team_size} members
-Overall Ashtakoot score: {total:.1f}/36 ({pct:.0f}%) — {level.upper()}
+Overall compatibility score: {total:.1f}/36 ({pct:.0f}%) — {level.upper()}
 Data confidence: {confidence:.0%}
 
 Dimension breakdown:

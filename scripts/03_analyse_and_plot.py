@@ -220,19 +220,19 @@ def detect_chronotype_naive(commit_hours: list[int]) -> str:
 # (Exact port of apps/backend/app/services.py)
 # ============================================================================
 
-ASHTAKOOT_DIMENSIONS = [
-    "varna_alignment",       # Innovation Drive      — weight 1
-    "vashya_influence",      # Leadership Orientation — weight 2
-    "tara_resilience",       # Team Resilience        — weight 3
-    "yoni_workstyle",        # Work Style             — weight 4
-    "graha_maitri_cognition", # Decision Style        — weight 5
-    "gana_temperament",      # Risk Tolerance         — weight 6
-    "bhakoot_strategy",      # Stress Response        — weight 7
-    "nadi_chronotype_sync",  # Chronotype Sync        — weight 8
+TRAIT_DIMENSIONS = [
+    "innovation_drive",       # Innovation Drive      — weight 1
+    "leadership_orientation",      # Leadership Orientation — weight 2
+    "team_resilience",       # Team Resilience        — weight 3
+    "work_style",        # Work Style             — weight 4
+    "decision_style", # Decision Style        — weight 5
+    "risk_tolerance",      # Risk Tolerance         — weight 6
+    "stress_response",      # Stress Response        — weight 7
+    "chronotype_sync",  # Chronotype Sync        — weight 8
 ]
 
-ASHTAKOOT_WEIGHTS = {d: i + 1 for i, d in enumerate(ASHTAKOOT_DIMENSIONS)}
-MAX_TOTAL = sum(ASHTAKOOT_WEIGHTS.values())  # 36
+TRAIT_WEIGHTS = {d: i + 1 for i, d in enumerate(TRAIT_DIMENSIONS)}
+MAX_TOTAL = sum(TRAIT_WEIGHTS.values())  # 36
 
 
 def compatibility(scores_a: dict, scores_b: dict) -> dict:
@@ -242,8 +242,8 @@ def compatibility(scores_a: dict, scores_b: dict) -> dict:
     observed = 0
     weak, strong = [], []
 
-    for dim in ASHTAKOOT_DIMENSIONS:
-        max_w = ASHTAKOOT_WEIGHTS[dim]
+    for dim in TRAIT_DIMENSIONS:
+        max_w = TRAIT_WEIGHTS[dim]
         raw_a = scores_a.get(dim)
         raw_b = scores_b.get(dim)
         if raw_a is not None:
@@ -261,7 +261,7 @@ def compatibility(scores_a: dict, scores_b: dict) -> dict:
         elif ds > max_w * 0.8:
             strong.append(dim)
 
-    confidence = round(observed / (len(ASHTAKOOT_DIMENSIONS) * 2), 2)
+    confidence = round(observed / (len(TRAIT_DIMENSIONS) * 2), 2)
     return {"total_score_36": round(total, 2),
             "score_pct_100": round(total / MAX_TOTAL * 100, 2),
             "dim_scores": dim_scores, "confidence": confidence,
@@ -273,7 +273,7 @@ def compatibility(scores_a: dict, scores_b: dict) -> dict:
 # (Exact port of apps/backend/app/services.py)
 # ============================================================================
 
-_QUESTION_WEIGHTS = {f"q{i+1}": w for i, (_, w) in enumerate(ASHTAKOOT_WEIGHTS.items())}
+_QUESTION_WEIGHTS = {f"q{i+1}": w for i, (_, w) in enumerate(TRAIT_WEIGHTS.items())}
 
 
 def cat_select_next_question(current_answers: dict) -> str | None:
@@ -291,8 +291,8 @@ def cat_select_next_question(current_answers: dict) -> str | None:
 
 def score_assessment(answers: dict) -> dict:
     return {
-        dim: round((max(1, min(5, answers.get(f"q{i+1}", 3))) / 5) * ASHTAKOOT_WEIGHTS[dim], 2)
-        for i, dim in enumerate(ASHTAKOOT_DIMENSIONS)
+        dim: round((max(1, min(5, answers.get(f"q{i+1}", 3))) / 5) * TRAIT_WEIGHTS[dim], 2)
+        for i, dim in enumerate(TRAIT_DIMENSIONS)
     }
 
 
@@ -309,7 +309,7 @@ def monte_carlo_candidate_simulation(
     rng = random.Random(seed)
 
     if not team_scores:
-        team_scores = [{dim: round(w * 0.5, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
+        team_scores = [{dim: round(w * 0.5, 2) for dim, w in TRAIT_WEIGHTS.items()}]
 
     internal_pairs = []
     for i, ma in enumerate(team_scores):
@@ -318,10 +318,10 @@ def monte_carlo_candidate_simulation(
     current_mean = sum(internal_pairs) / max(len(internal_pairs), 1)
 
     team_mean = {
-        dim: sum(m.get(dim, ASHTAKOOT_WEIGHTS[dim] * 0.5) for m in team_scores) / len(team_scores)
-        for dim in ASHTAKOOT_DIMENSIONS
+        dim: sum(m.get(dim, TRAIT_WEIGHTS[dim] * 0.5) for m in team_scores) / len(team_scores)
+        for dim in TRAIT_DIMENSIONS
     }
-    weak_dims = {d for d in ASHTAKOOT_DIMENSIONS if team_mean[d] < ASHTAKOOT_WEIGHTS[d] * 0.45}
+    weak_dims = {d for d in TRAIT_DIMENSIONS if team_mean[d] < TRAIT_WEIGHTS[d] * 0.45}
 
     best_imp = -float("inf")
     optimal: dict = {}
@@ -329,11 +329,11 @@ def monte_carlo_candidate_simulation(
 
     for _ in range(n_iterations):
         candidate = {
-            dim: round(ASHTAKOOT_WEIGHTS[dim] * rng.uniform(
+            dim: round(TRAIT_WEIGHTS[dim] * rng.uniform(
                 0.5 if dim in weak_dims else 0.15,
                 1.0 if dim in weak_dims else 0.95
             ), 2)
-            for dim in ASHTAKOOT_DIMENSIONS
+            for dim in TRAIT_DIMENSIONS
         }
         scores = [compatibility(candidate, m)["total_score_36"] for m in team_scores]
         imp = sum(scores) / len(scores) - current_mean
@@ -717,7 +717,7 @@ def analysis_monte_carlo_convergence() -> dict:
     seeds = list(range(42, 42 + n_seeds))
 
     # Reference profile at 5000 iterations (seed=42 — production default)
-    neutral_team = [{dim: round(w * 0.5, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
+    neutral_team = [{dim: round(w * 0.5, 2) for dim, w in TRAIT_WEIGHTS.items()}]
     ref_result = monte_carlo_candidate_simulation(neutral_team, n_iterations=5000, seed=42)
     ref_profile = ref_result["optimal_profile"]
 
@@ -738,8 +738,8 @@ def analysis_monte_carlo_convergence() -> dict:
         # Mean Euclidean distance of each seed's profile from the reference
         dists = []
         for p in profiles:
-            vec = np.array([p.get(d, 0) for d in ASHTAKOOT_DIMENSIONS])
-            ref_vec = np.array([ref_profile.get(d, 0) for d in ASHTAKOOT_DIMENSIONS])
+            vec = np.array([p.get(d, 0) for d in TRAIT_DIMENSIONS])
+            ref_vec = np.array([ref_profile.get(d, 0) for d in TRAIT_DIMENSIONS])
             dists.append(float(np.linalg.norm(vec - ref_vec)))
         profile_distances.append(float(np.mean(dists)))
 
@@ -820,13 +820,13 @@ def analysis_compatibility_model() -> dict:
     all_syncs: list[float] = []
 
     for _ in range(n_pairs):
-        a = {dim: round(ASHTAKOOT_WEIGHTS[dim] * rng.uniform(0.1, 1.0), 2)
-             for dim in ASHTAKOOT_DIMENSIONS}
-        b = {dim: round(ASHTAKOOT_WEIGHTS[dim] * rng.uniform(0.1, 1.0), 2)
-             for dim in ASHTAKOOT_DIMENSIONS}
+        a = {dim: round(TRAIT_WEIGHTS[dim] * rng.uniform(0.1, 1.0), 2)
+             for dim in TRAIT_DIMENSIONS}
+        b = {dim: round(TRAIT_WEIGHTS[dim] * rng.uniform(0.1, 1.0), 2)
+             for dim in TRAIT_DIMENSIONS}
         result = compatibility(a, b)
         all_scores.append(result["total_score_36"])
-        sync = result["dim_scores"]["nadi_chronotype_sync"]
+        sync = result["dim_scores"]["chronotype_sync"]
         all_syncs.append(sync)
 
     # Simulated chronotype-matched vs mismatched pairs
@@ -834,20 +834,20 @@ def analysis_compatibility_model() -> dict:
     mismatched_totals: list[float] = []
 
     for _ in range(200):
-        # Matched: similar chronotype score on nadi_chronotype_sync
+        # Matched: similar chronotype score on chronotype_sync
         sync_val = rng.uniform(5.0, 8.0)
-        a = {dim: round(ASHTAKOOT_WEIGHTS[dim] * rng.uniform(0.4, 0.9), 2)
-             for dim in ASHTAKOOT_DIMENSIONS}
+        a = {dim: round(TRAIT_WEIGHTS[dim] * rng.uniform(0.4, 0.9), 2)
+             for dim in TRAIT_DIMENSIONS}
         b = dict(a)
-        b["nadi_chronotype_sync"] = round(sync_val, 2)
-        a["nadi_chronotype_sync"] = round(sync_val + rng.uniform(-0.5, 0.5), 2)
+        b["chronotype_sync"] = round(sync_val, 2)
+        a["chronotype_sync"] = round(sync_val + rng.uniform(-0.5, 0.5), 2)
         matched_totals.append(compatibility(a, b)["total_score_36"])
 
         # Mismatched: very different chronotype scores
-        a_mis = {dim: round(ASHTAKOOT_WEIGHTS[dim] * rng.uniform(0.2, 0.9), 2) for dim in ASHTAKOOT_DIMENSIONS}
-        b_mis = {dim: round(ASHTAKOOT_WEIGHTS[dim] * rng.uniform(0.2, 0.9), 2) for dim in ASHTAKOOT_DIMENSIONS}
-        a_mis["nadi_chronotype_sync"] = round(rng.uniform(1.0, 3.0), 2)
-        b_mis["nadi_chronotype_sync"] = round(rng.uniform(5.0, 8.0), 2)
+        a_mis = {dim: round(TRAIT_WEIGHTS[dim] * rng.uniform(0.2, 0.9), 2) for dim in TRAIT_DIMENSIONS}
+        b_mis = {dim: round(TRAIT_WEIGHTS[dim] * rng.uniform(0.2, 0.9), 2) for dim in TRAIT_DIMENSIONS}
+        a_mis["chronotype_sync"] = round(rng.uniform(1.0, 3.0), 2)
+        b_mis["chronotype_sync"] = round(rng.uniform(5.0, 8.0), 2)
         mismatched_totals.append(compatibility(a_mis, b_mis)["total_score_36"])
 
     t_stat, p_val = stats.ttest_ind(matched_totals, mismatched_totals)
@@ -904,7 +904,7 @@ def analysis_compatibility_model() -> dict:
         "Stress Resp. (7)",
         "Chrono. Sync (8)",
     ]
-    weights = list(ASHTAKOOT_WEIGHTS.values())
+    weights = list(TRAIT_WEIGHTS.values())
     bar_colors = plt.cm.Blues(np.linspace(0.35, 0.9, 8))
     ax_d.barh(range(8), weights, color=bar_colors, edgecolor="white", linewidth=0.5)
     ax_d.set_yticks(range(8))

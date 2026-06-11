@@ -8,7 +8,7 @@
 
 ### What is GitSyntropy?
 
-GitSyntropy is a multi-agent SaaS platform that scores the **behavioral compatibility** of software engineering teams. It ingests two data streams — **GitHub commit/PR behavioral data** and **psychometric self-assessments** — and runs them through an 8-dimension scoring model derived from a weighted compatibility framework (Ashtakoot, adapted for engineering work). The result is a team health score out of 36, a dimension-level breakdown, risk flags, and a Claude-generated narrative report.
+GitSyntropy is a multi-agent SaaS platform that scores the **behavioral compatibility** of software engineering teams. It ingests two data streams — **GitHub commit/PR behavioral data** and **psychometric self-assessments** — and runs them through an **8-dimension weighted psychometric compatibility model**. The result is a team health score out of 36, a dimension-level breakdown, risk flags, and a Claude-generated narrative report.
 
 **Core value proposition:** A team lead uploads their GitHub handles, takes an 8-question adaptive assessment, and receives: "Your team scores 24/36. Chronotype sync is your weakest link — schedule pairing sessions for 10–11 AM, not 4 PM."
 
@@ -121,7 +121,7 @@ GitSyntropy/
 │   │   │   ├── main.py          # FastAPI routes, WebSocket handler, middleware
 │   │   │   ├── services.py      # All business logic: IRT, Monte Carlo, LangGraph
 │   │   │   ├── models.py        # SQLAlchemy ORM models
-│   │   │   ├── schemas.py       # Pydantic request/response models + ASHTAKOOT constants
+│   │   │   ├── schemas.py       # Pydantic request/response models + TRAIT_DIMENSIONS/TRAIT_WEIGHTS constants
 │   │   │   ├── calibration.py   # Platt-scaled CalibrationModel (sklearn LogisticRegression)
 │   │   │   ├── crypto.py        # Fernet encrypt/decrypt for GitHub OAuth tokens
 │   │   │   ├── claude_client.py # Anthropic streaming synthesis client
@@ -155,24 +155,24 @@ GitSyntropy/
 
 ---
 
-## Part 5 — The Scoring Framework (Ashtakoot Adapted for Engineering)
+## Part 5 — The Scoring Framework (8-Dimension Weighted Psychometric Model)
 
 ### What Is It?
 
-Ashtakoot is an 8-dimensional Hindu compatibility system traditionally used in marriage matching. GitSyntropy adopts its **weighted scoring structure** (max 36 points total) and remaps each dimension to an engineering-work analog. **No mysticism is involved — only the mathematical weighting scheme is reused.**
+The compatibility engine decomposes team fit into **8 orthogonal psychometric dimensions**, each carrying an integer weight from 1 to 8 (summing to a 36-point scale). The weights encode the relative impact of each dimension on team cohesion — chronotype overlap and stress response dominate; innovation-style differences matter least. Each dimension is scored from the adaptive (IRT) assessment plus GitHub behavioural signals, then combined by a variance-based pairwise scorer. The 1–8 weighting is a **design hypothesis**, not an empirically-fitted factor loading — a point worth stating honestly in an interview.
 
 ### The 8 Dimensions and Their Weights
 
 | Internal Key | Engineering Meaning | Max Points |
 |---|---|---|
-| `nadi_chronotype_sync` | Overlap in peak productive hours | 8 |
-| `bhakoot_strategy` | How members handle stress/deadlines | 7 |
-| `gana_temperament` | Risk tolerance: bold vs. cautious | 6 |
-| `graha_maitri_cognition` | Decision-making: data vs. intuition | 5 |
-| `yoni_workstyle` | Work style and conflict resolution | 4 |
-| `tara_resilience` | Adaptability, social compatibility | 3 |
-| `vashya_influence` | Leadership / authority orientation | 2 |
-| `varna_alignment` | Innovation Drive: creative vs. stability | 1 |
+| `chronotype_sync` | Overlap in peak productive hours | 8 |
+| `stress_response` | How members handle stress/deadlines | 7 |
+| `risk_tolerance` | Risk tolerance: bold vs. cautious | 6 |
+| `decision_style` | Decision-making: data vs. intuition | 5 |
+| `work_style` | Work style and conflict resolution | 4 |
+| `team_resilience` | Adaptability, social compatibility | 3 |
+| `leadership_orientation` | Leadership / authority orientation | 2 |
+| `innovation_drive` | Innovation Drive: creative vs. stability | 1 |
 
 **Total = 1+2+3+4+5+6+7+8 = 36 points**
 
@@ -422,7 +422,7 @@ psychometric_profiler   # Load stored assessment profile or use neutral midpoint
   │                                          │
   │◀─────────────────────────────────────────┘
   ▼
-compatibility_engine    # Pairwise Ashtakoot scores across all team members
+compatibility_engine    # Pairwise compatibility scores across all team members
   │
   ▼
 synthesis               # Claude narrative (streamed via WebSocket)
@@ -952,4 +952,4 @@ curl http://localhost:8000/api/v1/health
 | asyncpg | High-performance async PostgreSQL driver; replaces psycopg2 in async contexts |
 | AsyncGenerator | Python type for async functions that `yield` — enables pull-based streaming |
 | `lru_cache(maxsize=1)` | Cache the single return value of a zero-argument function; used for singleton model initialization |
-| Ashtakoot | 8-point Hindu compatibility system; used here only for its weighted scoring structure |
+| Weighted compatibility model | 8 orthogonal psychometric dimensions, integer-weighted 1–8 (36-pt scale); weights are a design hypothesis, not empirically fitted |

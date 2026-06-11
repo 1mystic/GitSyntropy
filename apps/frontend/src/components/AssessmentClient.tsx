@@ -10,26 +10,26 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // English labels for each assessment dimension
 const DIMENSION_CONFIG: Record<string, { label: string; description: string; weight: number }> = {
-  nadi_chronotype_sync:     { label: "Chronotype Sync",       description: "Peak work-hour overlap — when energy peaks align", weight: 8 },
-  bhakoot_strategy:         { label: "Stress Response",       description: "How you respond under pressure and tight deadlines", weight: 7 },
-  gana_temperament:         { label: "Risk Tolerance",        description: "Bold vs cautious decision-making tendencies", weight: 6 },
-  graha_maitri_cognition:   { label: "Decision Style",        description: "Data-driven vs intuitive reasoning preference", weight: 5 },
-  yoni_workstyle:           { label: "Work Style",            description: "Solo-focus vs collaborative working preference", weight: 4 },
-  tara_resilience:          { label: "Team Resilience",       description: "Capacity to absorb and recover from setbacks", weight: 3 },
-  vashya_influence:         { label: "Leadership Orientation", description: "Tendency to lead, follow, or self-direct", weight: 2 },
-  varna_alignment:          { label: "Innovation Drive",      description: "Appetite for novel approaches vs proven methods", weight: 1 },
+  chronotype_sync:     { label: "Chronotype Sync",       description: "Peak work-hour overlap — when energy peaks align", weight: 8 },
+  stress_response:         { label: "Stress Response",       description: "How you respond under pressure and tight deadlines", weight: 7 },
+  risk_tolerance:         { label: "Risk Tolerance",        description: "Bold vs cautious decision-making tendencies", weight: 6 },
+  decision_style:   { label: "Decision Style",        description: "Data-driven vs intuitive reasoning preference", weight: 5 },
+  work_style:           { label: "Work Style",            description: "Solo-focus vs collaborative working preference", weight: 4 },
+  team_resilience:          { label: "Team Resilience",       description: "Capacity to absorb and recover from setbacks", weight: 3 },
+  leadership_orientation:         { label: "Leadership Orientation", description: "Tendency to lead, follow, or self-direct", weight: 2 },
+  innovation_drive:          { label: "Innovation Drive",      description: "Appetite for novel approaches vs proven methods", weight: 1 },
 };
 
-// q1=varna (weight 1) ... q8=nadi (weight 8), matching backend ASHTAKOOT_WEIGHTS order
+// q1=innovation_drive (weight 1) ... q8=chronotype_sync (weight 8), matching backend TRAIT_WEIGHTS order
 const QUESTION_DIMENSION: Record<string, (typeof DIMENSION_CONFIG)[keyof typeof DIMENSION_CONFIG]> = {
-  q1: DIMENSION_CONFIG.varna_alignment,
-  q2: DIMENSION_CONFIG.vashya_influence,
-  q3: DIMENSION_CONFIG.tara_resilience,
-  q4: DIMENSION_CONFIG.yoni_workstyle,
-  q5: DIMENSION_CONFIG.graha_maitri_cognition,
-  q6: DIMENSION_CONFIG.gana_temperament,
-  q7: DIMENSION_CONFIG.bhakoot_strategy,
-  q8: DIMENSION_CONFIG.nadi_chronotype_sync,
+  q1: DIMENSION_CONFIG.innovation_drive,
+  q2: DIMENSION_CONFIG.leadership_orientation,
+  q3: DIMENSION_CONFIG.team_resilience,
+  q4: DIMENSION_CONFIG.work_style,
+  q5: DIMENSION_CONFIG.decision_style,
+  q6: DIMENSION_CONFIG.risk_tolerance,
+  q7: DIMENSION_CONFIG.stress_response,
+  q8: DIMENSION_CONFIG.chronotype_sync,
 };
 
 // Static questions — inlined to avoid a network round-trip on every load

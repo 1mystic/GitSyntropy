@@ -79,7 +79,7 @@ def test_assessment_submit_and_profile_roundtrip(auth_headers) -> None:
     assert submit_payload["missing_question_ids"] == []
     assert submit_payload["answered_count"] == 8
     assert submit_payload["total_questions"] == 8
-    assert submit_payload["scores"]["nadi_chronotype_sync"] > 0
+    assert submit_payload["scores"]["chronotype_sync"] > 0
     assert submit_payload["submitted_at"] is not None
 
     # JWT sub is "test_user" — server ignores payload user_id

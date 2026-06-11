@@ -8,14 +8,14 @@ import { $session, $teams } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 
 const DIMENSION_LABELS: Record<string, string> = {
-  varna_alignment: "Innovation Drive",
-  vashya_influence: "Leadership Orientation",
-  tara_resilience: "Team Resilience",
-  yoni_workstyle: "Work Style",
-  graha_maitri_cognition: "Decision Style",
-  gana_temperament: "Risk Tolerance",
-  bhakoot_strategy: "Stress Response",
-  nadi_chronotype_sync: "Chronotype Sync",
+  innovation_drive: "Innovation Drive",
+  leadership_orientation: "Leadership Orientation",
+  team_resilience: "Team Resilience",
+  work_style: "Work Style",
+  decision_style: "Decision Style",
+  risk_tolerance: "Risk Tolerance",
+  stress_response: "Stress Response",
+  chronotype_sync: "Chronotype Sync",
 };
 
 function getDimensionLabel(dimension: string) {
@@ -98,7 +98,7 @@ export function CompatibilityClient() {
             Pairwise Score Breakdown
           </h1>
           <p className="text-gray-400 max-w-xl">
-            Weighted Ashtakoot score across 8 dimensions with weak-signal flags.
+            Weighted compatibility score across 8 dimensions with weak-signal flags.
           </p>
         </div>
       </motion.div>

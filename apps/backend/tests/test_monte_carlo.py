@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.schemas import ASHTAKOOT_DIMENSIONS, ASHTAKOOT_WEIGHTS
+from app.schemas import TRAIT_DIMENSIONS, TRAIT_WEIGHTS
 from app.services import monte_carlo_candidate_simulation
 
 client = TestClient(app)
@@ -16,14 +16,14 @@ client = TestClient(app)
 
 
 def _neutral_team() -> list[dict]:
-    return [{dim: round(w * 0.5, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
+    return [{dim: round(w * 0.5, 2) for dim, w in TRAIT_WEIGHTS.items()}]
 
 
 def _weak_team() -> list[dict]:
     """Team weak in high-weight dimensions."""
     return [{
         dim: round(w * 0.2, 2) if w >= 5 else round(w * 0.7, 2)
-        for dim, w in ASHTAKOOT_WEIGHTS.items()
+        for dim, w in TRAIT_WEIGHTS.items()
     }]
 
 
@@ -44,13 +44,13 @@ def test_simulation_n_iterations_matches() -> None:
 
 def test_simulation_optimal_profile_has_all_dimensions() -> None:
     result = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=200)
-    assert set(result["optimal_profile"].keys()) == set(ASHTAKOOT_DIMENSIONS)
+    assert set(result["optimal_profile"].keys()) == set(TRAIT_DIMENSIONS)
 
 
 def test_simulation_optimal_scores_in_valid_range() -> None:
     result = monte_carlo_candidate_simulation(_neutral_team(), n_iterations=200)
     for dim, score in result["optimal_profile"].items():
-        max_w = ASHTAKOOT_WEIGHTS[dim]
+        max_w = TRAIT_WEIGHTS[dim]
         assert 0 <= score <= max_w, f"{dim} score {score} out of range 0–{max_w}"
 
 
@@ -64,7 +64,7 @@ def test_simulation_targets_weak_dimensions() -> None:
     assert len(result["weak_dimensions_targeted"]) > 0
     # Weak dims should be the high-weight ones (≥5 pts) that were set to 20 %
     for dim in result["weak_dimensions_targeted"]:
-        assert ASHTAKOOT_WEIGHTS[dim] >= 5
+        assert TRAIT_WEIGHTS[dim] >= 5
 
 
 def test_simulation_empty_team_uses_neutral_baseline() -> None:
@@ -101,11 +101,11 @@ def test_simulate_endpoint_default_iterations() -> None:
     assert payload["n_iterations"] == 1000
     assert payload["confidence"] == 1.0
     assert payload["status"] == "complete"
-    assert set(payload["optimal_profile"].keys()) == set(ASHTAKOOT_DIMENSIONS)
+    assert set(payload["optimal_profile"].keys()) == set(TRAIT_DIMENSIONS)
 
 
 def test_simulate_endpoint_with_team_scores() -> None:
-    team = [{dim: round(w * 0.6, 2) for dim, w in ASHTAKOOT_WEIGHTS.items()}]
+    team = [{dim: round(w * 0.6, 2) for dim, w in TRAIT_WEIGHTS.items()}]
     resp = client.post(
         "/api/v1/candidates/simulate",
         json={"team_scores": team, "n_iterations": 200},
