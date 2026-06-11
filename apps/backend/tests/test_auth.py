@@ -37,6 +37,18 @@ def test_email_login_and_session_validation() -> None:
     assert "expires_at" in session_payload
 
 
+def test_local_superadmin_login_maps_to_1mystic() -> None:
+    login_res = client.post(
+        "/api/v1/auth/login",
+        json={"email": "atharvkhare18@gmail.com", "password": "localdev123"},
+    )
+    assert login_res.status_code == 200
+    login_payload = login_res.json()
+    assert login_payload["user_id"] == "user_1mystic"
+    assert login_payload["github_handle"] == "1mystic"
+    assert login_payload["is_superadmin"] is True
+
+
 def test_github_callback_invalid_code_returns_400() -> None:
     """A stale/invalid code should be rejected cleanly (GitHub returns error, we 400)."""
     callback_res = client.post(

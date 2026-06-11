@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import type { ReportEntry } from "@/components/DashboardClient";
+import { api, type TeamReportResponse } from "@/lib/api";
 
 const REPORTS_STORAGE_KEY = "gitsyntropy.reports";
 
@@ -12,6 +13,18 @@ function loadReports(): ReportEntry[] {
   } catch {
     return [];
   }
+}
+
+function reportFromBackend(report: TeamReportResponse): ReportEntry {
+  return {
+    id: report.id,
+    teamId: report.team_id,
+    teamName: report.team_name,
+    score: report.score,
+    resilienceScore: report.resilience_score,
+    summary: report.summary,
+    createdAt: report.created_at,
+  };
 }
 
 function ScoreBadge({ score, max = 36 }: { score: number; max?: number }) {
@@ -37,8 +50,19 @@ export function ReportClient() {
     if (!id) { setNotFound(true); return; }
     const all = loadReports();
     const found = all.find((r) => r.id === id);
-    if (found) setReport(found);
-    else setNotFound(true);
+    if (found) {
+      setReport(found);
+      return;
+    }
+    void api
+      .report(id)
+      .then((backendReport) => {
+        const mapped = reportFromBackend(backendReport);
+        const updated = [mapped, ...all.filter((entry) => entry.id !== mapped.id)].slice(0, 20);
+        window.localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(updated));
+        setReport(mapped);
+      })
+      .catch(() => setNotFound(true));
   }, []);
 
   if (notFound) {

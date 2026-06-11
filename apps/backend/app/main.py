@@ -21,6 +21,7 @@ from .schemas import (
     AddMemberRequest,
     AdminStatsResponse,
     AdminUserResponse,
+    AgentRunTraceResponse,
     UpdateProfileRequest,
     UserSearchResult,
     AnalysisRequest,
@@ -37,6 +38,7 @@ from .schemas import (
     CandidateSimulateResponse,
     CompatibilityRequest,
     CompatibilityResponse,
+    TeamReportResponse,
     TeammateRecommendationsResponse,
     GithubAuthCallbackRequest,
     GithubAuthStartResponse,
@@ -76,6 +78,7 @@ from .services import (
     get_agent_run,
     get_all_users_admin,
     get_assessment_response,
+    get_team_report,
     get_github_sync,
     get_platform_stats,
     get_team,
@@ -83,10 +86,14 @@ from .services import (
     get_real_scores_for_user,
     is_superadmin,
     list_teams_for_user,
+    list_agent_run_traces,
+    list_team_reports,
     mock_compatibility_scores,
     monte_carlo_candidate_simulation,
     recommend_teammates,
+    upsert_user_profile,
     remove_team_member,
+    persist_agent_run_trace,
     save_team_score,
     start_orchestrator_steps,
     stream_orchestrator_updates,
@@ -221,10 +228,37 @@ async def auth_github_callback(request: Request, payload: GithubAuthCallbackRequ
 
 @app.post(f"{settings.api_prefix}/auth/login", response_model=AuthTokenResponse)
 @limiter.limit("20/minute")
-async def auth_login(request: Request, payload: LoginRequest) -> AuthTokenResponse:
-    user_id = f"user_{payload.email.split('@')[0]}"
-    token, expires_in = create_jwt(user_id=user_id)
-    return AuthTokenResponse(access_token=token, expires_in=expires_in, user_id=user_id)
+async def auth_login(request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)) -> AuthTokenResponse:
+    email = payload.email.strip().lower()
+    if payload.password != settings.local_login_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
+    if email == settings.local_login_email.lower():
+        github_handle = settings.local_login_github_handle
+        user_id = f"user_{github_handle}"
+    else:
+        github_handle = email.split("@")[0]
+        user_id = f"user_{github_handle}"
+
+    await upsert_user_profile(
+        user_id=user_id,
+        github_handle=github_handle,
+        github_name=github_handle,
+        github_email=email,
+        github_avatar_url=None,
+        github_access_token=None,
+        db=db,
+    )
+
+    token, expires_in = create_jwt(user_id=user_id, github_handle=github_handle)
+    return AuthTokenResponse(
+        access_token=token,
+        expires_in=expires_in,
+        user_id=user_id,
+        github_handle=github_handle,
+        github_name=github_handle,
+        is_superadmin=is_superadmin(github_handle),
+    )
 
 
 @app.get(f"{settings.api_prefix}/auth/session", response_model=AuthSessionResponse)
@@ -506,6 +540,20 @@ async def simulate_candidates(request: Request, payload: CandidateSimulateReques
     return CandidateSimulateResponse(**result)
 
 
+@app.get(f"{settings.api_prefix}/teams/{{team_id}}/reports", response_model=list[TeamReportResponse])
+async def team_reports_route(team_id: str, db: AsyncSession = Depends(get_db)) -> list[TeamReportResponse]:
+    reports = await list_team_reports(team_id, db)
+    return [TeamReportResponse(**report) for report in reports]
+
+
+@app.get(f"{settings.api_prefix}/reports/{{report_id}}", response_model=TeamReportResponse)
+async def report_route(report_id: str, db: AsyncSession = Depends(get_db)) -> TeamReportResponse:
+    report = await get_team_report(report_id, db)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return TeamReportResponse(**report)
+
+
 # ---------------------------------------------------------------------------
 # Reciprocal teammate recommendations
 # ---------------------------------------------------------------------------
@@ -529,6 +577,15 @@ async def team_recommendations_route(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return TeammateRecommendationsResponse(**data)
+
+
+@app.get(f"{settings.api_prefix}/admin/agent-runs", response_model=list[AgentRunTraceResponse])
+async def admin_agent_runs(
+    claims: dict = Depends(_require_superadmin),
+    db: AsyncSession = Depends(get_db),
+) -> list[AgentRunTraceResponse]:
+    traces = await list_agent_run_traces(db)
+    return [AgentRunTraceResponse(**trace) for trace in traces]
 
 
 # ---------------------------------------------------------------------------
@@ -587,18 +644,23 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
     latest_compat: dict | None = None
     latest_github_signals: dict | None = None
     latest_assessment_profile: dict | None = None
+    trace_events: list[dict[str, object]] = []
+    step_started_at: dict[str, datetime] = {}
     try:
         completed_count = 0
-        await websocket.send_json(
-            jsonable_encoder({
-                "run_id": run_id,
-                "step": steps[0],
-                "status": "running",
-                "progress_pct": 0,
-                "message": f"Starting {steps[0]}",
-                "timestamp": datetime.now(tz=UTC).isoformat(),
-            })
-        )
+        first_timestamp = datetime.now(tz=UTC)
+        first_event = jsonable_encoder({
+            "run_id": run_id,
+            "step": steps[0],
+            "status": "running",
+            "progress_pct": 0,
+            "message": f"Starting {steps[0]}",
+            "timestamp": first_timestamp,
+        })
+        step_started_at[steps[0]] = first_timestamp
+        trace_events.append(first_event)
+        await websocket.send_json(first_event)
+        await persist_agent_run_trace(run_id, trace_events, "running", db)
 
         async for step_update in stream_orchestrator_updates(
             team_id=team_id,
@@ -611,6 +673,7 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
             step_name, step_data = next(iter(step_update.items()))
             completed_count += 1
             progress_pct = int((completed_count / len(steps)) * 100)
+            completed_timestamp = datetime.now(tz=UTC)
 
             # Track intermediate pipeline state for synthesis streaming
             if step_name == "github_analyst":
@@ -634,69 +697,74 @@ async def analysis_stream(websocket: WebSocket, run_id: str, db: AsyncSession = 
                 except Exception:  # noqa: BLE001
                     pass  # synthesis streaming failure is non-fatal; frontend shows what it got
                 narrative = "".join(narrative_parts)
-                if isinstance(step_data.get("synthesis"), dict):
+                if latest_compat and isinstance(step_data.get("synthesis"), dict):
                     step_data["synthesis"]["narrative"] = narrative
+                    step_data["synthesis"]["report_id"] = await save_team_score(
+                        team_id=team_id,
+                        run_id=run_id,
+                        compat=latest_compat,
+                        narrative=narrative,
+                        db=db,
+                    )
                 step_data["synthesis_text"] = narrative
-                # Persist to DB
-                if latest_compat:
-                    try:
-                        await save_team_score(
-                            team_id=team_id,
-                            run_id=run_id,
-                            compat=latest_compat,
-                            narrative=narrative,
-                            db=db,
-                        )
-                    except Exception:  # noqa: BLE001
-                        pass
+            duration_ms = None
+            if step_name in step_started_at:
+                duration_ms = (completed_timestamp - step_started_at[step_name]).total_seconds() * 1000
 
-            await websocket.send_json(
-                jsonable_encoder({
-                    "run_id": run_id,
-                    "step": step_name,
-                    "status": "completed",
-                    "progress_pct": progress_pct,
-                    "message": f"{step_name} completed",
-                    "data": step_data,
-                    "timestamp": datetime.now(tz=UTC).isoformat(),
-                })
-            )
+            completed_event = jsonable_encoder({
+                "run_id": run_id,
+                "step": step_name,
+                "status": "completed",
+                "progress_pct": progress_pct,
+                "message": f"{step_name} completed",
+                "data": step_data,
+                "timestamp": completed_timestamp,
+                "duration_ms": round(duration_ms, 1) if duration_ms is not None else None,
+            })
+            trace_events.append(completed_event)
+            await websocket.send_json(completed_event)
+            await persist_agent_run_trace(run_id, trace_events, "running", db)
 
             if completed_count < len(steps):
                 next_step = steps[completed_count]
-                await websocket.send_json(
-                    jsonable_encoder({
-                        "run_id": run_id,
-                        "step": next_step,
-                        "status": "running",
-                        "progress_pct": progress_pct,
-                        "message": f"Running {next_step}",
-                        "timestamp": datetime.now(tz=UTC).isoformat(),
-                    })
-                )
+                next_timestamp = datetime.now(tz=UTC)
+                next_event = jsonable_encoder({
+                    "run_id": run_id,
+                    "step": next_step,
+                    "status": "running",
+                    "progress_pct": progress_pct,
+                    "message": f"Running {next_step}",
+                    "timestamp": next_timestamp,
+                })
+                step_started_at[next_step] = next_timestamp
+                trace_events.append(next_event)
+                await websocket.send_json(next_event)
+                await persist_agent_run_trace(run_id, trace_events, "running", db)
 
-        await websocket.send_json(
-            jsonable_encoder({
-                "run_id": run_id,
-                "step": "orchestration",
-                "status": "completed",
-                "progress_pct": 100,
-                "message": "LangGraph orchestration completed",
-                "timestamp": datetime.now(tz=UTC).isoformat(),
-            })
-        )
+        final_event = jsonable_encoder({
+            "run_id": run_id,
+            "step": "orchestration",
+            "status": "completed",
+            "progress_pct": 100,
+            "message": "LangGraph orchestration completed",
+            "timestamp": datetime.now(tz=UTC),
+        })
+        trace_events.append(final_event)
+        await websocket.send_json(final_event)
+        await persist_agent_run_trace(run_id, trace_events, "completed", db)
         await websocket.close()
     except WebSocketDisconnect:
         return
     except Exception as exc:  # noqa: BLE001
-        await websocket.send_json(
-            jsonable_encoder({
-                "run_id": run_id,
-                "step": "orchestration",
-                "status": "error",
-                "progress_pct": 0,
-                "message": f"Orchestration failed: {exc}",
-                "timestamp": datetime.now(tz=UTC).isoformat(),
-            })
-        )
+        error_event = jsonable_encoder({
+            "run_id": run_id,
+            "step": "orchestration",
+            "status": "error",
+            "progress_pct": 0,
+            "message": f"Orchestration failed: {exc}",
+            "timestamp": datetime.now(tz=UTC),
+        })
+        trace_events.append(error_event)
+        await websocket.send_json(error_event)
+        await persist_agent_run_trace(run_id, trace_events, "error", db, error=str(exc))
         await websocket.close(code=1011)

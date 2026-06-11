@@ -132,7 +132,7 @@ class GitHubAnalystClient:
             try:
                 user = self._gh.get_user(username)
                 hours = []
-                for repo in user.get_repos(type="owner", sort="pushed"):
+                for repo in user.get_repos(type="all", sort="pushed"):
                     if repo.pushed_at and _as_utc(repo.pushed_at) < since:
                         continue
                     try:

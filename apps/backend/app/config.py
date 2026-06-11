@@ -21,13 +21,16 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:4321"
     anthropic_model: str = "claude-sonnet-4-6"
     anthropic_api_key: str = ""
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/gitsyntropy"
+    database_url: str = "sqlite+aiosqlite:///./gitsyntropy_local.db"
     github_client_secret: str = ""
     github_access_token: str = ""   # Personal access token for server-side GitHub API calls
 
     # Superadmin — site owner who can access /admin routes
     superadmin_github_handle: str = "1mystic"
     superadmin_email: str = "23f2004201@ss.com"
+    local_login_email: str = "atharvkhare18@gmail.com"
+    local_login_password: str = "localdev123"
+    local_login_github_handle: str = "1mystic"
 
     # Extra CORS origins beyond frontend_url — comma-separated, no spaces
     # e.g. GS_EXTRA_CORS_ORIGINS=https://git-syntropy.vercel.app,https://preview.vercel.app

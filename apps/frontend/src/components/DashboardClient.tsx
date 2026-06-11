@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, scaleIn, slideDown, stagger } from "@/lib/motion";
-import { api, wsUrlForRun, type CompatibilityResponse, type GithubSyncResponse, type OrchestratorStreamEvent } from "@/lib/api";
+import { api, wsUrlForRun, type CandidateSimulateResponse, type CompatibilityResponse, type GithubSyncResponse, type OrchestratorStreamEvent, type TeamReportResponse } from "@/lib/api";
 import { $activeTeam, $compatibility, $orchestrator, $session, $sync, $teams, setActiveTeam } from "@/lib/stores";
 import { AUTH_BYPASS_USER_ID, AUTH_REQUIRED } from "@/lib/featureFlags";
 import { RadarChart } from "@/components/RadarChart";
@@ -50,6 +50,28 @@ function saveReport(entry: ReportEntry): ReportEntry[] {
   const updated = [entry, ...existing].slice(0, 20);
   window.localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(updated));
   return updated;
+}
+
+function reportFromBackend(report: TeamReportResponse): ReportEntry {
+  return {
+    id: report.id,
+    teamId: report.team_id,
+    teamName: report.team_name,
+    score: report.score,
+    resilienceScore: report.resilience_score,
+    summary: report.summary,
+    createdAt: report.created_at,
+  };
+}
+
+function mergeReports(primary: ReportEntry[], fallback: ReportEntry[]): ReportEntry[] {
+  const merged = [...primary, ...fallback];
+  const seen = new Set<string>();
+  return merged.filter((report) => {
+    if (seen.has(report.id)) return false;
+    seen.add(report.id);
+    return true;
+  }).slice(0, 20);
 }
 
 function AssessmentSkeleton() {
@@ -103,6 +125,9 @@ function DashboardInner() {
 
   // Compatibility
   const [compatResult, setCompatResult] = useState<CompatibilityResponse | null>(null);
+  const [simResult, setSimResult] = useState<CandidateSimulateResponse | null>(null);
+  const [simLoading, setSimLoading] = useState(false);
+  const [simError, setSimError] = useState<string | null>(null);
 
   const pushSyncStore = (data: GithubSyncResponse) => {
     $sync.set({
@@ -153,6 +178,28 @@ function DashboardInner() {
       setSelectedTeamId(teams[0].id);
     }
   }, [activeTeamGlobal, teams]);
+
+  useEffect(() => {
+    const teamId = selectedTeamId || teams[0]?.id;
+    if (!teamId) {
+      setReports(loadReports());
+      return;
+    }
+    let cancelled = false;
+    void api
+      .teamReports(teamId)
+      .then((data) => {
+        if (cancelled) return;
+        const backendReports = data.map(reportFromBackend);
+        setReports((prev) => mergeReports(backendReports, prev.length > 0 ? prev : loadReports()));
+      })
+      .catch(() => {
+        if (!cancelled) setReports(loadReports());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTeamId, teams]);
 
   const loadAssessment = () => {
     setAssessmentLoading(true);
@@ -228,7 +275,7 @@ function DashboardInner() {
         }
 
         if (event.status === "completed" && event.step === "synthesis" && event.data?.synthesis) {
-          const synth = event.data.synthesis as unknown as { narrative: string };
+          const synth = event.data.synthesis as unknown as { narrative: string; report_id?: string };
           const score = orchCompatRef.current?.total_score_36 ?? 28;
           const resilience = Math.round((score / 36) * 100);
           const activeTeamForReport = teams.find((t) => t.id === (selectedTeamId || teams[0]?.id));
@@ -236,7 +283,7 @@ function DashboardInner() {
           setStreamingText("");
           setAnalysisResult(newResult);
           const entry: ReportEntry = {
-            id: `${Date.now()}`,
+            id: synth.report_id ?? `${Date.now()}`,
             teamId: activeTeamForReport?.id ?? teamId,
             teamName: activeTeamForReport?.name ?? "Team",
             score,
@@ -316,6 +363,24 @@ function DashboardInner() {
       });
     } catch {
       // non-critical
+    }
+  };
+
+  const runCandidateSimulation = async () => {
+    const teamScores = compatResult ? [compatResult.dimension_scores] : [];
+    if (!teamScores.length) {
+      setSimError("Run compatibility first to seed the candidate simulator.");
+      return;
+    }
+    setSimLoading(true);
+    setSimError(null);
+    try {
+      const data = await api.candidateSimulate(teamScores, 1000);
+      setSimResult(data);
+    } catch {
+      setSimError("Candidate simulation failed. Please try again.");
+    } finally {
+      setSimLoading(false);
     }
   };
 
@@ -798,6 +863,79 @@ function DashboardInner() {
           </motion.div>
         )}
         </AnimatePresence>
+
+        {compatResult && (
+          <motion.div variants={fadeInUp} className="col-span-1 md:col-span-2 xl:col-span-4 glass-card rounded-none p-6 border border-white/10">
+            <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+              <div>
+                <h3 className="text-white font-semibold font-display flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[20px]">person_search</span>
+                  Hire Simulation
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">Monte Carlo candidate complement using the current team profile.</p>
+              </div>
+              <button
+                className="btn btn-secondary justify-center text-xs py-1.5 px-4"
+                onClick={() => void runCandidateSimulation()}
+                disabled={simLoading}
+              >
+                {simLoading ? "Simulating..." : "Run Hire Sim"}
+              </button>
+            </div>
+
+            {simError && <p className="text-sm text-red-400 mb-4">{simError}</p>}
+
+            {simResult ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Mean improvement</p>
+                  <p className="text-2xl font-bold text-white font-display mt-1">{simResult.mean_improvement.toFixed(2)}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Best improvement</p>
+                  <p className="text-2xl font-bold text-white font-display mt-1">{simResult.best_improvement.toFixed(2)}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">P25 / P75</p>
+                  <p className="text-2xl font-bold text-white font-display mt-1">
+                    {simResult.p25_improvement.toFixed(2)} / {simResult.p75_improvement.toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Confidence</p>
+                  <p className="text-2xl font-bold text-white font-display mt-1">{(simResult.confidence * 100).toFixed(0)}%</p>
+                </div>
+                <div className="md:col-span-2 xl:col-span-2 bg-white/5 border border-white/10 rounded-xl p-4">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Weak dimensions targeted</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {simResult.weak_dimensions_targeted.length > 0 ? (
+                      simResult.weak_dimensions_targeted.map((dim) => (
+                        <span key={dim} className="text-[10px] px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20 font-mono">
+                          {getDimensionLabel(dim)}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-gray-500">No targeted weak dimensions reported.</span>
+                    )}
+                  </div>
+                </div>
+                <div className="md:col-span-2 xl:col-span-2 bg-white/5 border border-white/10 rounded-xl p-4">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Optimal profile</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {Object.entries(simResult.optimal_profile).slice(0, 6).map(([dim, value]) => (
+                      <div key={dim} className="flex items-center justify-between text-xs bg-black/20 rounded px-2 py-1.5">
+                        <span className="text-gray-400 font-mono">{getDimensionLabel(dim)}</span>
+                        <span className="text-white font-mono">{value.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Run the simulator after a compatibility score is available.</p>
+            )}
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Contextual Quick Actions */}

@@ -140,7 +140,7 @@ WebSocket stream -> Frontend (Astro + React)
 **System design**
 - Multi-agent orchestration via LangGraph with step-level streaming
 - WebSocket-based real-time pipeline progress to the frontend
-- Computerized Adaptive Testing (CAT) algorithm for psychometric assessment
+- Computerized Adaptive Testing (CAT) algorithm for psychometric assessment using a 3PL item characteristic curve: $P(X_j = 1 \mid \theta) = c_j + \frac{1 - c_j}{1 + e^{-a_j(\theta - b_j)}}$
 
 **Backend engineering**
 - FastAPI async API with session-mode PostgreSQL (not pooler) via asyncpg
@@ -173,11 +173,13 @@ cd apps/backend
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 pip install -e ".[dev]"
-cp .env.example .env            # fill in Supabase URL, Anthropic key, GitHub OAuth
 uvicorn app.main:app --reload --port 8000
 ```
 
-Required `.env` values:
+Local dev works out of the box with the bundled SQLite default. Override only if you want a real
+Postgres backend.
+
+Optional `.env` values for Postgres / hosted mode:
 
 ```
 GS_DATABASE_URL=postgresql+asyncpg://...    # Supabase direct connection, port 5432

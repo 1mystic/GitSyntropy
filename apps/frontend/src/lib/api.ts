@@ -181,6 +181,50 @@ export type TeammateRecommendationsResponse = {
   recommendations: TeammateRecommendation[];
   cold_start: boolean;
 };
+export type CandidateSimulateResponse = {
+  n_iterations: number;
+  optimal_profile: Record<string, number>;
+  mean_improvement: number;
+  best_improvement: number;
+  p25_improvement: number;
+  p75_improvement: number;
+  weak_dimensions_targeted: string[];
+  confidence: number;
+  status: string;
+};
+export type TeamReportResponse = {
+  id: string;
+  team_id: string;
+  team_name: string;
+  score: number;
+  resilience_score: number;
+  summary: string;
+  created_at: string;
+};
+export type AgentTraceEvent = {
+  step: string;
+  status: string;
+  progress_pct: number;
+  message?: string | null;
+  timestamp: string;
+  duration_ms?: number | null;
+  data?: Record<string, unknown> | null;
+};
+export type AgentRunTraceResponse = {
+  id: string;
+  team_id: string;
+  team_name: string;
+  user_id: string;
+  github_handle?: string | null;
+  include_candidates: boolean;
+  status: string;
+  error?: string | null;
+  started_at: string;
+  completed_at?: string | null;
+  event_count: number;
+  total_duration_ms?: number | null;
+  agent_events: AgentTraceEvent[];
+};
 
 async function requestVoid(path: string, init?: RequestInit): Promise<void> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -290,6 +334,13 @@ export const api = {
       `/teams/${team_id}/recommendations?seeker_id=${encodeURIComponent(seeker_id)}&k=${k}`,
       token,
     ),
+  candidateSimulate: (team_scores: Record<string, number>[], n_iterations = 1000) =>
+    request<CandidateSimulateResponse>("/candidates/simulate", {
+      method: "POST",
+      body: JSON.stringify({ team_scores, n_iterations }),
+    }),
+  teamReports: (team_id: string) => request<TeamReportResponse[]>(`/teams/${team_id}/reports`),
+  report: (report_id: string) => request<TeamReportResponse>(`/reports/${encodeURIComponent(report_id)}`),
 
   // Authenticated user profile
   me: (token: string) => authedRequest<UserProfileResponse>("/users/me", token),
@@ -307,6 +358,8 @@ export const api = {
     cached("/admin/stats", 60_000, () => authedRequest<AdminStatsResponse>("/admin/stats", token)),
   adminUsers: (token: string) =>
     cached("/admin/users", 60_000, () => authedRequest<AdminUserResponse[]>("/admin/users", token)),
+  adminAgentRuns: (token: string) =>
+    cached("/admin/agent-runs", 30_000, () => authedRequest<AgentRunTraceResponse[]>("/admin/agent-runs", token)),
 };
 
 export const wsUrlForRun = (runId: string) => {

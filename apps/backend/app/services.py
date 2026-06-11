@@ -35,6 +35,44 @@ def _get_github_client(access_token: str):
     return GitHubAnalystClient(access_token)
 
 
+async def _analyze_member_github_signals(member: dict[str, Any], default_token: str | None) -> tuple[str, dict[str, Any]]:
+    """Best-effort GitHub signal extraction for one team member."""
+    handle = member.get("github_handle") or member["user_id"].replace("user_", "") or "team-member"
+    access_token = member.get("access_token") or default_token or settings.github_access_token
+
+    if access_token:
+        try:
+            client = _get_github_client(access_token)
+            data = await client.analyze(handle)
+            return member["user_id"], data
+        except Exception:  # noqa: BLE001
+            pass
+
+    github_data = member.get("github_data") or {}
+    if github_data:
+        signals = {
+            "github_handle": handle,
+            "chronotype": github_data.get("chronotype") or "flexible",
+            "commits_last_30_days": github_data.get("commits_last_30_days") or 0,
+            "collaboration_index": github_data.get("collaboration_index") or 50.0,
+            "activity_rhythm_score": github_data.get("activity_rhythm_score") or 50.0,
+            "prs_last_30_days": github_data.get("prs_last_30_days") or 0,
+        }
+        if github_data.get("raw_data"):
+            signals.update(github_data["raw_data"])
+        return member["user_id"], signals
+
+    chronotype = _derive_chronotype(handle)
+    commits = len(handle) * 7
+    return member["user_id"], {
+        "github_handle": handle,
+        "chronotype": chronotype,
+        "commits_last_30_days": commits,
+        "collaboration_index": round(min(100.0, 45 + len(handle) * 3 * 0.8), 2),
+        "activity_rhythm_score": round(min(100.0, 20 + commits * 0.9), 2),
+    }
+
+
 # ---------------------------------------------------------------------------
 # JWT helpers
 # ---------------------------------------------------------------------------
@@ -1002,7 +1040,7 @@ async def save_team_score(
     compat: dict[str, Any],
     narrative: str | None,
     db: AsyncSession,
-) -> None:
+) -> str:
     """Persist compatibility results to TeamScore after an orchestrator run completes."""
     ts = TeamScore(
         id=str(uuid4()),
@@ -1022,6 +1060,116 @@ async def save_team_score(
     )
     db.add(ts)
     await db.commit()
+    return ts.id
+
+
+async def persist_agent_run_trace(
+    run_id: str,
+    trace_events: list[dict[str, Any]],
+    status: str,
+    db: AsyncSession,
+    *,
+    error: str | None = None,
+) -> None:
+    """Persist the latest LangGraph/WebSocket trace snapshot on the agent run row."""
+    result = await db.execute(select(AgentRun).where(AgentRun.id == run_id))
+    run = result.scalar_one_or_none()
+    if run is None:
+        return
+    run.agent_events = trace_events
+    run.status = status
+    run.error = error
+    if status == "completed":
+        run.completed_at = datetime.now(tz=UTC)
+    await db.commit()
+
+
+async def list_team_reports(team_id: str, db: AsyncSession, limit: int = 20) -> list[dict[str, Any]]:
+    """Return persisted team reports ordered newest-first."""
+    result = await db.execute(
+        select(TeamScore, Team.name)
+        .join(Team, Team.id == TeamScore.team_id)
+        .where(TeamScore.team_id == team_id)
+        .order_by(TeamScore.calculated_at.desc())
+        .limit(limit)
+    )
+    reports: list[dict[str, Any]] = []
+    for team_score, team_name in result.all():
+        reports.append({
+            "id": team_score.id,
+            "team_id": team_score.team_id,
+            "team_name": team_name,
+            "score": team_score.resilience_score,
+            "resilience_score": team_score.compatibility_pct,
+            "summary": team_score.narrative_report or "",
+            "created_at": team_score.calculated_at,
+        })
+    return reports
+
+
+async def get_team_report(report_id: str, db: AsyncSession) -> dict[str, Any] | None:
+    """Return one persisted report by TeamScore id."""
+    result = await db.execute(
+        select(TeamScore, Team.name)
+        .join(Team, Team.id == TeamScore.team_id)
+        .where(TeamScore.id == report_id)
+        .limit(1)
+    )
+    row = result.first()
+    if row is None:
+        return None
+    team_score, team_name = row
+    return {
+        "id": team_score.id,
+        "team_id": team_score.team_id,
+        "team_name": team_name,
+        "score": team_score.resilience_score,
+        "resilience_score": team_score.compatibility_pct,
+        "summary": team_score.narrative_report or "",
+        "created_at": team_score.calculated_at,
+    }
+
+
+async def list_agent_run_traces(db: AsyncSession, limit: int = 20) -> list[dict[str, Any]]:
+    """Return recent orchestrator runs with persisted trace events for admin review."""
+    result = await db.execute(
+        select(AgentRun, Team.name, UserProfile.github_handle)
+        .join(Team, Team.id == AgentRun.team_id)
+        .outerjoin(UserProfile, UserProfile.user_id == AgentRun.user_id)
+        .order_by(AgentRun.started_at.desc())
+        .limit(limit)
+    )
+    traces: list[dict[str, Any]] = []
+    for run, team_name, github_handle in result.all():
+        events = list(run.agent_events or [])
+        total_duration_ms: float | None = None
+        if events:
+            started = next((event.get("timestamp") for event in events if event.get("timestamp")), None)
+            finished = next((event.get("timestamp") for event in reversed(events) if event.get("timestamp")), None)
+            if started and finished:
+                try:
+                    total_duration_ms = (
+                        datetime.fromisoformat(str(finished).replace("Z", "+00:00"))
+                        - datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+                    ).total_seconds() * 1000
+                except ValueError:
+                    total_duration_ms = None
+        traces.append({
+            "id": run.id,
+            "team_id": run.team_id,
+            "team_name": team_name,
+            "user_id": run.user_id,
+            "github_handle": github_handle,
+            "include_candidates": run.include_candidates,
+            "status": run.status,
+            "error": run.error,
+            "started_at": run.started_at,
+            "completed_at": run.completed_at,
+            "event_count": len(events),
+            "total_duration_ms": round(total_duration_ms, 1) if total_duration_ms is not None else None,
+            "agent_events": events,
+        })
+    return traces
 
 
 async def get_real_scores_for_user(
@@ -1056,6 +1204,7 @@ class OrchestratorState(TypedDict, total=False):
     include_candidates: bool
     member_profiles: list[dict[str, Any]]   # preloaded from DB before graph starts
     github_signals: dict[str, Any]
+    member_github_signals: dict[str, dict[str, Any]]
     assessment_profile: dict[str, Any]
     candidate_outlook: dict[str, Any]
     compatibility: dict[str, Any]
@@ -1064,47 +1213,34 @@ class OrchestratorState(TypedDict, total=False):
 
 
 async def _github_analyst_node(state: OrchestratorState) -> dict[str, Any]:
+    member_profiles = state.get("member_profiles", [])
+    default_token = state.get("access_token") or settings.github_access_token
+
+    if member_profiles:
+        analyses = await asyncio.gather(
+            *(_analyze_member_github_signals(mp, default_token) for mp in member_profiles)
+        )
+        member_signals = {uid: signals for uid, signals in analyses}
+        user_id = state.get("user_id", "")
+        primary = member_signals.get(user_id)
+        if primary is None and member_signals:
+            primary = next(iter(member_signals.values()))
+        return {
+            "github_signals": primary or {},
+            "member_github_signals": member_signals,
+        }
+
     handle = state.get("github_handle") or state["user_id"].replace("user_", "") or "team-member"
-    access_token = state.get("access_token") or settings.github_access_token
-
-    # 1. Try real GitHub API
-    if access_token:
-        try:
-            client = _get_github_client(access_token)
-            data = await client.analyze(handle)
-            return {"github_signals": data}
-        except Exception:  # noqa: BLE001
-            pass
-
-    # 2. Fallback: use preloaded DB data for the primary user
-    user_id = state.get("user_id", "")
-    for mp in state.get("member_profiles", []):
-        if mp["user_id"] == user_id and mp.get("github_data"):
-            gd = mp["github_data"]
-            signals = {
-                "github_handle": handle,
-                "chronotype": gd.get("chronotype") or "flexible",
-                "commits_last_30_days": gd.get("commits_last_30_days") or 0,
-                "collaboration_index": gd.get("collaboration_index") or 50.0,
-                "activity_rhythm_score": gd.get("activity_rhythm_score") or 50.0,
-                "prs_last_30_days": gd.get("prs_last_30_days") or 0,
-            }
-            if gd.get("raw_data"):
-                signals.update(gd["raw_data"])
-            return {"github_signals": signals}
-
-    # 3. Last resort: deterministic mock
     chronotype = _derive_chronotype(handle)
     commits = len(handle) * 7
-    return {
-        "github_signals": {
-            "github_handle": handle,
-            "chronotype": chronotype,
-            "commits_last_30_days": commits,
-            "collaboration_index": round(min(100.0, 45 + len(handle) * 3 * 0.8), 2),
-            "activity_rhythm_score": round(min(100.0, 20 + commits * 0.9), 2),
-        }
+    signals = {
+        "github_handle": handle,
+        "chronotype": chronotype,
+        "commits_last_30_days": commits,
+        "collaboration_index": round(min(100.0, 45 + len(handle) * 3 * 0.8), 2),
+        "activity_rhythm_score": round(min(100.0, 20 + commits * 0.9), 2),
     }
+    return {"github_signals": signals, "member_github_signals": {state.get("user_id", ""): signals}}
 
 
 async def _psychometric_profiler_node(state: OrchestratorState) -> dict[str, Any]:
@@ -1441,20 +1577,40 @@ def synthesis_from_compat(total_score: float, weak_dimensions: list[str]) -> dic
     else:
         verdict = "The pair/team is workable but needs intentional alignment rituals."
 
-    strengths = "The team profile suggests stable collaboration patterns."
+    weakness_notes = {
+        "chronotype_sync": "Protect shared overlap windows and avoid late-day reviews.",
+        "stress_response": "Use a named decision owner plus explicit escalation thresholds.",
+        "risk_tolerance": "Pair a cautious reviewer with one exploration-friendly teammate.",
+        "decision_style": "Document decisions and the evidence behind them before execution.",
+        "work_style": "Split deep-work blocks from synchronous collaboration windows.",
+        "team_resilience": "Add a lightweight retro cadence to reduce friction accumulation.",
+        "leadership_orientation": "Clarify who leads the decision on ambiguous tasks.",
+        "innovation_drive": "Protect one small experimental lane so novelty does not block delivery.",
+    }
+    weak_ideas = [weakness_notes[d] for d in weak_dimensions if d in weakness_notes][:3]
+    strengths = "The team profile suggests stable collaboration patterns." if not weak_ideas else (
+        "The team profile suggests stable collaboration patterns, but the weak dimensions deserve targeted rituals."
+    )
     uncertainty = (
-        f"Weak dimensions detected in {', '.join(weak_dimensions[:3])}; collect more behavioral data before final staffing decisions."
+        "Weak dimensions detected in "
+        + ", ".join(weak_dimensions[:3])
+        + "; collect more behavioral data before final staffing decisions."
         if weak_dimensions
         else "No high-risk weak dimensions detected in this run."
     )
 
+    recommendations = [
+        "Run one two-week trial sprint and review communication bottlenecks.",
+        "Pair planning with a fixed decision owner to reduce ambiguity loops.",
+        "Reassess compatibility after updated GitHub and assessment signals.",
+    ]
+    for note in weak_ideas:
+        if note not in recommendations:
+            recommendations.append(note)
+
     return {
         "run_id": str(uuid4()),
         "narrative": f"{verdict} {strengths}",
-        "recommendations": [
-            "Run one two-week trial sprint and review communication bottlenecks.",
-            "Pair planning with a fixed decision owner to reduce ambiguity loops.",
-            "Reassess compatibility after updated GitHub and assessment signals.",
-        ],
+        "recommendations": recommendations,
         "uncertainty_note": uncertainty,
     }

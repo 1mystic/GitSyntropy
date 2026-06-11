@@ -310,6 +310,8 @@ def cat_select_next_question(current_answers):
 
 q8 is near-useless at $\theta=0$ because its difficulty $b=2.2$ is two standard deviations above the prior mean.
 
+**Empirical ablation on the deployed 8-item bank:** adaptive Fisher-information selection reaches $\text{SE} \le 0.80$ in **4.22** items on average vs **4.23** for fixed order. The honest story here is not a dramatic item-count reduction; it is that the adaptive curve tightens earlier, which is exactly what the ICC plot in `docs/irt_icc.png` shows.
+
 ---
 
 ## Part 7 — Platt-Scaled Confidence Calibration

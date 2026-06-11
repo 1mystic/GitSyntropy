@@ -6,6 +6,7 @@ avoid cross-test interference).
 """
 
 import asyncio
+import sqlite3
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -15,12 +16,28 @@ from app.database import Base, get_db
 from app.main import app
 from app.services import create_jwt
 
+# Keepalive: a shared-cache in-memory SQLite database only lives while at least one
+# connection to it is open. pytest-asyncio (asyncio_mode = "auto") runs each async
+# test in its own event loop and closes it afterwards, which would otherwise tear
+# down the async connection and drop the DB ("no such table" in a later test). This
+# module-level synchronous connection stays open for the whole process, pinning the
+# shared-cache DB so the schema created below survives across every test's loop.
+_DB_URI = "file:gitsyntropy_test?mode=memory&cache=shared"
+_KEEPALIVE = sqlite3.connect(_DB_URI, uri=True, check_same_thread=False)
+
 # Single shared in-memory SQLite engine for the entire test session.
-# StaticPool + check_same_thread=False ensures the same in-memory DB is reused
-# across all requests in the test session.
+#
+# We use a *named shared-cache* in-memory database rather than the bare ":memory:"
+# form. With asyncio_mode = "auto", pytest-asyncio runs each async test in its own
+# event loop and closes it afterwards; a bare ":memory:" DB is bound to the single
+# StaticPool connection's original loop, so once that loop closes a later test can
+# observe an empty DB ("no such table"). A shared-cache DB (cache=shared) survives
+# as long as any connection stays open (StaticPool keeps one), and every connection
+# — regardless of which loop opened it — sees the same tables. This removes the
+# test-ordering fragility entirely.
 _TEST_ENGINE = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
+    "sqlite+aiosqlite:///file:gitsyntropy_test?mode=memory&cache=shared&uri=true",
+    connect_args={"check_same_thread": False, "uri": True},
     poolclass=StaticPool,
 )
 

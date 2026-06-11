@@ -300,6 +300,46 @@ class CandidateSimulateResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Persisted reports + orchestrator traces
+# ---------------------------------------------------------------------------
+
+class TeamReportResponse(BaseModel):
+    id: str
+    team_id: str
+    team_name: str
+    score: float
+    resilience_score: float
+    summary: str
+    created_at: datetime
+
+
+class AgentTraceEvent(BaseModel):
+    step: str
+    status: str
+    progress_pct: int
+    message: str | None = None
+    timestamp: datetime
+    duration_ms: float | None = None
+    data: dict[str, object] | None = None
+
+
+class AgentRunTraceResponse(BaseModel):
+    id: str
+    team_id: str
+    team_name: str
+    user_id: str
+    github_handle: str | None = None
+    include_candidates: bool = False
+    status: str
+    error: str | None = None
+    started_at: datetime
+    completed_at: datetime | None = None
+    event_count: int
+    total_duration_ms: float | None = None
+    agent_events: list[AgentTraceEvent]
+
+
+# ---------------------------------------------------------------------------
 # Reciprocal teammate recommendations
 # ---------------------------------------------------------------------------
 

@@ -90,3 +90,93 @@ honestly). Frontend: `api.teamRecommendations` + `RecommendationsClient.tsx`.
 **Resume line:** "Built and benchmarked a reciprocal teammate recommender (content-based vs
 matrix-factorization), NDCG@5 0.90, with documented cold-start handling and an honest
 accuracy-vs-coverage analysis."
+
+---
+
+## WS-3a — Calibration evidence (done 2026-06-11)
+
+**What:** `scripts/calibration_evidence.py` now emits `docs/calibration_reliability.png` plus
+`docs/calibration_evidence.md` for the Platt-scaled compatibility-confidence model.
+
+**Measured result:** on 8,000 held-out synthetic samples, naive coverage confidence had
+ECE **0.3748**; Platt-scaled confidence had ECE **0.0099**. That is a **97% reduction**.
+
+**Interview talking point:** the calibration layer is not decorative. It converts a brittle
+signal-coverage proxy into a probabilistic confidence score with a reliability diagram that sits
+close to the diagonal.
+
+---
+
+## WS-3b — CAT ablation + ICC plot (done 2026-06-11)
+
+**What:** `scripts/cat_ablation.py` now emits `docs/cat_ablation.png`, `docs/cat_ablation.md`,
+`docs/irt_icc.png`, and `docs/irt_icc.md`. It compares adaptive Fisher-information selection to
+fixed-order administration on the real 8-item 3PL bank and also renders the item characteristic
+curves.
+
+**Measured result (corrected):** over 600 simulated examinees (θ ~ N(0,1)), adaptive selection
+reaches **SE ≤ 0.90 in 2.0 items vs 3.0 for fixed order** (4% more precise at item 2). The two
+policies **converge by item ~4** — an 8-item bank has few high-information items, so once they are
+administered, order stops mattering. **Actionable finding:** EAP SE **floors at ≈0.64**, never
+reaching the deployed `_STOP_SE = 0.35`, so the live CAT always administers all 8 — the fix is a
+larger item bank, where Fisher-info savings grow. (An earlier run used target SE 0.80, which sits
+inside the converged zone and produced a meaningless 4.22 vs 4.23; corrected to 0.90.)
+
+**Interview talking point:** the ICC plot makes the 3PL story visual: low-difficulty items are
+useful near the prior mean, while the hardest item is almost uninformative at start-up. Fisher
+selection encodes that directly.
+
+---
+
+## WS-4 — Agent trace view + hire-sim UI (done 2026-06-11)
+
+**What:** the orchestrator now persists per-node trace snapshots on `agent_runs.agent_events`, with
+duration timing captured from the websocket/LangGraph step stream. New read-only admin endpoint:
+`GET /api/v1/admin/agent-runs`. The superadmin dashboard now renders those traces as a read-only
+step-by-step view.
+
+**Also shipped:** the dashboard now exposes the Monte Carlo hire simulation as a real UI card. It
+uses the current compatibility vector as the seed profile and calls `/candidates/simulate` so the
+"optimal profile / expected improvement / weak dimensions targeted" story is visible in the app.
+
+**Prod schema:** added `apps/backend/migrations/0002_agent_events.sql` (idempotent
+`ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS agent_events JSONB`) — required because
+`CREATE TABLE IF NOT EXISTS` will not add the column to an existing prod `agent_runs` table.
+
+**Validation:** the `no such table: teams` failure flagged here was a **test-harness regression**
+(not in the WS-4 code) and has been fixed — see the "Test-harness fix" section below. Full suite is
+now **92 passed**; frontend `astro check` **0 errors**.
+
+---
+
+## WS-5 — Known issues cleanup (done 2026-06-11)
+
+**F3 fixed:** `github_client.py` no longer limits collaboration scanning to owner repos. The
+orchestrator GitHub analyst now enriches every team member's GitHub profile, not just the primary
+user, while preserving the primary signal shape for synthesis.
+
+**F5 fixed:** report persistence is now backed by `team_scores` in Postgres. The websocket save
+path returns the real report id, the dashboard/report pages fetch persisted reports from the API,
+and localStorage is now only a cache fallback.
+
+**O4 fixed:** the synthesis fallback is no longer a static template. `synthesis_from_compat()` now
+derives recommendations from the weak dimensions / risk flags instead of returning generic advice.
+
+**Interview talking point:** this closes the "looks polished but is mostly local state" gap. The
+report history, trace view, and hire simulation are all now grounded in persisted backend data.
+
+---
+
+## Test-harness fix (regression surfaced by parallel work; fixed 2026-06-11)
+
+Full `pytest` had started failing (`test_teams.py`: `no such table: teams`) — an aiosqlite +
+StaticPool + per-test-event-loop fragility surfaced once async tests were added. Fixed in
+`tests/conftest.py`: switched the test DB to a **named shared-cache** in-memory SQLite
+(`cache=shared`) plus a process-lifetime keepalive `sqlite3` connection that pins the DB across loops.
+Suite is now **order-independent**. **92 passed; frontend `astro check` 0 errors.**
+
+## Pending user actions (GitSyntropy)
+1. `git add -A && git commit -m "GitSyntropy WS-1..5 upgrades + test-harness fix"`
+2. Run on Supabase (query editor): `apps/backend/migrations/0001_rename_dimensions.sql` then
+   `apps/backend/migrations/0002_agent_events.sql`. (Both idempotent; the read-shim and
+   `CREATE TABLE IF NOT EXISTS` keep things working pre-migration, but apply them to be correct.)

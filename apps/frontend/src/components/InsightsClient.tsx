@@ -270,11 +270,11 @@ function InsightsInner() {
         );
 
         if (event.status === "completed" && event.step === "synthesis" && event.data?.synthesis) {
-          const synth = event.data.synthesis as unknown as InsightResponse;
+          const synth = event.data.synthesis as unknown as InsightResponse & { report_id?: string };
           setStreamingText("");
           setData(synth);
           // Save to localStorage for report page using real team and score from compatibility data
-          const id = `${Date.now()}`;
+          const id = synth.report_id ?? `${Date.now()}`;
           setReportId(id);
           // score comes from the compatibility step's data, captured separately via lastCompatScore
           const score = lastCompatScoreRef.current ?? 28;
