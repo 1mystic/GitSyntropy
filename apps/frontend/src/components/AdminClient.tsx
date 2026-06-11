@@ -196,70 +196,6 @@ export function AdminClient() {
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>
 
-          {/* Agent trace view */}
-          <div className="glass-card rounded-none p-5 mb-8 border border-white/5">
-            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-              <div>
-                <h2 className="font-bold font-display text-lg flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">timeline</span>
-                  Agent Trace View
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Read-only LangGraph step timings persisted on each run.</p>
-              </div>
-              <p className="text-xs text-gray-500 font-mono">{agentRuns.length} recent runs</p>
-            </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {agentRuns.length === 0 ? (
-                <div className="text-sm text-gray-500 px-1 py-4">No agent runs recorded yet.</div>
-              ) : (
-                agentRuns.slice(0, 6).map((run) => (
-                  <details key={run.id} className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
-                    <summary className="cursor-pointer list-none px-4 py-3 flex items-start justify-between gap-4 hover:bg-white/5 transition-colors">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-display text-white text-sm truncate">{run.team_name}</p>
-                          <TraceBadge status={run.status} />
-                        </div>
-                        <p className="text-[11px] text-gray-500 font-mono mt-1 truncate">
-                          {run.user_id}{run.github_handle ? ` · @${run.github_handle}` : ""}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs text-gray-400 font-mono">{run.event_count} events</p>
-                        <p className="text-[11px] text-gray-500 font-mono mt-1">{formatDuration(run.total_duration_ms)}</p>
-                      </div>
-                    </summary>
-                    <div className="px-4 pb-4 pt-2 border-t border-white/10">
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        <span className="text-[10px] text-gray-500 font-mono">started {new Date(run.started_at).toLocaleString()}</span>
-                        {run.completed_at && <span className="text-[10px] text-gray-500 font-mono">completed {new Date(run.completed_at).toLocaleString()}</span>}
-                        {typeof run.include_candidates === "boolean" && (
-                          <span className="text-[10px] text-gray-500 font-mono">candidates {run.include_candidates ? "on" : "off"}</span>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        {run.agent_events.map((event, idx) => (
-                          <div key={`${run.id}-${idx}`} className="flex items-start gap-3 text-xs">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-gray-200">{event.step}</span>
-                                <TraceBadge status={event.status} />
-                                <span className="text-gray-500 font-mono">{event.progress_pct}%</span>
-                                <span className="text-gray-600 font-mono">{formatDuration(event.duration_ms)}</span>
-                              </div>
-                              <p className="text-gray-500 mt-1">{event.message ?? ""}</p>
-                            </div>
-                          </div>
-                        ))}
-                        {run.error && <p className="text-xs text-red-400 mt-2 font-mono">{run.error}</p>}
-                      </div>
-                    </div>
-                  </details>
-                ))
-              )}
-            </div>
-          </div>
           <div className="flex items-center gap-2 mb-1">
             <span className="material-symbols-outlined text-primary text-sm">admin_panel_settings</span>
             <span className="text-xs text-primary font-mono uppercase tracking-widest">Superadmin</span>
@@ -344,6 +280,70 @@ export function AdminClient() {
                   )}
                 </motion.tbody>
               </table>
+            </div>
+          </div>
+          {/* Agent trace view */}
+          <div className="glass-card rounded-none p-6 mt-8 border border-white/10">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+              <div>
+                <h2 className="font-bold font-display text-lg flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[20px]">timeline</span>
+                  Agent Trace View
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">Read-only LangGraph step timings persisted on each run.</p>
+              </div>
+              <p className="text-xs text-gray-500 font-mono">{agentRuns.length} recent runs</p>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {agentRuns.length === 0 ? (
+                <div className="text-sm text-gray-500 px-1 py-4">No agent runs recorded yet.</div>
+              ) : (
+                agentRuns.slice(0, 6).map((run) => (
+                  <details key={run.id} className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
+                    <summary className="cursor-pointer list-none px-4 py-3 flex items-start justify-between gap-4 hover:bg-white/5 transition-colors">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-display text-white text-sm truncate">{run.team_name}</p>
+                          <TraceBadge status={run.status} />
+                        </div>
+                        <p className="text-[11px] text-gray-500 font-mono mt-1 truncate">
+                          {run.user_id}{run.github_handle ? ` · @${run.github_handle}` : ""}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-gray-400 font-mono">{run.event_count} events</p>
+                        <p className="text-[11px] text-gray-500 font-mono mt-1">{formatDuration(run.total_duration_ms)}</p>
+                      </div>
+                    </summary>
+                    <div className="px-4 pb-4 pt-2 border-t border-white/10">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        <span className="text-[10px] text-gray-500 font-mono">started {new Date(run.started_at).toLocaleString()}</span>
+                        {run.completed_at && <span className="text-[10px] text-gray-500 font-mono">completed {new Date(run.completed_at).toLocaleString()}</span>}
+                        {typeof run.include_candidates === "boolean" && (
+                          <span className="text-[10px] text-gray-500 font-mono">candidates {run.include_candidates ? "on" : "off"}</span>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {run.agent_events.map((event, idx) => (
+                          <div key={`${run.id}-${idx}`} className="flex items-start gap-3 text-xs">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-gray-200">{event.step}</span>
+                                <TraceBadge status={event.status} />
+                                <span className="text-gray-500 font-mono">{event.progress_pct}%</span>
+                                <span className="text-gray-600 font-mono">{formatDuration(event.duration_ms)}</span>
+                              </div>
+                              <p className="text-gray-500 mt-1">{event.message ?? ""}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {run.error && <p className="text-xs text-red-400 mt-2 font-mono">{run.error}</p>}
+                      </div>
+                    </div>
+                  </details>
+                ))
+              )}
             </div>
           </div>
         </>
