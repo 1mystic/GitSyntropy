@@ -1,6 +1,8 @@
 # GitSyntropy — Deep Technical Interview Preparation
 
 > **How to use this file:** Start with Part 1 (top-level overview) to anchor the narrative. Use Part 2 onward when the interviewer drills into a specific subsystem. Every claim here maps to a real file in the repo — nothing is invented.
+>
+> **➡ For the 2026 upgrade work (reciprocal recommender, calibration evidence with ECE numbers, CAT ablation, agent observability, and the engineering-maturity bug-fix stories), read the companion file [`INTERVIEW_PREP_UPGRADES_2026.md`](./INTERVIEW_PREP_UPGRADES_2026.md). That is where the measured metrics live — rehearse it.**
 
 ---
 
