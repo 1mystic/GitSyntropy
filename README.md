@@ -33,8 +33,7 @@ GitSyntropy is a multi-agent system that scores team compatibility and simulates
 
 ![Insights streaming demo](demos/insights.png)
 
-### New Pages : Hire simulation, and recommendations
-
+### New Pages : hire simulation and recommendations
 
 ![Hire simulation view](demos/git-sync-shots-new-pages/hire-simulation.png)
 
