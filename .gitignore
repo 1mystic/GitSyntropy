@@ -41,6 +41,15 @@ Thumbs.db
 *.swp
 .claude/
 .claude*
+# Manuscript, reviewer correspondence, and revision working files — kept private.
+# Untracked on purpose: the repository is public, and the paper pseudonymises the
+# developers whose identities the raw research data would otherwise reveal.
+paper/
+
+# Agent/editor local config
+.claude/
+.claude*
+
 # Research data — private identity mapping (Reviewer C #3 pseudonymisation)
 scripts/data/pseudonym_map.csv
 scripts/data/pseudonym_salt.txt
