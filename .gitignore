@@ -41,3 +41,9 @@ Thumbs.db
 *.swp
 .claude/
 .claude*
+# Research data — private identity mapping (Reviewer C #3 pseudonymisation)
+scripts/data/pseudonym_map.csv
+scripts/data/pseudonym_salt.txt
+
+# Research script virtualenv
+scripts/.venv/

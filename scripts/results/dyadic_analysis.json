@@ -1,0 +1,319 @@
+{
+  "data_provenance": "real GitHub commit timestamps (n=46); 7 of 8 dimensions neutral-imputed",
+  "n_developers": 46,
+  "n_flexible": 4,
+  "n_dyads_total": 1035,
+  "n_dyads_on_spectrum": 861,
+  "chronotype_sync_operationalisation": "sim = 1 - circular_distance(peak_a, peak_b)/12; score = sim * 8",
+  "real_condition": {
+    "deterministic_relation": {
+      "identity_holds": true,
+      "max_abs_deviation": 0.0,
+      "pearson_r": -1.0,
+      "min_total": 28.008384507400407,
+      "max_total": 35.98683161803121,
+      "pct_at_or_above_excellent_28": 100.0
+    },
+    "contrast": {
+      "n_aligned": 250,
+      "n_mismatched": 611,
+      "scale_max": 36.0,
+      "mean_aligned": 34.55332419080144,
+      "mean_mismatched": 31.195219579020485,
+      "sd_aligned": 1.038248259394492,
+      "sd_mismatched": 1.9191121618285163,
+      "mean_difference": 3.3581046117809557,
+      "cohens_d_pooled": 1.962540549219343
+    },
+    "contrast_note": "Descriptive only. With seven dimensions neutral-imputed the score is an exact affine function of circular peak-hour distance, so the aligned/mismatched contrast is a property of the scoring function and admits no significance test.",
+    "jackknife": {
+      "n_replicates": 46,
+      "jackknife_mean_diff": 3.3582882006577237,
+      "jackknife_se": 0.26813011162044137,
+      "ci95_low": 2.8327531818816585,
+      "ci95_high": 3.883823219433789
+    },
+    "permutation_diagnostic": {
+      "n_permutations": 500,
+      "p_value": 1.0,
+      "null_mean": 3.3581046117809574,
+      "null_sd": 4.784474287067255e-15,
+      "null_p95_abs": 3.3581046117809663
+    },
+    "split_half_reliability": {
+      "n_developers": 46,
+      "same_developer_mean_peak_diff_h": 2.195,
+      "same_developer_median_peak_diff_h": 0.562,
+      "cross_developer_mean_peak_diff_h": 5.738,
+      "same_developer_exact_label_agreement": "29/46",
+      "same_developer_exact_label_rate": 0.63,
+      "permutation_p": 0.0004997501249375312,
+      "n_permutations": 10000
+    },
+    "continuous": {
+      "n_dyads": 861,
+      "pearson_r_peakdiff_vs_score": -1.0,
+      "mean_peak_diff_h": 5.74
+    },
+    "lodo": [
+      {
+        "excluded": "(none)",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 36.0,
+        "mean_aligned": 34.55332419080144,
+        "mean_mismatched": 31.195219579020485,
+        "sd_aligned": 1.038248259394492,
+        "sd_mismatched": 1.9191121618285163,
+        "mean_difference": 3.3581046117809557,
+        "cohens_d_pooled": 1.962540549219343,
+        "jackknife_se": 0.26813011162044137
+      },
+      {
+        "excluded": "chronotype_sync",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 28.0,
+        "mean_aligned": 28.0,
+        "mean_mismatched": 28.0,
+        "sd_aligned": 0.0,
+        "sd_mismatched": 0.0,
+        "mean_difference": 0.0,
+        "cohens_d_pooled": NaN,
+        "jackknife_se": 0.0
+      },
+      {
+        "excluded": "stress_response",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 29.0,
+        "mean_aligned": 27.55332419080144,
+        "mean_mismatched": 24.19521957902048,
+        "sd_aligned": 1.038248259394492,
+        "sd_mismatched": 1.9191121618285163,
+        "mean_difference": 3.358104611780959,
+        "cohens_d_pooled": 1.9625405492193453,
+        "jackknife_se": 0.2681301116204553
+      },
+      {
+        "excluded": "risk_tolerance",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 30.0,
+        "mean_aligned": 28.55332419080144,
+        "mean_mismatched": 25.19521957902048,
+        "sd_aligned": 1.038248259394492,
+        "sd_mismatched": 1.9191121618285163,
+        "mean_difference": 3.358104611780959,
+        "cohens_d_pooled": 1.9625405492193453,
+        "jackknife_se": 0.2681301116204572
+      },
+      {
+        "excluded": "decision_style",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 31.0,
+        "mean_aligned": 29.55332419080144,
+        "mean_mismatched": 26.19521957902048,
+        "sd_aligned": 1.038248259394492,
+        "sd_mismatched": 1.9191121618285163,
+        "mean_difference": 3.358104611780959,
+        "cohens_d_pooled": 1.9625405492193453,
+        "jackknife_se": 0.26813011162045497
+      },
+      {
+        "excluded": "work_style",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 32.0,
+        "mean_aligned": 30.55332419080144,
+        "mean_mismatched": 27.195219579020485,
+        "sd_aligned": 1.038248259394492,
+        "sd_mismatched": 1.9191121618285163,
+        "mean_difference": 3.3581046117809557,
+        "cohens_d_pooled": 1.962540549219343,
+        "jackknife_se": 0.2681301116204563
+      },
+      {
+        "excluded": "team_resilience",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 33.0,
+        "mean_aligned": 31.553324190801437,
+        "mean_mismatched": 28.195219579020485,
+        "sd_aligned": 1.038248259394492,
+        "sd_mismatched": 1.9191121618285163,
+        "mean_difference": 3.358104611780952,
+        "cohens_d_pooled": 1.962540549219341,
+        "jackknife_se": 0.2681301116204521
+      },
+      {
+        "excluded": "leadership_orientation",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 34.0,
+        "mean_aligned": 32.55332419080144,
+        "mean_mismatched": 29.195219579020485,
+        "sd_aligned": 1.038248259394492,
+        "sd_mismatched": 1.9191121618285163,
+        "mean_difference": 3.3581046117809557,
+        "cohens_d_pooled": 1.962540549219343,
+        "jackknife_se": 0.2681301116204474
+      },
+      {
+        "excluded": "innovation_drive",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 35.0,
+        "mean_aligned": 33.55332419080144,
+        "mean_mismatched": 30.195219579020485,
+        "sd_aligned": 1.038248259394492,
+        "sd_mismatched": 1.9191121618285163,
+        "mean_difference": 3.3581046117809557,
+        "cohens_d_pooled": 1.962540549219343,
+        "jackknife_se": 0.268130111620445
+      }
+    ]
+  },
+  "simulated_psychometrics_condition": {
+    "note": "synthetic psychometric answers attached to real developers; reported only to show what the weight structure alone produces",
+    "contrast": {
+      "n_aligned": 250,
+      "n_mismatched": 611,
+      "scale_max": 36.0,
+      "mean_aligned": 27.049576402895,
+      "mean_mismatched": 23.959060084556445,
+      "sd_aligned": 2.2317536292088054,
+      "sd_mismatched": 2.7827561183720997,
+      "mean_difference": 3.0905163183385547,
+      "cohens_d_pooled": 1.1729062423242886
+    },
+    "crossed_mixed_model": {
+      "coef_aligned": 3.13066031337871,
+      "se": 0.20034374389265022,
+      "z": 15.626444093289008,
+      "p_value": 4.809016098022214e-55,
+      "developer_variance": 0.415876846390313,
+      "residual_variance": 6.150292828625578
+    },
+    "lodo": [
+      {
+        "excluded": "(none)",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 36.0,
+        "mean_aligned": 27.049576402895,
+        "mean_mismatched": 23.959060084556445,
+        "sd_aligned": 2.2317536292088054,
+        "sd_mismatched": 2.7827561183720997,
+        "mean_difference": 3.0905163183385547,
+        "cohens_d_pooled": 1.1729062423242886,
+        "jackknife_se": 0.35396566226952153
+      },
+      {
+        "excluded": "chronotype_sync",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 28.0,
+        "mean_aligned": 20.496252212093562,
+        "mean_mismatched": 20.763840505535963,
+        "sd_aligned": 2.0180668467941065,
+        "sd_mismatched": 2.074483591064307,
+        "mean_difference": -0.267588293442401,
+        "cohens_d_pooled": -0.1300052021953975,
+        "jackknife_se": 0.20548665516621978
+      },
+      {
+        "excluded": "stress_response",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 29.0,
+        "mean_aligned": 21.70263829286085,
+        "mean_mismatched": 18.534094583024043,
+        "sd_aligned": 2.043998395305101,
+        "sd_mismatched": 2.6263992470755197,
+        "mean_difference": 3.1685437098368077,
+        "cohens_d_pooled": 1.281907118408084,
+        "jackknife_se": 0.3516176802895136
+      },
+      {
+        "excluded": "risk_tolerance",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 30.0,
+        "mean_aligned": 22.78653357489476,
+        "mean_mismatched": 19.51775359365871,
+        "sd_aligned": 2.0213540394966736,
+        "sd_mismatched": 2.5556678188252704,
+        "mean_difference": 3.268779981236051,
+        "cohens_d_pooled": 1.3546576639002887,
+        "jackknife_se": 0.3309998385011238
+      },
+      {
+        "excluded": "decision_style",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 31.0,
+        "mean_aligned": 23.551283373864926,
+        "mean_mismatched": 20.405893895526184,
+        "sd_aligned": 1.9490951250923394,
+        "sd_mismatched": 2.608041445636991,
+        "mean_difference": 3.1453894783387426,
+        "cohens_d_pooled": 1.2915018830585805,
+        "jackknife_se": 0.32649117255629984
+      },
+      {
+        "excluded": "work_style",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 32.0,
+        "mean_aligned": 24.074584745019123,
+        "mean_mismatched": 21.008600695034023,
+        "sd_aligned": 2.1382474155727875,
+        "sd_mismatched": 2.734075877416525,
+        "mean_difference": 3.0659840499851008,
+        "cohens_d_pooled": 1.190401667571419,
+        "jackknife_se": 0.34678429384020554
+      },
+      {
+        "excluded": "team_resilience",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 33.0,
+        "mean_aligned": 24.780948958057525,
+        "mean_mismatched": 21.717729077156452,
+        "sd_aligned": 2.241245665189713,
+        "sd_mismatched": 2.7071058021733543,
+        "mean_difference": 3.063219880901073,
+        "cohens_d_pooled": 1.186955993293185,
+        "jackknife_se": 0.33818286836488354
+      },
+      {
+        "excluded": "leadership_orientation",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 34.0,
+        "mean_aligned": 25.642148304457518,
+        "mean_mismatched": 22.531281454935115,
+        "sd_aligned": 2.2293938712334067,
+        "sd_mismatched": 2.7640442005942494,
+        "mean_difference": 3.1108668495224023,
+        "cohens_d_pooled": 1.1872105068744185,
+        "jackknife_se": 0.3541776615789577
+      },
+      {
+        "excluded": "innovation_drive",
+        "n_aligned": 250,
+        "n_mismatched": 611,
+        "scale_max": 35.0,
+        "mean_aligned": 26.312645359016734,
+        "mean_mismatched": 23.23422678702462,
+        "sd_aligned": 2.224455613611344,
+        "sd_mismatched": 2.7696969049063562,
+        "mean_difference": 3.0784185719921133,
+        "cohens_d_pooled": 1.17347453363151,
+        "jackknife_se": 0.35217610171293284
+      }
+    ]
+  }
+}

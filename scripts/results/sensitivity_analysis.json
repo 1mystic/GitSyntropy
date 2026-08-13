@@ -1,0 +1,539 @@
+{
+  "defaults": {
+    "entropy_threshold": 0.92,
+    "k_clusters": 3,
+    "min_commits": 10,
+    "weak_dim_threshold": 0.3,
+    "risk_flag_threshold": 0.45,
+    "boundary_shift_h": 0.0
+  },
+  "n_developers": 46,
+  "default_label_counts": {
+    "lark": 6,
+    "daytime": 19,
+    "evening": 9,
+    "owl": 8,
+    "flexible": 4
+  },
+  "classification_constants": [
+    {
+      "constant": "entropy_threshold",
+      "value": 0.8,
+      "is_default": false,
+      "n_lark": 1,
+      "n_daytime": 7,
+      "n_evening": 3,
+      "n_owl": 5,
+      "n_flexible": 30,
+      "label_agreement_with_default": 0.435,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.849,
+      "cohens_d": 2.371
+    },
+    {
+      "constant": "entropy_threshold",
+      "value": 0.85,
+      "is_default": false,
+      "n_lark": 2,
+      "n_daytime": 17,
+      "n_evening": 5,
+      "n_owl": 6,
+      "n_flexible": 16,
+      "label_agreement_with_default": 0.739,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.51,
+      "cohens_d": 2.146
+    },
+    {
+      "constant": "entropy_threshold",
+      "value": 0.88,
+      "is_default": false,
+      "n_lark": 5,
+      "n_daytime": 17,
+      "n_evening": 6,
+      "n_owl": 7,
+      "n_flexible": 11,
+      "label_agreement_with_default": 0.848,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.329,
+      "cohens_d": 1.931
+    },
+    {
+      "constant": "entropy_threshold",
+      "value": 0.9,
+      "is_default": false,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 7,
+      "n_flexible": 5,
+      "label_agreement_with_default": 0.978,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.325,
+      "cohens_d": 1.944
+    },
+    {
+      "constant": "entropy_threshold",
+      "value": 0.92,
+      "is_default": true,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 4,
+      "label_agreement_with_default": 1.0,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.358,
+      "cohens_d": 1.963
+    },
+    {
+      "constant": "entropy_threshold",
+      "value": 0.94,
+      "is_default": false,
+      "n_lark": 7,
+      "n_daytime": 21,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 1,
+      "label_agreement_with_default": 0.935,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.345,
+      "cohens_d": 1.97
+    },
+    {
+      "constant": "entropy_threshold",
+      "value": 0.96,
+      "is_default": false,
+      "n_lark": 7,
+      "n_daytime": 21,
+      "n_evening": 10,
+      "n_owl": 8,
+      "n_flexible": 0,
+      "label_agreement_with_default": 0.913,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.345,
+      "cohens_d": 1.969
+    },
+    {
+      "constant": "entropy_threshold",
+      "value": 0.99,
+      "is_default": false,
+      "n_lark": 7,
+      "n_daytime": 21,
+      "n_evening": 10,
+      "n_owl": 8,
+      "n_flexible": 0,
+      "label_agreement_with_default": 0.913,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.345,
+      "cohens_d": 1.969
+    },
+    {
+      "constant": "k_clusters",
+      "value": 2,
+      "is_default": false,
+      "n_lark": 5,
+      "n_daytime": 20,
+      "n_evening": 8,
+      "n_owl": 9,
+      "n_flexible": 4,
+      "label_agreement_with_default": 0.63,
+      "mean_dyad_total": 32.166,
+      "aligned_vs_mismatch_diff": 2.981,
+      "cohens_d": 1.644
+    },
+    {
+      "constant": "k_clusters",
+      "value": 3,
+      "is_default": true,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 4,
+      "label_agreement_with_default": 1.0,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.358,
+      "cohens_d": 1.963
+    },
+    {
+      "constant": "k_clusters",
+      "value": 4,
+      "is_default": false,
+      "n_lark": 6,
+      "n_daytime": 17,
+      "n_evening": 12,
+      "n_owl": 7,
+      "n_flexible": 4,
+      "label_agreement_with_default": 0.739,
+      "mean_dyad_total": 32.159,
+      "aligned_vs_mismatch_diff": 3.158,
+      "cohens_d": 1.765
+    },
+    {
+      "constant": "k_clusters",
+      "value": 5,
+      "is_default": false,
+      "n_lark": 8,
+      "n_daytime": 17,
+      "n_evening": 11,
+      "n_owl": 6,
+      "n_flexible": 4,
+      "label_agreement_with_default": 0.674,
+      "mean_dyad_total": 32.068,
+      "aligned_vs_mismatch_diff": 3.286,
+      "cohens_d": 1.851
+    },
+    {
+      "constant": "min_commits",
+      "value": 5,
+      "is_default": false,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 4,
+      "label_agreement_with_default": 1.0,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.358,
+      "cohens_d": 1.963
+    },
+    {
+      "constant": "min_commits",
+      "value": 10,
+      "is_default": true,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 4,
+      "label_agreement_with_default": 1.0,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.358,
+      "cohens_d": 1.963
+    },
+    {
+      "constant": "min_commits",
+      "value": 20,
+      "is_default": false,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 4,
+      "label_agreement_with_default": 1.0,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.358,
+      "cohens_d": 1.963
+    },
+    {
+      "constant": "min_commits",
+      "value": 30,
+      "is_default": false,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 4,
+      "label_agreement_with_default": 1.0,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.358,
+      "cohens_d": 1.963
+    },
+    {
+      "constant": "min_commits",
+      "value": 50,
+      "is_default": false,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 4,
+      "label_agreement_with_default": 1.0,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.358,
+      "cohens_d": 1.963
+    },
+    {
+      "constant": "boundary_shift_h",
+      "value": -2.0,
+      "is_default": false,
+      "n_lark": 4,
+      "n_daytime": 20,
+      "n_evening": 8,
+      "n_owl": 10,
+      "n_flexible": 4,
+      "label_agreement_with_default": 0.63,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.134,
+      "cohens_d": 1.768
+    },
+    {
+      "constant": "boundary_shift_h",
+      "value": -1.0,
+      "is_default": false,
+      "n_lark": 4,
+      "n_daytime": 20,
+      "n_evening": 9,
+      "n_owl": 9,
+      "n_flexible": 4,
+      "label_agreement_with_default": 0.739,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.112,
+      "cohens_d": 1.747
+    },
+    {
+      "constant": "boundary_shift_h",
+      "value": 0.0,
+      "is_default": true,
+      "n_lark": 6,
+      "n_daytime": 19,
+      "n_evening": 9,
+      "n_owl": 8,
+      "n_flexible": 4,
+      "label_agreement_with_default": 1.0,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.358,
+      "cohens_d": 1.963
+    },
+    {
+      "constant": "boundary_shift_h",
+      "value": 1.0,
+      "is_default": false,
+      "n_lark": 7,
+      "n_daytime": 21,
+      "n_evening": 7,
+      "n_owl": 7,
+      "n_flexible": 4,
+      "label_agreement_with_default": 0.891,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.324,
+      "cohens_d": 1.965
+    },
+    {
+      "constant": "boundary_shift_h",
+      "value": 2.0,
+      "is_default": false,
+      "n_lark": 8,
+      "n_daytime": 21,
+      "n_evening": 6,
+      "n_owl": 7,
+      "n_flexible": 4,
+      "label_agreement_with_default": 0.848,
+      "mean_dyad_total": 32.197,
+      "aligned_vs_mismatch_diff": 3.349,
+      "cohens_d": 1.995
+    }
+  ],
+  "flagging_thresholds": [
+    {
+      "constant": "weak_dim_threshold",
+      "value": 0.1,
+      "is_default": false,
+      "pct_dyads_flagged": 9.08
+    },
+    {
+      "constant": "weak_dim_threshold",
+      "value": 0.2,
+      "is_default": false,
+      "pct_dyads_flagged": 17.58
+    },
+    {
+      "constant": "weak_dim_threshold",
+      "value": 0.3,
+      "is_default": true,
+      "pct_dyads_flagged": 25.89
+    },
+    {
+      "constant": "weak_dim_threshold",
+      "value": 0.4,
+      "is_default": false,
+      "pct_dyads_flagged": 35.56
+    },
+    {
+      "constant": "weak_dim_threshold",
+      "value": 0.5,
+      "is_default": false,
+      "pct_dyads_flagged": 45.7
+    },
+    {
+      "constant": "risk_flag_threshold",
+      "value": 0.25,
+      "is_default": false,
+      "pct_dyads_flagged": 21.35
+    },
+    {
+      "constant": "risk_flag_threshold",
+      "value": 0.35,
+      "is_default": false,
+      "pct_dyads_flagged": 30.72
+    },
+    {
+      "constant": "risk_flag_threshold",
+      "value": 0.45,
+      "is_default": true,
+      "pct_dyads_flagged": 40.48
+    },
+    {
+      "constant": "risk_flag_threshold",
+      "value": 0.55,
+      "is_default": false,
+      "pct_dyads_flagged": 50.92
+    },
+    {
+      "constant": "risk_flag_threshold",
+      "value": 0.65,
+      "is_default": false,
+      "pct_dyads_flagged": 62.13
+    }
+  ],
+  "weight_structure_real_telemetry": {
+    "published_1_to_8": {
+      "spearman_vs_published": 1.0,
+      "cohens_d": 1.963
+    },
+    "uniform_4.5": {
+      "spearman_vs_published": 1.0,
+      "cohens_d": 1.963
+    },
+    "reversed_8_to_1": {
+      "spearman_vs_published": 1.0,
+      "cohens_d": 1.963
+    },
+    "random_monotone_vectors": {
+      "n": 200,
+      "spearman_min": 1.0,
+      "spearman_median": 1.0,
+      "cohens_d_min": 1.963,
+      "cohens_d_median": 1.963,
+      "cohens_d_max": 1.963
+    }
+  },
+  "weight_structure_simulated_psychometrics": {
+    "published_1_to_8": {
+      "spearman_vs_published": 1.0,
+      "cohens_d": 1.173
+    },
+    "uniform_4.5": {
+      "spearman_vs_published": 0.8791,
+      "cohens_d": 0.737
+    },
+    "reversed_8_to_1": {
+      "spearman_vs_published": 0.4935,
+      "cohens_d": 0.139
+    },
+    "random_monotone_vectors": {
+      "n": 200,
+      "spearman_min": 0.8818,
+      "spearman_median": 0.9891,
+      "cohens_d_min": 0.893,
+      "cohens_d_median": 1.149,
+      "cohens_d_max": 1.824
+    }
+  },
+  "sample_characterisation": {
+    "n_profiles": 46,
+    "account_tenure_years": {
+      "mean": 14.79,
+      "median": 15.22,
+      "min": 7.28,
+      "max": 18.43
+    },
+    "public_repos": {
+      "mean": 233.26,
+      "median": 175.0,
+      "min": 11.0,
+      "max": 1134.0
+    },
+    "followers": {
+      "mean": 6672.37,
+      "median": 1707.5,
+      "min": 21.0,
+      "max": 78520.0
+    },
+    "commits_90d": {
+      "mean": 236.65,
+      "median": 172.5,
+      "min": 50.0,
+      "max": 931.0
+    },
+    "collaboration_index": {
+      "mean": 28.61,
+      "median": 23.0,
+      "min": 0.0,
+      "max": 100.0
+    },
+    "profiles_with_company_field": 36,
+    "profiles_with_location_field": 41,
+    "observable_attribute_correlations": {
+      "account_tenure_years": {
+        "r_with_chronotype_confidence": -0.016,
+        "p": 0.9143
+      },
+      "public_repos": {
+        "r_with_chronotype_confidence": 0.062,
+        "p": 0.6802
+      },
+      "followers": {
+        "r_with_chronotype_confidence": -0.01,
+        "p": 0.9471
+      },
+      "commit_count_90d": {
+        "r_with_chronotype_confidence": 0.025,
+        "p": 0.8669
+      },
+      "collaboration_index": {
+        "r_with_chronotype_confidence": -0.162,
+        "p": 0.2827
+      }
+    },
+    "subgroups": [
+      {
+        "subgroup": "commit volume >= median (172)",
+        "n": 23,
+        "pct_lark": 13.0,
+        "pct_daytime": 30.4,
+        "pct_evening": 13.0,
+        "pct_owl": 26.1,
+        "pct_flexible": 17.4,
+        "mean_confidence": 0.449
+      },
+      {
+        "subgroup": "commit volume < median (172)",
+        "n": 23,
+        "pct_lark": 13.0,
+        "pct_daytime": 52.2,
+        "pct_evening": 26.1,
+        "pct_owl": 8.7,
+        "pct_flexible": 0.0,
+        "mean_confidence": 0.442
+      },
+      {
+        "subgroup": "account tenure >= median (15.2 y)",
+        "n": 23,
+        "pct_lark": 4.3,
+        "pct_daytime": 47.8,
+        "pct_evening": 21.7,
+        "pct_owl": 13.0,
+        "pct_flexible": 13.0,
+        "mean_confidence": 0.447
+      },
+      {
+        "subgroup": "account tenure < median (15.2 y)",
+        "n": 23,
+        "pct_lark": 21.7,
+        "pct_daytime": 34.8,
+        "pct_evening": 17.4,
+        "pct_owl": 21.7,
+        "pct_flexible": 4.3,
+        "mean_confidence": 0.444
+      }
+    ],
+    "not_observable": [
+      "formal education",
+      "years of professional (non-public) experience",
+      "employment seniority",
+      "ethical disposition or integrity measures"
+    ]
+  }
+}
