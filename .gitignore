@@ -54,5 +54,14 @@ paper/
 scripts/data/pseudonym_map.csv
 scripts/data/pseudonym_salt.txt
 
+# Research data — real-identity source and intermediate files (Reviewer C #3 pseudonymisation).
+# Only the *_public.csv release artifacts in scripts/results/ are meant to be tracked; these are
+# the raw/intermediate files that carry real GitHub handles, names, and Stack Overflow identity.
+scripts/data/hours/
+scripts/data/raw/
+scripts/data/profiles_summary.csv
+scripts/results/crossval_so_github.csv
+scripts/results/table1_chronotype_per_user.csv
+
 # Research script virtualenv
 scripts/.venv/
